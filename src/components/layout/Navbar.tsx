@@ -28,7 +28,7 @@ export default function Navbar() {
                     <Link href="/properties?type=sale" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Buy</Link>
                     <Link href="/properties?type=rent" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Rent</Link>
                     <Link href="/properties" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Properties</Link>
-                    <Link href="#agents" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Agents</Link>
+                    <Link href="/agents" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Agents</Link>
                     <Link href="#about" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>About</Link>
                 </nav>
 
