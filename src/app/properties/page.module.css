@@ -1,0 +1,337 @@
+/* ========================================
+   PROPERTIES LISTING PAGE
+   ======================================== */
+
+.page {
+    padding-top: var(--navbar-height);
+}
+
+/* Page Header */
+.pageHeader {
+    background: linear-gradient(135deg, var(--navy-900), var(--navy-800));
+    padding: var(--space-3xl) 0;
+    text-align: center;
+}
+
+.pageTitle {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    color: var(--white);
+    margin-bottom: var(--space-sm);
+}
+
+.pageSubtitle {
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Layout */
+.layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: var(--space-2xl);
+    padding-top: var(--space-2xl);
+    padding-bottom: var(--space-4xl);
+}
+
+/* Sidebar */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    position: sticky;
+    top: calc(var(--navbar-height) + var(--space-xl));
+    height: fit-content;
+    background: var(--white);
+    padding: var(--space-xl);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--gray-100);
+    box-shadow: var(--shadow-sm);
+}
+
+.filterSection {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.filterTitle {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--navy-800);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Listing Toggle */
+.listingToggle {
+    display: flex;
+    gap: 0.25rem;
+    background: var(--gray-100);
+    border-radius: var(--radius-md);
+    padding: 3px;
+}
+
+.toggleBtn {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    text-align: center;
+}
+
+.toggleActive {
+    background: var(--white);
+    color: var(--navy-800);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Type List */
+.typeList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.typeBtn {
+    padding: 0.4rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--gray-600);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-full);
+    transition: all var(--transition-fast);
+}
+
+.typeBtn:hover {
+    border-color: var(--navy-300);
+    color: var(--navy-700);
+}
+
+.typeActive {
+    background: var(--navy-800);
+    color: var(--white);
+    border-color: var(--navy-800);
+}
+
+/* Bedroom Grid */
+.bedroomGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.35rem;
+}
+
+.bedroomBtn {
+    padding: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    text-align: center;
+}
+
+.bedroomBtn:hover {
+    border-color: var(--navy-300);
+}
+
+.bedroomActive {
+    background: var(--navy-800);
+    color: var(--white);
+    border-color: var(--navy-800);
+}
+
+/* Price Inputs */
+.priceInputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.priceInput {
+    flex: 1;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.85rem;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    color: var(--gray-700);
+    transition: border-color var(--transition-fast);
+}
+
+.priceInput:focus {
+    border-color: var(--navy-400);
+}
+
+.priceSep {
+    color: var(--gray-300);
+    font-size: 0.8rem;
+}
+
+/* Reset Button */
+.resetBtn {
+    padding: 0.7rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    border: 1px dashed var(--gray-300);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    text-align: center;
+}
+
+.resetBtn:hover {
+    color: var(--error);
+    border-color: var(--error);
+}
+
+/* Main Content */
+.main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+/* Toolbar */
+.toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md) var(--space-lg);
+    background: var(--white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-100);
+}
+
+.resultCount {
+    font-size: 0.92rem;
+    color: var(--gray-500);
+}
+
+.resultCount strong {
+    color: var(--navy-800);
+}
+
+.toolbarRight {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.sortSelect {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--gray-700);
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.viewToggle {
+    display: flex;
+    gap: 0.25rem;
+    background: var(--gray-50);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+}
+
+.viewBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    color: var(--gray-400);
+    transition: all var(--transition-fast);
+}
+
+.viewActive {
+    background: var(--white);
+    color: var(--navy-800);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Property Grid */
+.propertyGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-lg);
+}
+
+.listView {
+    grid-template-columns: 1fr;
+}
+
+/* Empty State */
+.emptyState {
+    text-align: center;
+    padding: var(--space-4xl) var(--space-xl);
+    color: var(--gray-400);
+}
+
+.emptyState svg {
+    margin-bottom: var(--space-md);
+    opacity: 0.4;
+}
+
+.emptyState h3 {
+    font-size: 1.25rem;
+    color: var(--gray-600);
+    margin-bottom: var(--space-sm);
+}
+
+.emptyState p {
+    font-size: 0.9rem;
+    color: var(--gray-400);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .layout {
+        grid-template-columns: 240px 1fr;
+        gap: var(--space-lg);
+    }
+}
+
+@media (max-width: 768px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: static;
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: var(--space-md);
+    }
+
+    .filterSection {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .propertyGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .pageTitle {
+        font-size: 1.75rem;
+    }
+
+    .toolbar {
+        flex-direction: column;
+        gap: var(--space-md);
+        align-items: stretch;
+    }
+
+    .toolbarRight {
+        justify-content: space-between;
+    }
+}
