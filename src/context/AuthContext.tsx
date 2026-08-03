@@ -18,12 +18,19 @@ interface AuthContextType {
     userProfile: UserProfile | null;
     loading: boolean;
     isFirebaseReady: boolean;
-    signIn: (email: string, password: string) => Promise<void>;
-    signUp: (email: string, password: string, fullName: string, phone?: string) => Promise<void>;
+    signIn: (email: string, password: string) => Promise<UserProfile | null>;
+    signUp: (email: string, password: string, fullName: string, phone?: string, role?: "buyer" | "agent", agentData?: {
+        agency?: string;
+        specialization?: string;
+        experience?: string;
+        license?: string;
+        location?: string;
+    }) => Promise<UserProfile | null>;
     signInWithGoogle: () => Promise<void>;
     logout: () => Promise<void>;
     resetPassword: (email: string) => Promise<void>;
     refreshProfile: () => Promise<void>;
+    getDashboardPath: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -35,12 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Fetch user profile from Firestore
     const fetchProfile = async (uid: string) => {
-        if (!isConfigured) return;
+        if (!isConfigured) return null;
         try {
             const profile = await getUserProfile(uid);
             setUserProfile(profile);
+            return profile;
         } catch (error) {
             console.error("Error fetching user profile:", error);
+            return null;
         }
     };
 
@@ -63,13 +72,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => unsubscribe();
     }, []);
 
-    const signIn = async (email: string, password: string) => {
-        if (!isConfigured) throw new Error("Firebase is not configured. Please add your credentials to .env.local");
-        const result = await signInWithEmailAndPassword(auth, email, password);
-        await fetchProfile(result.user.uid);
+    const getDashboardPath = (): string => {
+        if (!userProfile) return "/";
+        switch (userProfile.role) {
+            case "admin":
+                return "/dashboard/admin";
+            case "agent":
+                return "/dashboard/agent";
+            case "buyer":
+            default:
+                return "/dashboard/buyer";
+        }
     };
 
-    const signUp = async (email: string, password: string, fullName: string, phone?: string) => {
+    const signIn = async (email: string, password: string): Promise<UserProfile | null> => {
+        if (!isConfigured) throw new Error("Firebase is not configured. Please add your credentials to .env.local");
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        const profile = await fetchProfile(result.user.uid);
+        return profile || null;
+    };
+
+    const signUp = async (
+        email: string,
+        password: string,
+        fullName: string,
+        phone?: string,
+        role?: "buyer" | "agent",
+        agentData?: {
+            agency?: string;
+            specialization?: string;
+            experience?: string;
+            license?: string;
+            location?: string;
+        }
+    ): Promise<UserProfile | null> => {
         if (!isConfigured) throw new Error("Firebase is not configured. Please add your credentials to .env.local");
         const result = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(result.user, { displayName: fullName });
@@ -78,8 +114,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             displayName: fullName,
             phone,
             avatar: result.user.photoURL || "",
+            role: role || "buyer",
+            ...(agentData || {}),
         });
-        await fetchProfile(result.user.uid);
+        const profile = await fetchProfile(result.user.uid);
+        return profile || null;
     };
 
     const signInWithGoogle = async () => {
@@ -127,6 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 logout,
                 resetPassword,
                 refreshProfile,
+                getDashboardPath,
             }}
         >
             {children}

@@ -562,6 +562,136 @@
     color: var(--gold-400);
 }
 
+/* Role Selector */
+.roleSelector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.roleBtn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 1rem 0.75rem;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    background: var(--gray-50);
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.roleBtn span {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--gray-700);
+}
+
+.roleBtn small {
+    font-size: 0.72rem;
+    color: var(--gray-400);
+    font-weight: 500;
+}
+
+.roleBtn svg {
+    color: var(--gray-400);
+    margin-bottom: 0.15rem;
+}
+
+.roleBtn:hover {
+    border-color: var(--navy-300);
+    background: var(--white);
+}
+
+.roleBtnActive {
+    border-color: var(--navy-800) !important;
+    background: rgba(10, 14, 26, 0.04) !important;
+    box-shadow: 0 0 0 3px rgba(10, 14, 26, 0.08);
+}
+
+.roleBtnActive span {
+    color: var(--navy-900);
+}
+
+.roleBtnActive svg {
+    color: var(--gold-500);
+}
+
+.roleBtnActive small {
+    color: var(--navy-600);
+}
+
+/* Agent Notice */
+.agentNotice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.85rem 1rem;
+    background: rgba(59, 130, 246, 0.06);
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    border-radius: var(--radius-md);
+    margin-bottom: 1.25rem;
+}
+
+.agentNotice svg {
+    color: var(--info);
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.agentNotice p {
+    font-size: 0.82rem;
+    color: var(--gray-600);
+    line-height: 1.5;
+}
+
+:global([data-theme="dark"]) .roleBtn {
+    border-color: var(--border-color);
+    background: var(--bg-card);
+}
+
+:global([data-theme="dark"]) .roleBtn span {
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .roleBtn small {
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .roleBtn svg {
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .roleBtn:hover {
+    border-color: var(--gold-600);
+    background: var(--bg-tertiary);
+}
+
+:global([data-theme="dark"]) .roleBtnActive {
+    border-color: var(--gold-500) !important;
+    background: rgba(212, 160, 23, 0.08) !important;
+    box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.12);
+}
+
+:global([data-theme="dark"]) .roleBtnActive span {
+    color: var(--gold-400);
+}
+
+:global([data-theme="dark"]) .roleBtnActive svg {
+    color: var(--gold-400);
+}
+
+:global([data-theme="dark"]) .agentNotice {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+:global([data-theme="dark"]) .agentNotice p {
+    color: var(--text-secondary);
+}
+
 /* ========================================
    RESPONSIVE
    ======================================== */

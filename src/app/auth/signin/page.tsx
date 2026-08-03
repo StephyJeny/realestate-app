@@ -20,6 +20,18 @@ export default function SignInPage() {
         setError("");
     };
 
+    const getRedirectPath = (role?: string): string => {
+        switch (role) {
+            case "admin":
+                return "/dashboard/admin";
+            case "agent":
+                return "/dashboard/agent";
+            case "buyer":
+            default:
+                return "/dashboard/buyer";
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!form.email || !form.password) {
@@ -29,9 +41,9 @@ export default function SignInPage() {
         setIsLoading(true);
         setError("");
         try {
-            await signIn(form.email, form.password);
+            const profile = await signIn(form.email, form.password);
             toast.success("Welcome back! 🏠");
-            router.push("/");
+            router.push(getRedirectPath(profile?.role));
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "Sign in failed";
             if (message.includes("user-not-found")) {
@@ -54,7 +66,7 @@ export default function SignInPage() {
         try {
             await signInWithGoogle();
             toast.success("Welcome back! 🏠");
-            router.push("/");
+            router.push("/dashboard/buyer");
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "Google sign in failed";
             if (message.includes("popup-closed")) {
@@ -86,7 +98,7 @@ export default function SignInPage() {
                     </Link>
                     <h1 className={styles.brandTitle}>Welcome Back</h1>
                     <p className={styles.brandSubtitle}>
-                        Sign in to access your saved properties, connect with agents, and continue your journey to finding the perfect home.
+                        Sign in to access your dashboard, manage properties, and continue your journey with EstateVue.
                     </p>
                     <div className={styles.brandStats}>
                         <div className={styles.brandStat}>
