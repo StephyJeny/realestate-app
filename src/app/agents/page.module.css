@@ -1,0 +1,530 @@
+/* ========================================
+   AGENTS PAGE
+   ======================================== */
+
+.page {
+    padding-top: var(--navbar-height);
+}
+
+/* Hero */
+.hero {
+    background: linear-gradient(135deg, var(--navy-950), var(--navy-800));
+    padding: var(--space-4xl) 0 var(--space-3xl);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero::before {
+    content: '';
+    position: absolute;
+    top: -30%;
+    left: -10%;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(212, 160, 23, 0.06), transparent 70%);
+}
+
+.hero::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    right: -10%;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.04), transparent 70%);
+}
+
+.heroLabel {
+    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold-400);
+    margin-bottom: var(--space-md);
+}
+
+.heroTitle {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    color: var(--white);
+    margin-bottom: var(--space-md);
+}
+
+.heroSubtitle {
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.6);
+    max-width: 600px;
+    margin: 0 auto var(--space-2xl);
+    line-height: 1.7;
+}
+
+.heroStats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2xl);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-xl);
+    padding: var(--space-xl) var(--space-2xl);
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.statNumber {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--gold-400);
+}
+
+.statLabel {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 500;
+    margin-top: 0.15rem;
+}
+
+.statDivider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Agent Section */
+.agentsSection {
+    padding: var(--space-4xl) 0;
+    background: var(--gray-50);
+}
+
+.agentGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-xl);
+}
+
+/* Agent Card */
+.agentCard {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--gray-100);
+    transition: all var(--transition-base);
+    animation: fadeInUp 0.6s ease-out both;
+}
+
+.agentCard:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-xl);
+    border-color: transparent;
+}
+
+/* Card Image */
+.cardImageWrapper {
+    position: relative;
+    width: 100%;
+    height: 320px;
+    overflow: hidden;
+}
+
+.cardImage {
+    object-fit: cover;
+    object-position: top center;
+    transition: transform var(--transition-slow);
+}
+
+.agentCard:hover .cardImage {
+    transform: scale(1.05);
+}
+
+.cardOverlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg,
+            transparent 40%,
+            rgba(10, 14, 26, 0.85) 100%);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: var(--space-lg);
+    opacity: 0;
+    transition: opacity var(--transition-base);
+}
+
+.agentCard:hover .cardOverlay {
+    opacity: 1;
+}
+
+.socialLinks {
+    display: flex;
+    gap: 0.6rem;
+    transform: translateY(10px);
+    transition: transform var(--transition-base);
+}
+
+.agentCard:hover .socialLinks {
+    transform: translateY(0);
+}
+
+.socialLink {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    color: var(--white);
+    transition: all var(--transition-fast);
+}
+
+.socialLink:hover {
+    background: var(--gold-500);
+    transform: scale(1.1);
+}
+
+.ratingBadge {
+    position: absolute;
+    top: var(--space-md);
+    right: var(--space-md);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: rgba(10, 14, 26, 0.7);
+    backdrop-filter: blur(10px);
+    color: var(--gold-400);
+    padding: 0.35rem 0.7rem;
+    border-radius: var(--radius-full);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+/* Card Content */
+.cardContent {
+    padding: var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.cardName {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--navy-900);
+}
+
+.cardRole {
+    font-size: 0.82rem;
+    color: var(--gold-600);
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+/* Card Meta */
+.cardMeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-top: 1px solid var(--gray-100);
+    border-bottom: 1px solid var(--gray-100);
+    margin: 0.25rem 0;
+}
+
+.metaItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+}
+
+.metaValue {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--navy-800);
+}
+
+.metaLabel {
+    font-size: 0.7rem;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.metaDivider {
+    width: 1px;
+    height: 30px;
+    background: var(--gray-100);
+}
+
+/* Specializations */
+.cardSpecializations {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.specBadge {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--navy-600);
+    background: var(--navy-50);
+    border-radius: var(--radius-full);
+}
+
+/* Areas */
+.cardAreas {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+    color: var(--gray-500);
+}
+
+.cardAreas svg {
+    color: var(--gold-500);
+    flex-shrink: 0;
+}
+
+/* View Profile */
+.viewProfileBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.7rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--navy-800);
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    margin-top: 0.25rem;
+}
+
+.viewProfileBtn:hover {
+    background: var(--navy-800);
+    color: var(--white);
+}
+
+.viewProfileBtn svg {
+    transition: transform var(--transition-fast);
+}
+
+.viewProfileBtn:hover svg {
+    transform: translateX(4px);
+}
+
+/* CTA */
+.cta {
+    background: linear-gradient(135deg, var(--navy-900), var(--navy-800));
+    padding: var(--space-4xl) 0;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.cta::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -15%;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(212, 160, 23, 0.08), transparent 70%);
+}
+
+.ctaContent {
+    max-width: 650px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.ctaLabel {
+    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold-400);
+    margin-bottom: var(--space-md);
+}
+
+.ctaTitle {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    color: var(--white);
+    margin-bottom: var(--space-md);
+}
+
+.ctaSubtitle {
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.7;
+    margin-bottom: var(--space-2xl);
+}
+
+.ctaActions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-md);
+}
+
+.ctaOutline {
+    background: transparent !important;
+    color: var(--white) !important;
+    border: 2px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.ctaOutline:hover {
+    border-color: var(--gold-400) !important;
+    color: var(--gold-400) !important;
+}
+
+/* ========================================
+   DARK MODE
+   ======================================== */
+
+:global([data-theme="dark"]) .agentsSection {
+    background: var(--bg-primary);
+}
+
+:global([data-theme="dark"]) .agentCard {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .agentCard:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    border-color: var(--gold-600);
+}
+
+:global([data-theme="dark"]) .cardName {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .cardMeta {
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .metaValue {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .metaLabel {
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .metaDivider {
+    background: var(--border-color);
+}
+
+:global([data-theme="dark"]) .specBadge {
+    background: var(--bg-tertiary);
+    color: var(--gold-400);
+}
+
+:global([data-theme="dark"]) .cardAreas {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .viewProfileBtn {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .viewProfileBtn:hover {
+    background: var(--gold-500);
+    color: #fff;
+}
+
+:global([data-theme="dark"]) .heroTitle {
+    color: #ffffff;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 1024px) {
+    .agentGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .heroTitle {
+        font-size: 2.25rem;
+    }
+
+    .heroStats {
+        gap: var(--space-lg);
+        padding: var(--space-lg);
+    }
+}
+
+@media (max-width: 768px) {
+    .agentGrid {
+        grid-template-columns: 1fr;
+        max-width: 480px;
+        margin: 0 auto;
+    }
+
+    .heroTitle {
+        font-size: 1.85rem;
+    }
+
+    .heroSubtitle {
+        font-size: 1rem;
+    }
+
+    .heroStats {
+        flex-wrap: wrap;
+        gap: var(--space-md);
+    }
+
+    .statDivider {
+        display: none;
+    }
+
+    .stat {
+        flex: 1;
+        min-width: 100px;
+    }
+
+    .cardImageWrapper {
+        height: 280px;
+    }
+
+    .ctaTitle {
+        font-size: 1.75rem;
+    }
+
+    .ctaActions {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .heroStats {
+        padding: var(--space-md);
+    }
+
+    .statNumber {
+        font-size: 1.35rem;
+    }
+}
