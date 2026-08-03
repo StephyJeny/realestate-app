@@ -398,6 +398,67 @@
 }
 
 /* ========================================
+   DARK MODE
+   ======================================== */
+
+:global([data-theme="dark"]) .agentsSection {
+    background: var(--bg-primary);
+}
+
+:global([data-theme="dark"]) .agentCard {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .agentCard:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    border-color: var(--gold-600);
+}
+
+:global([data-theme="dark"]) .cardName {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .cardMeta {
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .metaValue {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .metaLabel {
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .metaDivider {
+    background: var(--border-color);
+}
+
+:global([data-theme="dark"]) .specBadge {
+    background: var(--bg-tertiary);
+    color: var(--gold-400);
+}
+
+:global([data-theme="dark"]) .cardAreas {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .viewProfileBtn {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .viewProfileBtn:hover {
+    background: var(--gold-500);
+    color: #fff;
+}
+
+:global([data-theme="dark"]) .heroTitle {
+    color: #ffffff;
+}
+
+/* ========================================
    RESPONSIVE
    ======================================== */
 

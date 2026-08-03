@@ -1,7 +1,9 @@
+"use client";
 import Image from "next/image";
 import Link from "next/link";
 import { sampleProperties, formatPrice } from "@/lib/data";
 import PropertyCard from "@/components/property/PropertyCard";
+import ScrollReveal from "@/components/ui/ScrollReveal";
 import styles from "./page.module.css";
 
 export default function Home() {
@@ -98,37 +100,45 @@ export default function Home() {
       {/* ========== FEATURED PROPERTIES ========== */}
       <section className={`section ${styles.featured}`}>
         <div className="container">
-          <div className="section-header">
-            <span className="section-label">✦ Curated Selection</span>
-            <h2 className="section-title">Featured Properties</h2>
-            <p className="section-subtitle">
-              Hand-picked premium listings, carefully selected for their exceptional value and prime locations
-            </p>
-          </div>
+          <ScrollReveal>
+            <div className="section-header">
+              <span className="section-label">✦ Curated Selection</span>
+              <h2 className="section-title">Featured Properties</h2>
+              <p className="section-subtitle">
+                Hand-picked premium listings, carefully selected for their exceptional value and prime locations
+              </p>
+            </div>
+          </ScrollReveal>
 
           <div className={styles.propertyGrid}>
-            {featuredProperties.map((property) => (
-              <PropertyCard key={property.id} property={property} />
+            {featuredProperties.map((property, i) => (
+              <ScrollReveal key={property.id} delay={i * 100}>
+                <PropertyCard property={property} />
+              </ScrollReveal>
             ))}
           </div>
 
-          <div className={styles.viewAllWrapper}>
-            <Link href="/properties" className="btn btn-outline btn-lg">
-              View All Properties
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-            </Link>
-          </div>
+          <ScrollReveal>
+            <div className={styles.viewAllWrapper}>
+              <Link href="/properties" className="btn btn-outline btn-lg">
+                View All Properties
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+              </Link>
+            </div>
+          </ScrollReveal>
         </div>
       </section>
 
       {/* ========== CATEGORIES ========== */}
       <section className={`section ${styles.categories}`}>
         <div className="container">
-          <div className="section-header">
-            <span className="section-label">✦ Browse by Category</span>
-            <h2 className="section-title">Explore Property Types</h2>
-            <p className="section-subtitle">Find exactly what you&apos;re looking for from our diverse collection of property types</p>
-          </div>
+          <ScrollReveal>
+            <div className="section-header">
+              <span className="section-label">✦ Browse by Category</span>
+              <h2 className="section-title">Explore Property Types</h2>
+              <p className="section-subtitle">Find exactly what you&apos;re looking for from our diverse collection of property types</p>
+            </div>
+          </ScrollReveal>
 
           <div className={styles.categoryGrid}>
             {[
@@ -138,14 +148,16 @@ export default function Home() {
               { name: "Land", count: 95, icon: "🌿", color: "#8b5cf6" },
               { name: "Commercial", count: 120, icon: "🏗️", color: "#ef4444" },
               { name: "Townhouses", count: 200, icon: "🏘️", color: "#06b6d4" },
-            ].map((cat) => (
-              <Link href={`/properties?propertyType=${cat.name.toLowerCase()}`} key={cat.name} className={styles.categoryCard}>
-                <div className={styles.categoryIcon} style={{ background: `${cat.color}15` }}>
-                  <span>{cat.icon}</span>
-                </div>
-                <h3>{cat.name}</h3>
-                <p>{cat.count} Properties</p>
-              </Link>
+            ].map((cat, i) => (
+              <ScrollReveal key={cat.name} delay={i * 80} direction="up">
+                <Link href={`/properties?propertyType=${cat.name.toLowerCase()}`} className={styles.categoryCard}>
+                  <div className={styles.categoryIcon} style={{ background: `${cat.color}15` }}>
+                    <span>{cat.icon}</span>
+                  </div>
+                  <h3>{cat.name}</h3>
+                  <p>{cat.count} Properties</p>
+                </Link>
+              </ScrollReveal>
             ))}
           </div>
         </div>
@@ -154,11 +166,13 @@ export default function Home() {
       {/* ========== HOW IT WORKS ========== */}
       <section className={`section ${styles.howItWorks}`}>
         <div className="container">
-          <div className="section-header">
-            <span className="section-label">✦ Simple Process</span>
-            <h2 className="section-title">How It Works</h2>
-            <p className="section-subtitle">Finding your dream property has never been easier</p>
-          </div>
+          <ScrollReveal>
+            <div className="section-header">
+              <span className="section-label">✦ Simple Process</span>
+              <h2 className="section-title">How It Works</h2>
+              <p className="section-subtitle">Finding your dream property has never been easier</p>
+            </div>
+          </ScrollReveal>
 
           <div className={styles.stepsGrid}>
             {[
@@ -186,13 +200,15 @@ export default function Home() {
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
                 ),
               },
-            ].map((item) => (
-              <div key={item.step} className={styles.stepCard}>
-                <div className={styles.stepNumber}>{item.step}</div>
-                <div className={styles.stepIcon}>{item.icon}</div>
-                <h3>{item.title}</h3>
-                <p>{item.desc}</p>
-              </div>
+            ].map((item, i) => (
+              <ScrollReveal key={item.step} delay={i * 150} direction="up">
+                <div className={styles.stepCard}>
+                  <div className={styles.stepNumber}>{item.step}</div>
+                  <div className={styles.stepIcon}>{item.icon}</div>
+                  <h3>{item.title}</h3>
+                  <p>{item.desc}</p>
+                </div>
+              </ScrollReveal>
             ))}
           </div>
         </div>
@@ -201,32 +217,36 @@ export default function Home() {
       {/* ========== CTA ========== */}
       <section className={styles.cta}>
         <div className="container">
-          <div className={styles.ctaContent}>
-            <span className="section-label" style={{ color: "var(--gold-300)" }}>✦ For Property Owners</span>
-            <h2 className={styles.ctaTitle}>Ready to Sell or Rent Your Property?</h2>
-            <p className={styles.ctaSubtitle}>
-              Join thousands of property owners who trust EstateVue to connect them with qualified buyers and tenants.
-            </p>
-            <div className={styles.ctaActions}>
-              <Link href="#" className="btn btn-primary btn-lg">
-                List Your Property
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-              </Link>
-              <Link href="#" className={`btn ${styles.ctaOutlineBtn} btn-lg`}>
-                Learn More
-              </Link>
+          <ScrollReveal>
+            <div className={styles.ctaContent}>
+              <span className="section-label" style={{ color: "var(--gold-300)" }}>✦ For Property Owners</span>
+              <h2 className={styles.ctaTitle}>Ready to Sell or Rent Your Property?</h2>
+              <p className={styles.ctaSubtitle}>
+                Join thousands of property owners who trust EstateVue to connect them with qualified buyers and tenants.
+              </p>
+              <div className={styles.ctaActions}>
+                <Link href="#" className="btn btn-primary btn-lg">
+                  List Your Property
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                </Link>
+                <Link href="#" className={`btn ${styles.ctaOutlineBtn} btn-lg`}>
+                  Learn More
+                </Link>
+              </div>
             </div>
-          </div>
+          </ScrollReveal>
         </div>
       </section>
 
       {/* ========== TESTIMONIALS ========== */}
       <section className={`section ${styles.testimonials}`}>
         <div className="container">
-          <div className="section-header">
-            <span className="section-label">✦ What Our Clients Say</span>
-            <h2 className="section-title">Trusted by Thousands</h2>
-          </div>
+          <ScrollReveal>
+            <div className="section-header">
+              <span className="section-label">✦ What Our Clients Say</span>
+              <h2 className="section-title">Trusted by Thousands</h2>
+            </div>
+          </ScrollReveal>
 
           <div className={styles.testimonialGrid}>
             {[
@@ -249,23 +269,25 @@ export default function Home() {
                 rating: 5,
               },
             ].map((review, i) => (
-              <div key={i} className={styles.testimonialCard}>
-                <div className={styles.testimonialStars}>
-                  {"★★★★★".split("").map((star, idx) => (
-                    <span key={idx}>★</span>
-                  ))}
-                </div>
-                <p className={styles.testimonialText}>&ldquo;{review.text}&rdquo;</p>
-                <div className={styles.testimonialAuthor}>
-                  <div className={styles.testimonialAvatar}>
-                    {review.name.charAt(0)}
+              <ScrollReveal key={i} delay={i * 120} direction="up">
+                <div className={styles.testimonialCard}>
+                  <div className={styles.testimonialStars}>
+                    {"★★★★★".split("").map((star, idx) => (
+                      <span key={idx}>★</span>
+                    ))}
                   </div>
-                  <div>
-                    <strong>{review.name}</strong>
-                    <span>{review.role}</span>
+                  <p className={styles.testimonialText}>&ldquo;{review.text}&rdquo;</p>
+                  <div className={styles.testimonialAuthor}>
+                    <div className={styles.testimonialAvatar}>
+                      {review.name.charAt(0)}
+                    </div>
+                    <div>
+                      <strong>{review.name}</strong>
+                      <span>{review.role}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </ScrollReveal>
             ))}
           </div>
         </div>

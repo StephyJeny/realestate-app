@@ -4,6 +4,9 @@ import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import ChatBot from "@/components/chat/ChatBot";
+import BackToTop from "@/components/ui/BackToTop";
+import ToastProvider from "@/components/ui/ToastProvider";
+import { Providers } from "./providers";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -35,12 +38,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
+    <html lang="en" className={`${inter.variable} ${playfair.variable}`} suppressHydrationWarning>
       <body>
-        <Navbar />
-        <main>{children}</main>
-        <Footer />
-        <ChatBot />
+        <Providers>
+          <ToastProvider />
+          <Navbar />
+          <main>{children}</main>
+          <Footer />
+          <ChatBot />
+          <BackToTop />
+        </Providers>
       </body>
     </html>
   );

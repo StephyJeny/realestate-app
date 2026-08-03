@@ -77,6 +77,87 @@
   /* Layout */
   --max-width: 1320px;
   --navbar-height: 80px;
+
+  /* Semantic Colors (Light - default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fb;
+  --bg-tertiary: #f1f3f7;
+  --bg-card: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-input: #ffffff;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9da5b8;
+  --text-heading: #0f1629;
+  --border-color: #e2e6ee;
+  --border-light: #f1f3f7;
+  --card-shadow: 0 4px 12px rgba(10, 14, 26, 0.08);
+}
+
+/* ========================================
+   DARK MODE
+   ======================================== */
+
+[data-theme="dark"] {
+  --bg-primary: #0a0e1a;
+  --bg-secondary: #0f1629;
+  --bg-tertiary: #1a2340;
+  --bg-card: #141b2d;
+  --bg-elevated: #1a2340;
+  --bg-input: #1a2340;
+  --bg-overlay: rgba(0, 0, 0, 0.7);
+  --text-primary: #e2e6ee;
+  --text-secondary: #9da5b8;
+  --text-tertiary: #6b7280;
+  --text-heading: #ffffff;
+  --border-color: #243056;
+  --border-light: #1a2340;
+  --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+  --white: #0a0e1a;
+  --gray-50: #0f1629;
+  --gray-100: #1a2340;
+  --gray-200: #243056;
+  --gray-800: #e2e6ee;
+  --gray-700: #c8cdd9;
+  --gray-600: #9da5b8;
+  --gray-500: #8198d0;
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6 {
+  color: var(--text-heading);
+}
+
+[data-theme="dark"] .section-title {
+  color: var(--text-heading);
+}
+
+[data-theme="dark"] .section-subtitle {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .btn-outline {
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-outline:hover {
+  border-color: var(--gold-500);
+  color: var(--gold-400);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--navy-600);
 }
 
 /* ========================================
@@ -99,9 +180,10 @@ body {
   font-family: var(--font-primary);
   font-size: 16px;
   line-height: 1.6;
-  color: var(--gray-800);
-  background-color: var(--white);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 a {

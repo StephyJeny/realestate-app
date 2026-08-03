@@ -431,6 +431,113 @@
     gap: var(--space-xl);
 }
 
+/* ========================================
+   DARK MODE
+   ======================================== */
+
+:global([data-theme="dark"]) .page {
+    background: var(--bg-secondary);
+}
+
+:global([data-theme="dark"]) .breadcrumbs {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .breadcrumbCurrent {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .gallery {
+    background: var(--bg-card);
+}
+
+:global([data-theme="dark"]) .propHeader,
+:global([data-theme="dark"]) .quickInfo,
+:global([data-theme="dark"]) .section,
+:global([data-theme="dark"]) .agentCard,
+:global([data-theme="dark"]) .statsCard {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .propTitle {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .priceValue {
+    color: var(--gold-400);
+}
+
+:global([data-theme="dark"]) .sectionTitle {
+    color: var(--text-heading);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .description {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .quickInfoValue {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .quickInfoLabel {
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .amenityItem {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .agentName {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .agentContactItem {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .agentContactItem:hover {
+    background: var(--bg-elevated);
+    color: var(--gold-400);
+}
+
+:global([data-theme="dark"]) .formInput,
+:global([data-theme="dark"]) .formTextarea {
+    background: var(--bg-input);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .formInput:focus,
+:global([data-theme="dark"]) .formTextarea:focus {
+    border-color: var(--gold-500);
+    background: var(--bg-tertiary);
+}
+
+:global([data-theme="dark"]) .inquiryForm {
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .statItem {
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .statItem strong {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .notFound h1 {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .similar {
+    background: var(--bg-card);
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
     .contentGrid {

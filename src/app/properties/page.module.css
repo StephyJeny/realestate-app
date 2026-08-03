@@ -292,6 +292,81 @@
     color: var(--gray-400);
 }
 
+/* ========================================
+   DARK MODE
+   ======================================== */
+
+:global([data-theme="dark"]) .sidebar {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .filterTitle {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .listingToggle {
+    background: var(--bg-tertiary);
+}
+
+:global([data-theme="dark"]) .toggleActive {
+    background: var(--bg-elevated);
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .toggleBtn {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .typeBtn {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .bedroomBtn {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .priceInput {
+    background: var(--bg-input);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .toolbar {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .resultCount strong {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .sortSelect {
+    background: var(--bg-input);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .viewToggle {
+    background: var(--bg-tertiary);
+}
+
+:global([data-theme="dark"]) .viewActive {
+    background: var(--bg-elevated);
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .pageTitle {
+    color: #ffffff;
+}
+
+:global([data-theme="dark"]) .resetBtn {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
     .layout {

@@ -33,6 +33,10 @@
     margin-bottom: var(--space-md);
 }
 
+:global([data-theme="dark"]) .logo {
+    color: #ffffff;
+}
+
 .logoAccent {
     color: var(--gold-400);
 }

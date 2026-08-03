@@ -42,6 +42,10 @@
     z-index: 1001;
 }
 
+[data-theme="dark"] .logo {
+    color: #ffffff;
+}
+
 .logoAccent {
     color: var(--gold-400);
 }
@@ -68,6 +72,14 @@
     background: rgba(255, 255, 255, 0.08);
 }
 
+[data-theme="dark"] .navLink {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+[data-theme="dark"] .navLink:hover {
+    color: #ffffff;
+}
+
 .navLink::after {
     content: '';
     position: absolute;
@@ -89,8 +101,29 @@
 .actions {
     display: flex;
     align-items: center;
-    gap: var(--space-md);
+    gap: var(--space-sm);
     z-index: 1001;
+}
+
+/* Theme Toggle */
+.themeBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    color: rgba(255, 255, 255, 0.8);
+    transition: all var(--transition-fast);
+    cursor: pointer;
+    background: transparent;
+    border: none;
+}
+
+.themeBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--gold-400);
+    transform: rotate(20deg);
 }
 
 .favBtn {
@@ -109,6 +142,125 @@
     color: var(--gold-400);
 }
 
+/* User Menu */
+.userMenu {
+    position: relative;
+}
+
+.userAvatar {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--gold-500), var(--gold-600));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 2px solid transparent;
+}
+
+.userAvatar:hover {
+    border-color: var(--gold-300);
+    transform: scale(1.05);
+}
+
+.userDropdown {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    width: 240px;
+    background: var(--bg-elevated, #ffffff);
+    border: 1px solid var(--border-color, #e2e6ee);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: all 0.2s ease;
+    overflow: hidden;
+    z-index: 1002;
+}
+
+[data-theme="dark"] .userDropdown {
+    background: #1a2340;
+    border-color: #243056;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.userMenu:hover .userDropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.userInfo {
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.userInfo strong {
+    font-size: 0.92rem;
+    color: var(--text-heading, #0f1629);
+}
+
+[data-theme="dark"] .userInfo strong {
+    color: #ffffff;
+}
+
+.userInfo span {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.dropdownDivider {
+    height: 1px;
+    background: var(--border-color, #e2e6ee);
+}
+
+[data-theme="dark"] .dropdownDivider {
+    background: #243056;
+}
+
+.dropdownItem {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text-primary, #1f2937);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: left;
+}
+
+[data-theme="dark"] .dropdownItem {
+    color: #c8cdd9;
+}
+
+.dropdownItem:hover {
+    background: var(--bg-tertiary, #f1f3f7);
+    color: var(--gold-500);
+}
+
+[data-theme="dark"] .dropdownItem:hover {
+    background: #243056;
+    color: var(--gold-400);
+}
+
+.dropdownItem svg {
+    opacity: 0.6;
+}
+
 /* Hamburger */
 .hamburger {
     display: none;
@@ -125,6 +277,10 @@
     background: var(--white);
     border-radius: 2px;
     transition: all var(--transition-base);
+}
+
+[data-theme="dark"] .hamburger span {
+    background: #ffffff;
 }
 
 .hamburgerActive span:nth-child(1) {
@@ -168,6 +324,10 @@
         box-shadow: -10px 0 30px rgba(0, 0, 0, 0.3);
     }
 
+    [data-theme="dark"] .nav {
+        background: #0f1629;
+    }
+
     .navOpen {
         right: 0;
     }
@@ -185,5 +345,15 @@
 
     .actions .favBtn {
         display: none;
+    }
+
+    .userDropdown {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     }
 }

@@ -480,6 +480,86 @@
 }
 
 /* ========================================
+   DARK MODE
+   ======================================== */
+
+:global([data-theme="dark"]) .formSide {
+    background: var(--bg-primary);
+}
+
+:global([data-theme="dark"]) .formTitle {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .formSubtitle {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .label {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .input {
+    background: var(--bg-input);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .input:focus {
+    border-color: var(--gold-500);
+    background: var(--bg-tertiary);
+    box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.1);
+}
+
+:global([data-theme="dark"]) .input::placeholder {
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .socialBtn {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .socialBtn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--gold-600);
+}
+
+:global([data-theme="dark"]) .divider::before {
+    background: var(--border-color);
+}
+
+:global([data-theme="dark"]) .divider span {
+    background: var(--bg-primary);
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .checkbox {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .checkboxMark {
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .terms {
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .terms a {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .forgotLink:hover {
+    color: var(--gold-400);
+}
+
+:global([data-theme="dark"]) .formLink:hover {
+    color: var(--gold-400);
+}
+
+/* ========================================
    RESPONSIVE
    ======================================== */
 
