@@ -107,9 +107,9 @@
   --bg-elevated: #1a2340;
   --bg-input: #1a2340;
   --bg-overlay: rgba(0, 0, 0, 0.7);
-  --text-primary: #e2e6ee;
-  --text-secondary: #9da5b8;
-  --text-tertiary: #6b7280;
+  --text-primary: #ffffff;
+  --text-secondary: #ffffff;
+  --text-tertiary: #ffffff;
   --text-heading: #ffffff;
   --border-color: #243056;
   --border-light: #1a2340;
@@ -164,7 +164,9 @@
    RESET & BASE
    ======================================== */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -206,18 +208,26 @@ button {
   background: none;
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   font-family: inherit;
   font-size: inherit;
   outline: none;
   border: none;
 }
 
-ul, ol {
+ul,
+ol {
   list-style: none;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-weight: 700;
   line-height: 1.2;
   color: var(--navy-900);
@@ -285,7 +295,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-primary {
   background: linear-gradient(135deg, var(--gold-500), var(--gold-600));
-  color: var(--white);
+  color: #ffffff;
   box-shadow: var(--shadow-gold);
 }
 
@@ -296,7 +306,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-secondary {
   background: var(--navy-800);
-  color: var(--white);
+  color: #ffffff;
 }
 
 .btn-secondary:hover {
@@ -359,7 +369,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .badge-featured {
   background: linear-gradient(135deg, var(--gold-500), var(--gold-600));
-  color: var(--white);
+  color: #ffffff;
 }
 
 /* ========================================
@@ -371,6 +381,7 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -378,8 +389,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideInLeft {
@@ -387,6 +403,7 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 0;
     transform: translateX(-30px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -394,13 +411,25 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .animate-fade-in-up {

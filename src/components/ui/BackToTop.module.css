@@ -7,7 +7,7 @@
     height: 48px;
     border-radius: var(--radius-full);
     background: linear-gradient(135deg, var(--gold-500), var(--gold-600));
-    color: var(--white);
+    color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;

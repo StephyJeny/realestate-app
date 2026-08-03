@@ -61,7 +61,7 @@
 
 .favButton:hover {
     background: var(--error);
-    color: var(--white);
+    color: #ffffff;
     transform: scale(1.1);
 }
 
@@ -71,7 +71,7 @@
     left: var(--space-md);
     background: rgba(10, 14, 26, 0.85);
     backdrop-filter: blur(10px);
-    color: var(--white);
+    color: #ffffff;
     padding: 0.4rem 0.9rem;
     border-radius: var(--radius-md);
     font-size: 1.05rem;

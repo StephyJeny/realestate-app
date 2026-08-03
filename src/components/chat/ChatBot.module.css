@@ -12,7 +12,7 @@
     align-items: center;
     gap: 0.6rem;
     background: linear-gradient(135deg, var(--navy-800), var(--navy-900));
-    color: var(--white);
+    color: #ffffff;
     padding: 0.85rem 1.4rem;
     border-radius: var(--radius-full);
     box-shadow: 0 8px 32px rgba(10, 14, 26, 0.3);
@@ -61,7 +61,7 @@
     align-items: center;
     justify-content: center;
     background: var(--error);
-    color: var(--white);
+    color: #ffffff;
     font-size: 0.7rem;
     font-weight: 700;
     border-radius: var(--radius-full);
@@ -104,7 +104,7 @@
     justify-content: space-between;
     padding: 1rem 1.25rem;
     background: linear-gradient(135deg, var(--navy-900), var(--navy-800));
-    color: var(--white);
+    color: #ffffff;
     flex-shrink: 0;
 }
 
@@ -141,7 +141,7 @@
     font-size: 0.95rem;
     font-weight: 700;
     margin: 0;
-    color: var(--white);
+    color: #ffffff;
 }
 
 .headerStatus {
@@ -163,7 +163,7 @@
 
 .closeBtn:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: var(--white);
+    color: #ffffff;
 }
 
 /* Messages */
@@ -239,7 +239,7 @@
 
 .userMsg .msgBubble {
     background: linear-gradient(135deg, var(--navy-800), var(--navy-700));
-    color: var(--white);
+    color: #ffffff;
     border-radius: var(--radius-lg) 4px var(--radius-lg) var(--radius-lg);
 }
 
@@ -276,7 +276,7 @@
 
 .quickOption:hover {
     background: var(--navy-800);
-    color: var(--white);
+    color: #ffffff;
     border-color: var(--navy-800);
     transform: translateY(-1px);
 }
@@ -365,7 +365,7 @@
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, var(--gold-500), var(--gold-600));
-    color: var(--white);
+    color: #ffffff;
     border-radius: var(--radius-full);
     transition: all var(--transition-fast);
     flex-shrink: 0;
@@ -444,4 +444,14 @@
         justify-content: center;
         border-radius: var(--radius-full);
     }
+}
+/* Dark mode text colors */
+:global([data-theme="dark"]) .msgBubble {
+    color: #ffffff;
+}
+:global([data-theme="dark"]) .inputField {
+    color: #ffffff;
+}
+:global([data-theme="dark"]) .quickOption {
+    color: #ffffff;
 }

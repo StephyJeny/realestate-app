@@ -39,8 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             const profile = await getUserProfile(uid);
             setUserProfile(profile);
-        } catch {
-            console.error("Error fetching user profile");
+        } catch (error) {
+            console.error("Error fetching user profile:", error);
         }
     };
 
