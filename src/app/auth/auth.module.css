@@ -42,7 +42,7 @@
     gap: 0.6rem;
     font-size: 1.5rem;
     font-weight: 800;
-    color: var(--white);
+    color: #ffffff;
     margin-bottom: 2.5rem;
 }
 
@@ -53,7 +53,7 @@
 .brandTitle {
     font-family: var(--font-display);
     font-size: 2.5rem;
-    color: var(--white);
+    color: #ffffff;
     margin-bottom: 1rem;
     line-height: 1.2;
 }
@@ -375,7 +375,10 @@
 }
 
 .checkbox input {
-    display: none;
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
 }
 
 .checkboxMark {
@@ -400,7 +403,7 @@
     left: 5px;
     width: 5px;
     height: 9px;
-    border: solid var(--white);
+    border: solid #ffffff;
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
 }
@@ -419,7 +422,7 @@
     padding: 0.85rem;
     font-size: 0.95rem;
     font-weight: 700;
-    color: var(--white);
+    color: #ffffff;
     background: linear-gradient(135deg, var(--navy-800), var(--navy-900));
     border-radius: var(--radius-md);
     transition: all var(--transition-base);
@@ -450,7 +453,7 @@
     width: 22px;
     height: 22px;
     border: 2.5px solid rgba(255, 255, 255, 0.3);
-    border-top-color: var(--white);
+    border-top-color: #ffffff;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
 }
