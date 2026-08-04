@@ -246,12 +246,13 @@ export interface Notification {
 export async function getUserNotifications(userId: string): Promise<Notification[]> {
     const q = query(
         collection(db, "notifications"),
-        where("userId", "==", userId),
-        orderBy("createdAt", "desc"),
-        limit(20)
+        where("userId", "==", userId)
     );
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Notification));
+    const results = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Notification));
+    // Sort client-side to avoid requiring a composite index
+    results.sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
+    return results.slice(0, 20);
 }
 
 export async function markNotificationRead(notificationId: string) {
@@ -334,11 +335,13 @@ export async function deleteProperty(propertyId: string, agentId: string) {
 export async function getPropertiesByAgent(agentId: string): Promise<FirestoreProperty[]> {
     const q = query(
         collection(db, "properties"),
-        where("agentId", "==", agentId),
-        orderBy("createdAt", "desc")
+        where("agentId", "==", agentId)
     );
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FirestoreProperty));
+    const results = snap.docs.map((d) => ({ id: d.id, ...d.data() } as FirestoreProperty));
+    // Sort client-side to avoid requiring a composite index
+    results.sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
+    return results;
 }
 
 export async function getAllProperties(): Promise<FirestoreProperty[]> {

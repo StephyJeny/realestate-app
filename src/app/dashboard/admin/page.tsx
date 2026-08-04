@@ -12,9 +12,11 @@ import {
     deleteProperty,
     getAllInquiries,
     getAdminStats,
+    getUserProfile,
     UserProfile,
     FirestoreProperty,
 } from "@/lib/firestore";
+import { sendApprovalEmail, sendRejectionEmail } from "@/lib/email";
 import toast from "react-hot-toast";
 import styles from "../dashboard.module.css";
 
@@ -72,7 +74,23 @@ export default function AdminDashboard() {
         setIsProcessing(agentUid);
         try {
             const code = await approveAgent(agentUid);
-            toast.success(`${agentName} approved! Code: ${code}`);
+
+            // Send email notification
+            const agentProfile = await getUserProfile(agentUid);
+            if (agentProfile?.email) {
+                const emailSent = await sendApprovalEmail({
+                    agentName: agentProfile.displayName,
+                    agentEmail: agentProfile.email,
+                    agentCode: code,
+                });
+                if (emailSent) {
+                    toast.success(`${agentName} approved! Code: ${code} — Email sent ✉️`);
+                } else {
+                    toast.success(`${agentName} approved! Code: ${code} — (Email not configured)`);
+                }
+            } else {
+                toast.success(`${agentName} approved! Code: ${code}`);
+            }
             loadData();
         } catch (err) {
             console.error("Approval failed:", err);
@@ -87,7 +105,23 @@ export default function AdminDashboard() {
         setIsProcessing(agentUid);
         try {
             await rejectAgent(agentUid, reason || undefined);
-            toast.success(`${agentName} rejected`);
+
+            // Send email notification
+            const agentProfile = await getUserProfile(agentUid);
+            if (agentProfile?.email) {
+                const emailSent = await sendRejectionEmail({
+                    agentName: agentProfile.displayName,
+                    agentEmail: agentProfile.email,
+                    reason: reason || undefined,
+                });
+                if (emailSent) {
+                    toast.success(`${agentName} rejected — Email sent ✉️`);
+                } else {
+                    toast.success(`${agentName} rejected — (Email not configured)`);
+                }
+            } else {
+                toast.success(`${agentName} rejected`);
+            }
             loadData();
         } catch (err) {
             console.error("Rejection failed:", err);
