@@ -15,6 +15,7 @@ import {
     getUserProfile,
     UserProfile,
     FirestoreProperty,
+    Inquiry,
 } from "@/lib/firestore";
 import { sendApprovalEmail, sendRejectionEmail } from "@/lib/email";
 import toast from "react-hot-toast";
@@ -31,7 +32,7 @@ export default function AdminDashboard() {
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [pendingAgentsList, setPendingAgentsList] = useState<UserProfile[]>([]);
     const [properties, setProperties] = useState<FirestoreProperty[]>([]);
-    const [inquiries, setInquiries] = useState<Record<string, unknown>[]>([]);
+    const [inquiries, setInquiries] = useState<Inquiry[]>([]);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [userFilter, setUserFilter] = useState("all");
     const [isProcessing, setIsProcessing] = useState<string | null>(null);
@@ -589,17 +590,17 @@ export default function AdminDashboard() {
                                         <tr key={inq.id as string}>
                                             <td>
                                                 <div className={styles.tableUserCell}>
-                                                    <div className={styles.tableAvatar}>{(inq.senderName as string)?.charAt(0) || "U"}</div>
+                                                    <div className={styles.tableAvatar}>{inq.senderName?.charAt(0) || "U"}</div>
                                                     <div className={styles.tableUserInfo}>
-                                                        <span className={styles.tableUserName}>{(inq.senderName as string) || "User"}</span>
-                                                        <span className={styles.tableUserEmail}>{(inq.senderEmail as string) || ""}</span>
+                                                        <span className={styles.tableUserName}>{inq.senderName || "User"}</span>
+                                                        <span className={styles.tableUserEmail}>{inq.senderEmail || ""}</span>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td>{(inq.propertyTitle as string) || "—"}</td>
-                                            <td>{(inq.agentId as string)?.substring(0, 8) || "—"}</td>
-                                            <td><span className={`${styles.statusBadge} ${styles.statusActive}`}>{(inq.type as string) || "inquiry"}</span></td>
-                                            <td>{inq.createdAt ? new Date((inq.createdAt as { seconds: number }).seconds * 1000).toLocaleDateString() : "N/A"}</td>
+                                            <td>{inq.propertyTitle || "—"}</td>
+                                            <td>{inq.agentId?.substring(0, 8) || "—"}</td>
+                                            <td><span className={`${styles.statusBadge} ${styles.statusActive}`}>{inq.type || "inquiry"}</span></td>
+                                            <td>{inq.createdAt ? new Date(inq.createdAt.seconds * 1000).toLocaleDateString() : "N/A"}</td>
                                         </tr>
                                     ))}
                                 </tbody>

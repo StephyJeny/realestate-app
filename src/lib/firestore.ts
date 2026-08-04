@@ -360,6 +360,22 @@ export async function getPropertyById(propertyId: string): Promise<FirestoreProp
 // INQUIRY OPERATIONS
 // ========================
 
+export interface Inquiry {
+    id?: string;
+    propertyId: string;
+    propertyTitle: string;
+    senderId: string;
+    senderName: string;
+    senderEmail: string;
+    senderPhone: string;
+    agentId: string;
+    message: string;
+    type: "inquiry" | "viewing" | "offer";
+    status: string;
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
+}
+
 export async function sendInquiry(data: {
     propertyId: string;
     propertyTitle: string;
@@ -380,30 +396,30 @@ export async function sendInquiry(data: {
     });
 }
 
-export async function getInquiriesByAgent(agentId: string) {
+export async function getInquiriesByAgent(agentId: string): Promise<Inquiry[]> {
     const q = query(
         collection(db, "inquiries"),
         where("agentId", "==", agentId)
     );
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
+    const results = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Inquiry));
+    return results.sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
 }
 
-export async function getInquiriesByUser(userId: string) {
+export async function getInquiriesByUser(userId: string): Promise<Inquiry[]> {
     const q = query(
         collection(db, "inquiries"),
         where("senderId", "==", userId)
     );
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
+    const results = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Inquiry));
+    return results.sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
 }
 
-export async function getAllInquiries() {
+export async function getAllInquiries(): Promise<Inquiry[]> {
     const snap = await getDocs(collection(db, "inquiries"));
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
+    const results = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Inquiry));
+    return results.sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
 }
 
 // ========================
