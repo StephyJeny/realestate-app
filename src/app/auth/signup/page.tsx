@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import toast from "react-hot-toast";
 import styles from "../auth.module.css";
+import gateStyles from "@/components/agent/AgentGate.module.css";
 
 export default function SignUpPage() {
     const router = useRouter();
@@ -28,6 +29,7 @@ export default function SignUpPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const [agreeTerms, setAgreeTerms] = useState(false);
+    const [showPendingModal, setShowPendingModal] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -84,8 +86,8 @@ export default function SignUpPage() {
             await signUp(form.email, form.password, form.fullName, form.phone, selectedRole, agentData);
 
             if (selectedRole === "agent") {
-                toast.success("Application submitted! Awaiting admin approval. 📋");
-                router.push("/dashboard/agent");
+                toast.success("Application submitted successfully! 📋");
+                setShowPendingModal(true);
             } else {
                 toast.success("Account created successfully! 🎉");
                 router.push("/dashboard/buyer");
@@ -255,7 +257,7 @@ export default function SignUpPage() {
                     {selectedRole === "agent" && (
                         <div className={styles.agentNotice}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
-                            <p>Agent accounts require admin approval. You&apos;ll receive a verification code once approved.</p>
+                            <p>Agent accounts require admin approval. You&apos;ll receive an email with a verification code once approved.</p>
                         </div>
                     )}
 
@@ -489,6 +491,101 @@ export default function SignUpPage() {
                     </form>
                 </div>
             </div>
+
+            {/* Agent Pending Approval Modal */}
+            {showPendingModal && (
+                <div className={gateStyles.gateOverlay}>
+                    <div className={gateStyles.bgPattern}>
+                        <div className={gateStyles.bgOrb1} />
+                        <div className={gateStyles.bgOrb2} />
+                        <div className={gateStyles.bgOrb3} />
+                    </div>
+                    <div className={gateStyles.gateContainer}>
+                        <div className={gateStyles.logo}>
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                                <polyline points="9 22 9 12 15 12 15 22" />
+                            </svg>
+                            <span>Estate<span className={gateStyles.logoAccent}>Vue</span></span>
+                        </div>
+
+                        <div className={gateStyles.steps}>
+                            <div className={`${gateStyles.step} ${gateStyles.stepComplete}`}>
+                                <div className={gateStyles.stepDot}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                        <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                </div>
+                                <span>Applied</span>
+                            </div>
+                            <div className={gateStyles.stepLine} />
+                            <div className={`${gateStyles.step} ${gateStyles.stepPulse}`}>
+                                <div className={gateStyles.stepDot}>
+                                    <div className={gateStyles.miniSpinner} />
+                                </div>
+                                <span>Review</span>
+                            </div>
+                            <div className={gateStyles.stepLine} />
+                            <div className={gateStyles.step}>
+                                <div className={gateStyles.stepDot}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                    </svg>
+                                </div>
+                                <span>Verify</span>
+                            </div>
+                        </div>
+
+                        <div className={gateStyles.stateCard}>
+                            <div className={gateStyles.stateIconWrap}>
+                                <div className={`${gateStyles.stateIcon} ${gateStyles.stateIconApproved}`}>
+                                    ✅
+                                </div>
+                            </div>
+                            <h2 className={gateStyles.stateTitle}>Application Submitted!</h2>
+                            <p className={gateStyles.stateText}>
+                                Thank you, <span className={gateStyles.highlight}>{form.fullName}</span>! Your agent application has been submitted successfully and is now being reviewed by our admin team.
+                            </p>
+
+                            <div className={gateStyles.infoCards}>
+                                <div className={gateStyles.infoCard}>
+                                    <div className={gateStyles.infoCardIcon}>📧</div>
+                                    <div>
+                                        <strong>Email Notification</strong>
+                                        <p>You&apos;ll receive an email at <span className={gateStyles.highlight}>{form.email}</span> when your application is reviewed.</p>
+                                    </div>
+                                </div>
+                                <div className={gateStyles.infoCard}>
+                                    <div className={gateStyles.infoCardIcon}>🔑</div>
+                                    <div>
+                                        <strong>Verification Code</strong>
+                                        <p>If approved, you&apos;ll receive a unique code to activate your agent dashboard.</p>
+                                    </div>
+                                </div>
+                                <div className={gateStyles.infoCard}>
+                                    <div className={gateStyles.infoCardIcon}>⏱️</div>
+                                    <div>
+                                        <strong>Review Timeline</strong>
+                                        <p>Applications are typically reviewed within 24-48 hours.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className={gateStyles.stateActions}>
+                                <button className={gateStyles.activateBtn} onClick={() => router.push("/dashboard/agent")}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+                                    </svg>
+                                    Go to Dashboard
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M5 12h14M12 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
