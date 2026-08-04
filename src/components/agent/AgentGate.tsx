@@ -121,11 +121,7 @@ export default function AgentGate({ children }: AgentGateProps) {
     const isApproved = userProfile.agentStatus === "approved";
     const isRejected = userProfile.agentStatus === "rejected";
 
-    // Find approval notification with the code
-    const approvalNotif = notifications.find(
-        (n) => n.type === "agent_approved" && n.agentCode
-    );
-
+    // No longer displaying the code locally, only sent via email
     return (
         <div className={styles.gateOverlay}>
             {/* Animated Background */}
@@ -268,14 +264,7 @@ export default function AgentGate({ children }: AgentGateProps) {
                             Check your email for your unique verification code, then enter it to activate your dashboard.
                         </p>
 
-                        {approvalNotif && (
-                            <div className={styles.codeReveal}>
-                                <div className={styles.codeRevealLabel}>Your Verification Code</div>
-                                <div className={styles.codeRevealValue}>{approvalNotif.agentCode}</div>
-                                <p className={styles.codeRevealHint}>This code was also sent to your email</p>
-                            </div>
-                        )}
-
+                        {/* The code has been removed from UI display, users must check their email */}
                         <button className={styles.activateBtn} onClick={() => setShowCodeInput(true)}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
