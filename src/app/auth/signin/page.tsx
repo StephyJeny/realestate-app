@@ -45,15 +45,30 @@ export default function SignInPage() {
             toast.success("Welcome back! 🏠");
             router.push(getRedirectPath(profile?.role));
         } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : "Sign in failed";
-            if (message.includes("user-not-found")) {
-                setError("No account found with this email");
-            } else if (message.includes("wrong-password") || message.includes("invalid-credential")) {
-                setError("Incorrect password. Please try again.");
-            } else if (message.includes("too-many-requests")) {
+            console.error("Sign in error:", err);
+            // Firebase Auth errors have a 'code' property like "auth/invalid-credential"
+            const firebaseError = err as { code?: string; message?: string };
+            const code = firebaseError.code || "";
+            const message = firebaseError.message || "Sign in failed";
+
+            if (code === "auth/user-not-found" || code === "auth/user-disabled") {
+                setError("No account found with this email.");
+            } else if (
+                code === "auth/wrong-password" ||
+                code === "auth/invalid-credential" ||
+                code === "auth/invalid-login-credentials"
+            ) {
+                setError("Incorrect email or password. Please try again.");
+            } else if (code === "auth/too-many-requests") {
                 setError("Too many attempts. Please try again later.");
+            } else if (code === "auth/network-request-failed") {
+                setError("Network error. Please check your connection.");
+            } else if (code === "auth/invalid-email") {
+                setError("Invalid email address format.");
+            } else if (message.includes("not configured")) {
+                setError("Service temporarily unavailable. Please try again later.");
             } else {
-                setError("Sign in failed. Please check your credentials.");
+                setError(`Sign in failed: ${code || message}`);
             }
         } finally {
             setIsLoading(false);
