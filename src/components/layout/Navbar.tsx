@@ -9,7 +9,7 @@ export default function Navbar() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const { theme, toggleTheme } = useTheme();
-    const { user, logout, loading } = useAuth();
+    const { user, userProfile, logout, loading, getDashboardPath } = useAuth();
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -88,9 +88,14 @@ export default function Navbar() {
                                     <div className={styles.userInfo}>
                                         <strong>{user.displayName || "User"}</strong>
                                         <span>{user.email}</span>
+                                        {userProfile?.role && (
+                                            <span style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", color: "var(--gold-500)", letterSpacing: "0.5px", marginTop: "2px" }}>
+                                                {userProfile.role === "admin" ? "⭐ Admin" : userProfile.role === "agent" ? "🏠 Agent" : "👤 Buyer"}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className={styles.dropdownDivider} />
-                                    <Link href="/dashboard" className={styles.dropdownItem}>
+                                    <Link href={getDashboardPath()} className={styles.dropdownItem}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
                                         Dashboard
                                     </Link>
