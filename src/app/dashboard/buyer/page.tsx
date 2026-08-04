@@ -3,14 +3,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { getInquiriesByUser } from "@/lib/firestore";
+import { getInquiriesByUser, Inquiry } from "@/lib/firestore";
 import styles from "../dashboard.module.css";
 
 export default function BuyerDashboard() {
     const router = useRouter();
     const { user, userProfile, loading, logout } = useAuth();
     const [activeTab, setActiveTab] = useState("overview");
-    const [inquiries, setInquiries] = useState<Record<string, unknown>[]>([]);
+    const [inquiries, setInquiries] = useState<Inquiry[]>([]);
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     useEffect(() => {
@@ -222,18 +222,18 @@ export default function BuyerDashboard() {
                                 <tbody>
                                     {inquiries.map((inq) => (
                                         <tr key={inq.id as string}>
-                                            <td>{(inq.propertyTitle as string) || "Property"}</td>
+                                            <td>{inq.propertyTitle || "Property"}</td>
                                             <td>
                                                 <span className={`${styles.statusBadge} ${styles.statusActive}`}>
-                                                    {(inq.type as string) || "inquiry"}
+                                                    {inq.type || "inquiry"}
                                                 </span>
                                             </td>
                                             <td>
                                                 <span className={`${styles.statusBadge} ${styles.statusPending}`}>
-                                                    {(inq.status as string) || "new"}
+                                                    {inq.status || "new"}
                                                 </span>
                                             </td>
-                                            <td>{inq.createdAt ? new Date((inq.createdAt as { seconds: number }).seconds * 1000).toLocaleDateString() : "N/A"}</td>
+                                            <td>{inq.createdAt ? new Date(inq.createdAt.seconds * 1000).toLocaleDateString() : "N/A"}</td>
                                         </tr>
                                     ))}
                                 </tbody>
