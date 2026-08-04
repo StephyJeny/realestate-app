@@ -86,7 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const signIn = async (email: string, password: string): Promise<UserProfile | null> => {
-        if (!isConfigured) throw new Error("Firebase is not configured. Please add your credentials to .env.local");
+        if (!isConfigured) {
+            console.error("Firebase not configured. API Key present:", !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+            throw new Error("Firebase is not configured. Please add your credentials to .env.local");
+        }
         const result = await signInWithEmailAndPassword(auth, email, password);
         const profile = await fetchProfile(result.user.uid);
         return profile || null;
