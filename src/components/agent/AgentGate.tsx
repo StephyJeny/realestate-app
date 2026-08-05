@@ -242,7 +242,7 @@ export default function AgentGate({ children }: AgentGateProps) {
                 )}
 
                 {/* APPROVED STATE — Show code entry or prompt */}
-                {isApproved && !showCodeInput && (
+                {isApproved && !showCodeInput && !showSuccess && (
                     <div className={styles.stateCard}>
                         <div className={styles.stateIconWrap}>
                             <div className={`${styles.stateIcon} ${styles.stateIconApproved}`}>
@@ -278,7 +278,7 @@ export default function AgentGate({ children }: AgentGateProps) {
                 )}
 
                 {/* CODE VERIFICATION STATE */}
-                {isApproved && showCodeInput && (
+                {isApproved && showCodeInput && !showSuccess && (
                     <div className={styles.stateCard}>
                         <div className={styles.stateIconWrap}>
                             <div className={`${styles.stateIcon} ${styles.stateIconVerify}`}>

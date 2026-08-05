@@ -39,8 +39,8 @@ export interface RejectionEmailData {
  */
 export async function sendApprovalEmail(data: ApprovalEmailData): Promise<boolean> {
     if (!isEmailConfigured) {
-        console.warn("📧 EmailJS not configured. Skipping approval email.");
-        console.info(`📧 Would send approval email to ${data.agentEmail} with code: ${data.agentCode}`);
+        console.warn("EmailJS not configured. Skipping approval email.");
+        console.info(`Would send approval email to ${data.agentEmail} with code: ${data.agentCode}`);
         return false;
     }
 
@@ -49,18 +49,21 @@ export async function sendApprovalEmail(data: ApprovalEmailData): Promise<boolea
             SERVICE_ID,
             APPROVAL_TEMPLATE_ID,
             {
+                from_name: "EstateVue Support",
                 to_name: data.agentName,
                 to_email: data.agentEmail,
                 agent_code: data.agentCode,
                 app_name: "EstateVue",
-                message: `Congratulations ${data.agentName}! 🎉\n\nYour agent application on EstateVue has been approved! You can now access your agent dashboard and start listing properties.\n\nYour verification code is: ${data.agentCode}\n\nUse this code to verify your account and unlock full agent features.\n\nWelcome aboard!\n— The EstateVue Team`,
+                subject: `EstateVue - Agent Application Update for ${data.agentName}`,
+                reply_to: "noreply@estatevue.com",
+                message: `Hello ${data.agentName},\n\nThank you for applying to become an agent on EstateVue. We are pleased to inform you that your application has been reviewed and approved.\n\nYou can now access the agent dashboard and begin listing properties.\n\nYour Verification Code: ${data.agentCode}\n\nPlease log in to your dashboard and enter this code to activate your agent account.\n\nBest regards,\nThe EstateVue Team`,
             },
             PUBLIC_KEY
         );
-        console.info(`✅ Approval email sent to ${data.agentEmail}`);
+        console.info(`Approval email sent to ${data.agentEmail}`);
         return true;
     } catch (error: any) {
-        console.error("❌ Failed to send approval email. Error status:", error?.status, "Text:", error?.text);
+        console.error("Failed to send approval email. Error status:", error?.status, "Text:", error?.text);
         console.error("Full error:", error);
         return false;
     }
@@ -73,8 +76,8 @@ export async function sendRejectionEmail(data: RejectionEmailData): Promise<bool
     const templateId = REJECTION_TEMPLATE_ID || APPROVAL_TEMPLATE_ID;
 
     if (!isEmailConfigured) {
-        console.warn("📧 EmailJS not configured. Skipping rejection email.");
-        console.info(`📧 Would send rejection email to ${data.agentEmail}`);
+        console.warn("EmailJS not configured. Skipping rejection email.");
+        console.info(`Would send rejection email to ${data.agentEmail}`);
         return false;
     }
 
@@ -83,18 +86,21 @@ export async function sendRejectionEmail(data: RejectionEmailData): Promise<bool
             SERVICE_ID,
             templateId,
             {
+                from_name: "EstateVue Support",
                 to_name: data.agentName,
                 to_email: data.agentEmail,
                 agent_code: "",
                 app_name: "EstateVue",
-                message: `Dear ${data.agentName},\n\nThank you for your interest in becoming an agent on EstateVue.\n\nAfter careful review, we are unable to approve your application at this time.${data.reason ? `\n\nReason: ${data.reason}` : ""}\n\nIf you believe this was a mistake or would like to reapply, please contact our support team.\n\nBest regards,\n— The EstateVue Team`,
+                subject: `EstateVue - Agent Application Update for ${data.agentName}`,
+                reply_to: "noreply@estatevue.com",
+                message: `Hello ${data.agentName},\n\nThank you for your interest in joining EstateVue as an agent.\n\nAfter reviewing your application, we regret to inform you that we are unable to approve it at this time.${data.reason ? `\n\nReason: ${data.reason}` : ""}\n\nIf you have any questions or would like to reapply in the future, please reach out to our support team.\n\nBest regards,\nThe EstateVue Team`,
             },
             PUBLIC_KEY
         );
-        console.info(`✅ Rejection email sent to ${data.agentEmail}`);
+        console.info(`Rejection email sent to ${data.agentEmail}`);
         return true;
     } catch (error: any) {
-        console.error("❌ Failed to send rejection email. Error status:", error?.status, "Text:", error?.text);
+        console.error("Failed to send rejection email. Error status:", error?.status, "Text:", error?.text);
         console.error("Full error:", error);
         return false;
     }
