@@ -29,11 +29,89 @@ export default function SignUpPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const [agreeTerms, setAgreeTerms] = useState(false);
+    const [licenseWarning, setLicenseWarning] = useState("");
     const [showPendingModal, setShowPendingModal] = useState(false);
 
+    // License format: 2-4 uppercase letters / 1-6 digits / 4-digit year
+    // Example: EAB/1234/2025 or NCA/567/2024
+    const LICENSE_REGEX = /^[A-Z]{2,4}\/\d{1,6}\/\d{4}$/;
+
+    const validateLicense = (value: string) => {
+        if (!value) {
+            setLicenseWarning("");
+            return;
+        }
+
+        const upper = value.toUpperCase();
+
+        // Check for invalid characters (only allow letters, digits, slashes)
+        if (/[^A-Z0-9/]/.test(upper)) {
+            setLicenseWarning("Only letters, numbers, and slashes (/) are allowed.");
+            return;
+        }
+
+        // Count slashes to guide format
+        const slashCount = (upper.match(/\//g) || []).length;
+
+        // Check basic structure progressively
+        if (slashCount === 0 && upper.length > 0) {
+            if (!/^[A-Z]+$/.test(upper)) {
+                setLicenseWarning("Start with 2-4 letters (e.g. EAB), then add a slash.");
+                return;
+            }
+            if (upper.length > 4) {
+                setLicenseWarning("Prefix too long — use 2-4 letters, then a slash (/).");
+                return;
+            }
+            setLicenseWarning("");
+            return;
+        }
+
+        if (slashCount > 2) {
+            setLicenseWarning("Too many slashes — format is: PREFIX/NUMBER/YEAR");
+            return;
+        }
+
+        // If fully typed, test against the full regex
+        if (slashCount === 2) {
+            if (LICENSE_REGEX.test(upper)) {
+                setLicenseWarning(""); // Valid!
+                return;
+            }
+            // Break down the parts to give specific feedback
+            const parts = upper.split("/");
+            if (!/^[A-Z]{2,4}$/.test(parts[0])) {
+                setLicenseWarning("Prefix must be 2-4 uppercase letters (e.g. EAB or NCA).");
+                return;
+            }
+            if (!/^\d{1,6}$/.test(parts[1])) {
+                setLicenseWarning("Middle section must be 1-6 digits (e.g. 1234).");
+                return;
+            }
+            if (!/^\d{4}$/.test(parts[2])) {
+                if (parts[2].length < 4) {
+                    setLicenseWarning("Year is too short — enter a 4-digit year (e.g. 2025).");
+                } else if (parts[2].length > 4) {
+                    setLicenseWarning("Year is too long — enter a 4-digit year (e.g. 2025).");
+                } else {
+                    setLicenseWarning("Year must be 4 digits (e.g. 2025).");
+                }
+                return;
+            }
+        }
+
+        setLicenseWarning("");
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        const newValue = name === "license" ? value.toUpperCase() : value;
+        setForm({ ...form, [name]: newValue });
         setError("");
+
+        if (name === "license") {
+            validateLicense(newValue);
+        }
     };
 
     const getPasswordStrength = () => {
@@ -70,6 +148,10 @@ export default function SignUpPage() {
         }
         if (selectedRole === "agent" && !form.license) {
             setError("Please provide your license/certification number");
+            return;
+        }
+        if (selectedRole === "agent" && form.license && !LICENSE_REGEX.test(form.license)) {
+            setError("License number format is invalid. Use format: EAB/1234/2025");
             return;
         }
         setIsLoading(true);
@@ -336,18 +418,28 @@ export default function SignUpPage() {
                                     </div>
                                     <div className={styles.inputGroup}>
                                         <label htmlFor="license" className={styles.label}>License Number *</label>
+                                        {licenseWarning && (
+                                            <div className={styles.licenseWarning}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                                                {licenseWarning}
+                                            </div>
+                                        )}
                                         <div className={styles.inputWrapper}>
                                             <svg className={styles.inputIcon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2" /><line x1="7" y1="8" x2="17" y2="8" /><line x1="7" y1="12" x2="13" y2="12" /></svg>
                                             <input
                                                 id="license"
                                                 name="license"
                                                 type="text"
-                                                placeholder="License/Cert number"
+                                                placeholder="e.g. EAB/1234/2025"
                                                 value={form.license}
                                                 onChange={handleChange}
-                                                className={styles.input}
+                                                className={`${styles.input} ${licenseWarning ? styles.inputWarning : ''} ${form.license && !licenseWarning ? styles.inputValid : ''}`}
                                             />
+                                            {form.license && !licenseWarning && LICENSE_REGEX.test(form.license) && (
+                                                <svg className={styles.matchIcon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                                            )}
                                         </div>
+                                        <span className={styles.licenseHint}>Format: PREFIX/NUMBER/YEAR — e.g. <strong>EAB/1234/2025</strong> or <strong>NCA/567/2024</strong></span>
                                     </div>
                                 </div>
 
@@ -474,7 +566,7 @@ export default function SignUpPage() {
                             <label className={styles.checkbox}>
                                 <input type="checkbox" checked={agreeTerms} onChange={() => setAgreeTerms(!agreeTerms)} required />
                                 <span className={styles.checkboxMark} />
-                                I agree to the <Link href="#">Terms of Service</Link> and <Link href="#">Privacy Policy</Link>
+                                I agree to the <Link href="/legal/terms">Terms of Service</Link> and <Link href="/legal/privacy">Privacy Policy</Link>
                             </label>
                         </div>
 

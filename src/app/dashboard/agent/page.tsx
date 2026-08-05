@@ -438,10 +438,10 @@ export default function AgentDashboard() {
                                     notifications.map((notif) => (
                                         <div key={notif.id} className={`${styles.notificationItem} ${!notif.read ? styles.notificationUnread : ""}`}>
                                             <div className={styles.notificationIcon} style={{
-                                                background: notif.type === "agent_approved" ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)",
-                                                color: notif.type === "agent_approved" ? "var(--success)" : "var(--error)"
+                                                background: notif.type === "agent_approved" ? "rgba(16,185,129,0.1)" : notif.type === "new_inquiry" ? "rgba(59,130,246,0.1)" : "rgba(239,68,68,0.1)",
+                                                color: notif.type === "agent_approved" ? "var(--success)" : notif.type === "new_inquiry" ? "var(--primary)" : "var(--error)"
                                             }}>
-                                                {notif.type === "agent_approved" ? "🎉" : "📋"}
+                                                {notif.type === "agent_approved" ? "🎉" : notif.type === "new_inquiry" ? "📩" : "📋"}
                                             </div>
                                             <div>
                                                 <div className={styles.notificationTitle}>{notif.title}</div>

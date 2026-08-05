@@ -1,9 +1,13 @@
 "use client";
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { sampleProperties, formatPriceFull } from "@/lib/data";
+import { sendInquiry, getPropertyById, FirestoreProperty } from "@/lib/firestore";
+import { sendInquiryEmail } from "@/lib/email";
+import { useAuth } from "@/context/AuthContext";
 import PropertyCard from "@/components/property/PropertyCard";
+import toast from "react-hot-toast";
 import styles from "./page.module.css";
 
 interface Props {
@@ -12,9 +16,57 @@ interface Props {
 
 export default function PropertyDetailPage({ params }: Props) {
     const { id } = use(params);
-    const property = sampleProperties.find((p) => p.id === id);
+    const { user, userProfile } = useAuth();
+
+    // Try sample data first, then Firestore
+    const sampleProp = sampleProperties.find((p) => p.id === id);
+    const [firestoreProp, setFirestoreProp] = useState<FirestoreProperty | null>(null);
     const [activeImage, setActiveImage] = useState(0);
     const [showInquiry, setShowInquiry] = useState(false);
+    const [isSending, setIsSending] = useState(false);
+
+    // Inquiry form state
+    const [inquiryForm, setInquiryForm] = useState({
+        name: "",
+        email: "",
+        phone: "",
+        message: "I'm interested in this property...",
+        type: "inquiry" as "inquiry" | "viewing" | "offer",
+    });
+
+    // Load Firestore property if not found in samples
+    useEffect(() => {
+        if (!sampleProp) {
+            getPropertyById(id).then(setFirestoreProp).catch(console.error);
+        }
+    }, [id, sampleProp]);
+
+    // Auto-fill form with user info when user logs in or form opens
+    useEffect(() => {
+        if (user && userProfile) {
+            setInquiryForm((prev) => ({
+                ...prev,
+                name: prev.name || userProfile.displayName || "",
+                email: prev.email || userProfile.email || user.email || "",
+                phone: prev.phone || userProfile.phone || "",
+            }));
+        }
+    }, [user, userProfile]);
+
+    // Determine which property data to use
+    const property = sampleProp || (firestoreProp ? {
+        ...firestoreProp,
+        id: firestoreProp.id || id,
+        slug: "",
+        agentImage: "/images/agent-avatar.png",
+        agentName: firestoreProp.agentName,
+        agentEmail: firestoreProp.agentEmail,
+        agentPhone: firestoreProp.agentPhone,
+        location: { city: firestoreProp.city, neighborhood: firestoreProp.neighborhood },
+        address: firestoreProp.address,
+        images: firestoreProp.images?.length ? firestoreProp.images : ["/images/property-1.png"],
+        createdAt: firestoreProp.createdAt ? new Date(firestoreProp.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
+    } : null);
 
     if (!property) {
         return (
@@ -35,6 +87,61 @@ export default function PropertyDetailPage({ params }: Props) {
         "CCTV": "📹", "Borehole": "💧", "Rooftop Terrace": "🌅", "Private Elevator": "🔑",
         "Wine Cellar": "🍷", "BBQ Area": "🔥", "Tennis Court": "🎾",
         "Solar Panels": "☀️", "Rainwater Harvesting": "🌧️", "EV Charging": "⚡",
+    };
+
+    const handleInquirySubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!inquiryForm.name || !inquiryForm.email || !inquiryForm.message) {
+            toast.error("Please fill in all required fields");
+            return;
+        }
+
+        setIsSending(true);
+
+        try {
+            // Determine the agent ID — for Firestore properties use agentId, for samples use a placeholder
+            const agentId = firestoreProp?.agentId || "sample-agent";
+
+            // 1. Save inquiry to Firestore + auto-creates a dashboard notification
+            await sendInquiry({
+                propertyId: property.id,
+                propertyTitle: property.title,
+                senderId: user?.uid || "guest",
+                senderName: inquiryForm.name,
+                senderEmail: inquiryForm.email,
+                senderPhone: inquiryForm.phone,
+                agentId,
+                agentName: property.agentName,
+                message: inquiryForm.message,
+                type: inquiryForm.type,
+            });
+
+            // 2. Send email notification to the agent
+            await sendInquiryEmail({
+                agentName: property.agentName,
+                agentEmail: property.agentEmail,
+                senderName: inquiryForm.name,
+                senderEmail: inquiryForm.email,
+                senderPhone: inquiryForm.phone,
+                propertyTitle: property.title,
+                message: inquiryForm.message,
+                inquiryType: inquiryForm.type,
+            });
+
+            toast.success("Inquiry sent successfully! The agent will get back to you soon. ✉️");
+            setShowInquiry(false);
+            setInquiryForm((prev) => ({
+                ...prev,
+                message: "I'm interested in this property...",
+                type: "inquiry",
+            }));
+        } catch (err) {
+            console.error("Failed to send inquiry:", err);
+            toast.error("Failed to send inquiry. Please try again.");
+        } finally {
+            setIsSending(false);
+        }
     };
 
     return (
@@ -176,17 +283,59 @@ export default function PropertyDetailPage({ params }: Props) {
                                 </div>
 
                                 <button className="btn btn-primary btn-lg" style={{ width: "100%" }} onClick={() => setShowInquiry(!showInquiry)}>
-                                    Send Inquiry
+                                    {showInquiry ? "Close Inquiry Form" : "Send Inquiry"}
                                 </button>
 
                                 {showInquiry && (
-                                    <form className={styles.inquiryForm} onSubmit={(e) => e.preventDefault()}>
-                                        <input type="text" placeholder="Your Name" className={styles.formInput} required />
-                                        <input type="email" placeholder="Your Email" className={styles.formInput} required />
-                                        <input type="tel" placeholder="Your Phone" className={styles.formInput} />
-                                        <textarea placeholder="I'm interested in this property..." className={styles.formTextarea} rows={4} required />
-                                        <button type="submit" className="btn btn-secondary" style={{ width: "100%" }}>
-                                            Send Message
+                                    <form className={styles.inquiryForm} onSubmit={handleInquirySubmit}>
+                                        <input
+                                            type="text"
+                                            placeholder="Your Name *"
+                                            className={styles.formInput}
+                                            value={inquiryForm.name}
+                                            onChange={(e) => setInquiryForm({ ...inquiryForm, name: e.target.value })}
+                                            required
+                                        />
+                                        <input
+                                            type="email"
+                                            placeholder="Your Email *"
+                                            className={styles.formInput}
+                                            value={inquiryForm.email}
+                                            onChange={(e) => setInquiryForm({ ...inquiryForm, email: e.target.value })}
+                                            required
+                                        />
+                                        <input
+                                            type="tel"
+                                            placeholder="Your Phone"
+                                            className={styles.formInput}
+                                            value={inquiryForm.phone}
+                                            onChange={(e) => setInquiryForm({ ...inquiryForm, phone: e.target.value })}
+                                        />
+                                        <select
+                                            className={styles.formInput}
+                                            value={inquiryForm.type}
+                                            onChange={(e) => setInquiryForm({ ...inquiryForm, type: e.target.value as "inquiry" | "viewing" | "offer" })}
+                                            style={{ cursor: "pointer" }}
+                                        >
+                                            <option value="inquiry">General Inquiry</option>
+                                            <option value="viewing">Request a Viewing</option>
+                                            <option value="offer">Make an Offer</option>
+                                        </select>
+                                        <textarea
+                                            placeholder="I'm interested in this property..."
+                                            className={styles.formTextarea}
+                                            rows={4}
+                                            value={inquiryForm.message}
+                                            onChange={(e) => setInquiryForm({ ...inquiryForm, message: e.target.value })}
+                                            required
+                                        />
+                                        <button
+                                            type="submit"
+                                            className="btn btn-secondary"
+                                            style={{ width: "100%" }}
+                                            disabled={isSending}
+                                        >
+                                            {isSending ? "Sending..." : "Send Message"}
                                         </button>
                                     </form>
                                 )}

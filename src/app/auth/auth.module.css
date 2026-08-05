@@ -124,9 +124,10 @@
 .formSide {
     flex: 1;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     padding: 2rem;
+    padding-top: calc(var(--navbar-height, 70px) + 2rem);
     background: var(--white);
     overflow-y: auto;
 }
@@ -623,6 +624,71 @@
     color: var(--navy-600);
 }
 
+/* License Validation */
+.licenseWarning {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.7rem;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: var(--radius-md);
+    color: #d97706;
+    font-size: 0.76rem;
+    font-weight: 500;
+    line-height: 1.4;
+    animation: slideDown 0.2s ease-out;
+}
+
+.licenseWarning svg {
+    flex-shrink: 0;
+    color: #d97706;
+}
+
+.licenseHint {
+    font-size: 0.72rem;
+    color: var(--gray-400);
+    line-height: 1.4;
+    margin-top: 0.15rem;
+}
+
+.licenseHint strong {
+    color: var(--gray-500);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.inputWarning {
+    border-color: #f59e0b !important;
+    background: rgba(245, 158, 11, 0.04) !important;
+}
+
+.inputWarning:focus {
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1) !important;
+    border-color: #f59e0b !important;
+}
+
+.inputValid {
+    border-color: var(--success) !important;
+}
+
+.inputValid:focus {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+    border-color: var(--success) !important;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Agent Notice */
 .agentNotice {
     display: flex;
@@ -692,6 +758,24 @@
     color: var(--text-secondary);
 }
 
+:global([data-theme="dark"]) .licenseWarning {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: #fbbf24;
+}
+
+:global([data-theme="dark"]) .licenseWarning svg {
+    color: #fbbf24;
+}
+
+:global([data-theme="dark"]) .licenseHint {
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .licenseHint strong {
+    color: var(--text-secondary);
+}
+
 /* ========================================
    RESPONSIVE
    ======================================== */
@@ -743,6 +827,7 @@
 
     .formSide {
         padding: 1.5rem;
+        padding-top: calc(var(--navbar-height, 70px) + 1.5rem);
     }
 
     .inputRow {

@@ -384,16 +384,32 @@ export async function sendInquiry(data: {
     senderEmail: string;
     senderPhone: string;
     agentId: string;
+    agentName?: string;
     message: string;
     type: "inquiry" | "viewing" | "offer";
 }) {
     const ref = collection(db, "inquiries");
-    return await addDoc(ref, {
+    const inquiryRef = await addDoc(ref, {
         ...data,
         status: "new",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     });
+
+    // Create a dashboard notification for the agent
+    const typeLabel = data.type === "viewing" ? "Viewing Request" : data.type === "offer" ? "Offer" : "Inquiry";
+    await addDoc(collection(db, "notifications"), {
+        userId: data.agentId,
+        type: "new_inquiry",
+        title: `New ${typeLabel} 📩`,
+        message: `${data.senderName} sent a ${typeLabel.toLowerCase()} for "${data.propertyTitle}": "${data.message.length > 100 ? data.message.slice(0, 100) + "..." : data.message}"`,
+        propertyId: data.propertyId,
+        inquiryId: inquiryRef.id,
+        read: false,
+        createdAt: serverTimestamp(),
+    });
+
+    return inquiryRef;
 }
 
 export async function getInquiriesByAgent(agentId: string): Promise<Inquiry[]> {
