@@ -420,6 +420,165 @@
     color: var(--navy-800);
 }
 
+/* Share Button */
+.shareWrap {
+    position: absolute;
+    top: var(--space-lg);
+    right: var(--space-lg);
+    z-index: 10;
+}
+
+.shareBtn {
+    width: 42px;
+    height: 42px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.95);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all var(--transition-fast);
+    color: var(--navy-700);
+}
+
+.shareBtn:hover {
+    background: var(--white);
+    transform: scale(1.1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.shareMenu {
+    position: absolute;
+    top: 52px;
+    right: 0;
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    padding: 0.5rem;
+    min-width: 180px;
+    z-index: 20;
+    animation: fadeInUp 0.2s ease-out;
+}
+
+.shareMenuItem {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.65rem 1rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: var(--gray-700);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.shareMenuItem:hover {
+    background: var(--gray-50);
+    color: var(--navy-800);
+}
+
+/* Mortgage Calculator */
+.mortgageCalc {
+    margin-top: var(--space-lg);
+    padding-top: var(--space-lg);
+    border-top: 1px solid var(--gray-100);
+    animation: fadeInUp 0.3s ease-out;
+}
+
+.mortgageGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.mortgageField {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.mortgageField label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mortgageField input {
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    font-size: 0.92rem;
+    color: var(--navy-800);
+    background: var(--gray-50);
+    transition: border-color var(--transition-fast);
+}
+
+.mortgageField input:focus {
+    border-color: var(--gold-500);
+    outline: none;
+    background: var(--white);
+}
+
+.mortgageResult {
+    background: linear-gradient(135deg, var(--navy-50), var(--gold-50, #fff9e6));
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.mortgageResultItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.88rem;
+}
+
+.mortgageResultItem span {
+    color: var(--gray-600);
+}
+
+.mortgageResultItem strong {
+    color: var(--navy-800);
+    font-weight: 600;
+}
+
+.mortgageResultMain {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    font-size: 0.95rem;
+}
+
+.mortgageResultMain span {
+    color: var(--navy-700);
+    font-weight: 600;
+}
+
+.mortgageResultMain strong {
+    font-size: 1.15rem;
+    color: var(--gold-600, #b8860b);
+    font-weight: 800;
+}
+
+.mortgageDisclaimer {
+    font-size: 0.72rem;
+    color: var(--gray-400);
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
 /* Similar Properties */
 .similar {
     background: var(--white);
@@ -538,7 +697,63 @@
     background: var(--bg-card);
 }
 
-/* Responsive */
+:global([data-theme="dark"]) .shareBtn {
+    background: rgba(30, 30, 40, 0.9);
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .shareMenu {
+    background: var(--bg-card);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+:global([data-theme="dark"]) .shareMenuItem {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .shareMenuItem:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .mortgageCalc {
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .mortgageField label {
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .mortgageField input {
+    background: var(--bg-input);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .mortgageField input:focus {
+    background: var(--bg-tertiary);
+}
+
+:global([data-theme="dark"]) .mortgageResult {
+    background: linear-gradient(135deg, rgba(30, 40, 60, 0.5), rgba(180, 140, 50, 0.08));
+}
+
+:global([data-theme="dark"]) .mortgageResultItem span {
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .mortgageResultItem strong {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .mortgageResultMain span {
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .mortgageResultMain strong {
+    color: var(--gold-400);
+}
+
 @media (max-width: 1024px) {
     .contentGrid {
         grid-template-columns: 1fr 320px;

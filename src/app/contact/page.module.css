@@ -1,0 +1,258 @@
+/* ========================================
+   CONTACT PAGE
+   ======================================== */
+
+.page {
+    padding-top: var(--navbar-height);
+    min-height: 100vh;
+    background: var(--gray-50);
+}
+
+/* Hero */
+.hero {
+    background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-700) 100%);
+    padding: 4rem 0 3rem;
+    text-align: center;
+}
+
+.heroTitle {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    color: var(--white);
+    margin-bottom: 0.75rem;
+}
+
+.heroSubtitle {
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.7);
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+/* Content */
+.content {
+    padding: var(--space-2xl) 0 4rem;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: var(--space-2xl);
+    align-items: start;
+}
+
+/* Info Column */
+.infoCol {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.infoCard {
+    background: var(--white);
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    transition: all var(--transition-normal);
+}
+
+.infoCard:hover {
+    border-color: var(--gold-300);
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.08);
+    transform: translateY(-2px);
+}
+
+.infoIcon {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.infoCard h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--navy-800);
+    margin-bottom: 0.35rem;
+}
+
+.infoCard p {
+    font-size: 0.88rem;
+    color: var(--gray-500);
+    line-height: 1.5;
+}
+
+/* Form Column */
+.formCard {
+    background: var(--white);
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius-xl);
+    padding: 2.5rem;
+}
+
+.formTitle {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--navy-800);
+    margin-bottom: 0.35rem;
+}
+
+.formSubtitle {
+    font-size: 0.92rem;
+    color: var(--gray-500);
+    margin-bottom: 1.75rem;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.formRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.formGroup label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--gray-600);
+}
+
+.formGroup input,
+.formGroup select,
+.formGroup textarea {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    font-size: 0.92rem;
+    color: var(--gray-800);
+    background: var(--gray-50);
+    transition: all var(--transition-fast);
+}
+
+.formGroup input:focus,
+.formGroup select:focus,
+.formGroup textarea:focus {
+    border-color: var(--gold-500);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+    outline: none;
+}
+
+.formGroup textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.formGroup select {
+    cursor: pointer;
+}
+
+.submitBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.85rem 2rem;
+    background: linear-gradient(135deg, var(--navy-800), var(--navy-700));
+    color: var(--white);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.submitBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--navy-900), var(--navy-800));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.submitBtn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* ========================================
+   DARK MODE
+   ======================================== */
+
+:global([data-theme="dark"]) .page {
+    background: var(--bg-secondary);
+}
+
+:global([data-theme="dark"]) .hero {
+    background: linear-gradient(135deg, #0a1628 0%, #142136 100%);
+}
+
+:global([data-theme="dark"]) .infoCard {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .infoCard h3 {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .infoCard p {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .formCard {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .formTitle {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .formSubtitle {
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .formGroup label {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .formGroup input,
+:global([data-theme="dark"]) .formGroup select,
+:global([data-theme="dark"]) .formGroup textarea {
+    background: var(--bg-input);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .formGroup input:focus,
+:global([data-theme="dark"]) .formGroup select:focus,
+:global([data-theme="dark"]) .formGroup textarea:focus {
+    background: var(--bg-tertiary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+
+    .formRow {
+        grid-template-columns: 1fr;
+    }
+
+    .heroTitle {
+        font-size: 1.75rem;
+    }
+
+    .formCard {
+        padding: 1.5rem;
+    }
+}

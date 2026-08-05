@@ -372,6 +372,8 @@ export interface Inquiry {
     message: string;
     type: "inquiry" | "viewing" | "offer";
     status: string;
+    agentReply?: string;
+    repliedAt?: Timestamp;
     createdAt?: Timestamp;
     updatedAt?: Timestamp;
 }
@@ -438,6 +440,39 @@ export async function getAllInquiries(): Promise<Inquiry[]> {
     return results.sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
 }
 
+export async function updateInquiryStatus(inquiryId: string, status: string) {
+    const ref = doc(db, "inquiries", inquiryId);
+    await updateDoc(ref, { status, updatedAt: serverTimestamp() });
+}
+
+export async function replyToInquiry(inquiryId: string, agentId: string, agentName: string, reply: string) {
+    // Update the inquiry with the agent's reply
+    const ref = doc(db, "inquiries", inquiryId);
+    await updateDoc(ref, {
+        agentReply: reply,
+        status: "replied",
+        repliedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+
+    // Get the inquiry to know who to notify
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+        const inquiry = snap.data();
+        // Create a notification for the buyer
+        await addDoc(collection(db, "notifications"), {
+            userId: inquiry.senderId,
+            type: "inquiry_reply",
+            title: `Reply from ${agentName} 💬`,
+            message: `${agentName} replied to your inquiry about "${inquiry.propertyTitle}": "${reply.length > 120 ? reply.slice(0, 120) + "..." : reply}"`,
+            propertyId: inquiry.propertyId,
+            inquiryId: inquiryId,
+            read: false,
+            createdAt: serverTimestamp(),
+        });
+    }
+}
+
 // ========================
 // ADMIN STATS
 // ========================
@@ -462,4 +497,25 @@ export async function getAdminStats() {
         totalProperties: propertiesSnap.docs.length,
         totalInquiries: inquiriesSnap.docs.length,
     };
+}
+
+// ========================
+// NEWSLETTER SUBSCRIPTIONS
+// ========================
+
+export async function subscribeNewsletter(email: string): Promise<void> {
+    // Use email as doc ID to prevent duplicates
+    const docId = email.toLowerCase().trim();
+    const ref = doc(db, "newsletter_subscribers", docId);
+    const existing = await getDoc(ref);
+
+    if (existing.exists()) {
+        throw new Error("already_subscribed");
+    }
+
+    await setDoc(ref, {
+        email: docId,
+        subscribedAt: serverTimestamp(),
+        active: true,
+    });
 }
