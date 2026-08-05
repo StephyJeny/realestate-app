@@ -54,7 +54,7 @@ export default function AgentDashboard() {
         title: "", description: "", type: "apartment" as FirestoreProperty["type"],
         listingType: "sale" as FirestoreProperty["listingType"], price: 0, currency: "KES",
         bedrooms: 0, bathrooms: 0, area: 0, yearBuilt: 2024, address: "",
-        city: "", neighborhood: "", amenities: "",
+        city: "", neighborhood: "", amenities: "", latitude: 0, longitude: 0,
     });
 
     const [editProfile, setEditProfile] = useState({
@@ -163,6 +163,7 @@ export default function AgentDashboard() {
                 title: "", description: "", type: "apartment", listingType: "sale",
                 price: 0, currency: "KES", bedrooms: 0, bathrooms: 0, area: 0,
                 yearBuilt: 2024, address: "", city: "", neighborhood: "", amenities: "",
+                latitude: 0, longitude: 0,
             });
             setImageFiles([]);
             setImagePreviews([]);
@@ -823,6 +824,50 @@ export default function AgentDashboard() {
                                             onChange={(e) => setNewProperty({ ...newProperty, address: e.target.value })} placeholder="Full property address" />
                                     </div>
                                     <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                        <label className={styles.formLabel}>
+                                            📍 GPS Coordinates <span style={{ fontSize: "0.72rem", fontWeight: 400, color: "var(--text-tertiary)" }}>(for accurate map pin)</span>
+                                        </label>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                                            <div>
+                                                <label style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", display: "block", marginBottom: "0.2rem" }}>Latitude</label>
+                                                <input type="number" step="any" className={styles.formInput} value={newProperty.latitude || ""}
+                                                    onChange={(e) => setNewProperty({ ...newProperty, latitude: parseFloat(e.target.value) || 0 })}
+                                                    placeholder="e.g., -1.2921" />
+                                            </div>
+                                            <div>
+                                                <label style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", display: "block", marginBottom: "0.2rem" }}>Longitude</label>
+                                                <input type="number" step="any" className={styles.formInput} value={newProperty.longitude || ""}
+                                                    onChange={(e) => setNewProperty({ ...newProperty, longitude: parseFloat(e.target.value) || 0 })}
+                                                    placeholder="e.g., 36.8219" />
+                                            </div>
+                                        </div>
+                                        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                                            <button type="button" onClick={() => {
+                                                if (!navigator.geolocation) { toast.error("Geolocation not supported by your browser"); return; }
+                                                toast.loading("Getting your location...", { id: "geo" });
+                                                navigator.geolocation.getCurrentPosition(
+                                                    (pos) => {
+                                                        setNewProperty({ ...newProperty, latitude: parseFloat(pos.coords.latitude.toFixed(6)), longitude: parseFloat(pos.coords.longitude.toFixed(6)) });
+                                                        toast.success("Location captured! ✅", { id: "geo" });
+                                                    },
+                                                    (err) => { toast.error(err.code === 1 ? "Location permission denied. Please allow access." : "Could not get location. Try again.", { id: "geo" }); },
+                                                    { enableHighAccuracy: true, timeout: 10000 }
+                                                );
+                                            }}
+                                                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.55rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--gold-500)", background: "rgba(212,160,23,0.08)", cursor: "pointer", color: "var(--gold-600)", fontSize: "0.78rem", fontWeight: 600 }}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M12 2v4m0 12v4M2 12h4m12 0h4" /></svg>
+                                                📍 Use My Location
+                                            </button>
+                                            <button type="button" onClick={() => window.open(`https://www.google.com/maps/@${newProperty.latitude || -1.2921},${newProperty.longitude || 36.8219},15z`, '_blank')}
+                                                style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.55rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "0.78rem", fontWeight: 500 }}>
+                                                🗺️ Find on Map
+                                            </button>
+                                        </div>
+                                        <p style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginTop: "0.3rem" }}>
+                                            💡 Tap &quot;Use My Location&quot; when at the property, or right-click Google Maps → &quot;What&apos;s here?&quot;
+                                        </p>
+                                    </div>
+                                    <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                         <label className={styles.formLabel}>Description</label>
                                         <textarea className={`${styles.formInput} ${styles.formTextarea}`} value={newProperty.description}
                                             onChange={(e) => setNewProperty({ ...newProperty, description: e.target.value })} placeholder="Describe your property..." />
@@ -936,6 +981,50 @@ export default function AgentDashboard() {
                                         <label className={styles.formLabel}>Neighborhood</label>
                                         <input className={styles.formInput} value={editingProperty.neighborhood}
                                             onChange={(e) => setEditingProperty({ ...editingProperty, neighborhood: e.target.value })} />
+                                    </div>
+                                    <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                        <label className={styles.formLabel}>
+                                            📍 GPS Coordinates <span style={{ fontSize: "0.72rem", fontWeight: 400, color: "var(--text-tertiary)" }}>(for accurate map pin)</span>
+                                        </label>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                                            <div>
+                                                <label style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", display: "block", marginBottom: "0.2rem" }}>Latitude</label>
+                                                <input type="number" step="any" className={styles.formInput} value={editingProperty.latitude || ""}
+                                                    onChange={(e) => setEditingProperty({ ...editingProperty, latitude: parseFloat(e.target.value) || 0 })}
+                                                    placeholder="e.g., -1.2921" />
+                                            </div>
+                                            <div>
+                                                <label style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", display: "block", marginBottom: "0.2rem" }}>Longitude</label>
+                                                <input type="number" step="any" className={styles.formInput} value={editingProperty.longitude || ""}
+                                                    onChange={(e) => setEditingProperty({ ...editingProperty, longitude: parseFloat(e.target.value) || 0 })}
+                                                    placeholder="e.g., 36.8219" />
+                                            </div>
+                                        </div>
+                                        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                                            <button type="button" onClick={() => {
+                                                if (!navigator.geolocation) { toast.error("Geolocation not supported by your browser"); return; }
+                                                toast.loading("Getting your location...", { id: "geo-edit" });
+                                                navigator.geolocation.getCurrentPosition(
+                                                    (pos) => {
+                                                        setEditingProperty({ ...editingProperty, latitude: parseFloat(pos.coords.latitude.toFixed(6)), longitude: parseFloat(pos.coords.longitude.toFixed(6)) });
+                                                        toast.success("Location captured! ✅", { id: "geo-edit" });
+                                                    },
+                                                    (err) => { toast.error(err.code === 1 ? "Location permission denied. Please allow access." : "Could not get location. Try again.", { id: "geo-edit" }); },
+                                                    { enableHighAccuracy: true, timeout: 10000 }
+                                                );
+                                            }}
+                                                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.55rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--gold-500)", background: "rgba(212,160,23,0.08)", cursor: "pointer", color: "var(--gold-600)", fontSize: "0.78rem", fontWeight: 600 }}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M12 2v4m0 12v4M2 12h4m12 0h4" /></svg>
+                                                📍 Use My Location
+                                            </button>
+                                            <button type="button" onClick={() => window.open(`https://www.google.com/maps/@${editingProperty.latitude || -1.2921},${editingProperty.longitude || 36.8219},15z`, '_blank')}
+                                                style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.55rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "0.78rem", fontWeight: 500 }}>
+                                                🗺️ Find on Map
+                                            </button>
+                                        </div>
+                                        <p style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginTop: "0.3rem" }}>
+                                            💡 Tap &quot;Use My Location&quot; when at the property, or right-click Google Maps → &quot;What&apos;s here?&quot;
+                                        </p>
                                     </div>
                                     <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                         <label className={styles.formLabel}>Description</label>
