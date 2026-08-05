@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -58,7 +59,7 @@ export default function AgentDashboard() {
     });
 
     const [editProfile, setEditProfile] = useState({
-        displayName: "", phone: "", bio: "", agency: "", location: "", specialization: "",
+        displayName: "", phone: "", bio: "", agency: "", location: "", specialization: "", avatar: "",
     });
 
     useEffect(() => {
@@ -77,6 +78,7 @@ export default function AgentDashboard() {
                 agency: userProfile.agency || "",
                 location: userProfile.location || "",
                 specialization: userProfile.specialization || "",
+                avatar: userProfile.avatar || "",
             });
         }
     }, [user, userProfile]);
@@ -659,6 +661,34 @@ export default function AgentDashboard() {
                             <div className={styles.contentCardBody}>
                                 {showEditProfile ? (
                                     <div className={styles.formGrid}>
+                                        {/* Profile Photo URL */}
+                                        <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                            <label className={styles.formLabel}>Profile Photo</label>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                                                <div style={{
+                                                    width: 72, height: 72, borderRadius: "50%", overflow: "hidden",
+                                                    border: "3px solid var(--gold-500)", flexShrink: 0,
+                                                    background: "var(--bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center"
+                                                }}>
+                                                    {editProfile.avatar ? (
+                                                        <img src={editProfile.avatar} alt="Preview" style={{ objectFit: "cover", width: "100%", height: "100%" }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                                    ) : (
+                                                        <span style={{ fontSize: "1.8rem" }}>👤</span>
+                                                    )}
+                                                </div>
+                                                <div style={{ flex: 1 }}>
+                                                    <input
+                                                        className={styles.formInput}
+                                                        value={editProfile.avatar}
+                                                        onChange={(e) => setEditProfile({ ...editProfile, avatar: e.target.value })}
+                                                        placeholder="https://example.com/your-photo.jpg"
+                                                    />
+                                                    <p style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginTop: "0.3rem" }}>
+                                                        📷 Paste a link to your photo (from LinkedIn, Facebook, Google Drive, etc.)
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <div className={styles.formGroup}>
                                             <label className={styles.formLabel}>Full Name</label>
                                             <input className={styles.formInput} value={editProfile.displayName}
