@@ -8,16 +8,28 @@ import emailjs from "@emailjs/browser";
 // Both templates should use these variables in the EmailJS template editor:
 //   {{from_name}}, {{to_name}}, {{to_email}}, {{subject}}, {{message}}, {{reply_to}}
 //
+// IMPORTANT - To avoid spam filters:
+//   - Do NOT use a reply_to domain you don't own (e.g., noreply@yourdomain.com)
+//   - Keep subject lines simple and professional
+//   - Use the same email address linked to your EmailJS service as reply_to
+//   - In the EmailJS template, ensure "To Email" is set to {{to_email}}
+//   - In your EmailJS Email Service settings, make sure the connected Gmail
+//     account has "Less secure app access" or is using an App Password
+//
 // Add these env vars to .env.local:
 //   NEXT_PUBLIC_EMAILJS_SERVICE_ID=your_service_id
 //   NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=your_public_key
 //   NEXT_PUBLIC_EMAILJS_APPROVAL_TEMPLATE_ID=your_template_for_approval_and_rejection
 //   NEXT_PUBLIC_EMAILJS_INQUIRY_TEMPLATE_ID=your_template_for_inquiries
+//   NEXT_PUBLIC_EMAILJS_REPLY_EMAIL=your_gmail_address (the one connected to EmailJS)
 
 const SERVICE_ID = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || "";
 const PUBLIC_KEY = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || "";
 const APPROVAL_TEMPLATE_ID = process.env.NEXT_PUBLIC_EMAILJS_APPROVAL_TEMPLATE_ID || "";
 const INQUIRY_TEMPLATE_ID = process.env.NEXT_PUBLIC_EMAILJS_INQUIRY_TEMPLATE_ID || "";
+// Use the actual Gmail address connected to your EmailJS service
+// This prevents spam — Gmail trusts emails where reply_to matches a real, verified address
+const REPLY_EMAIL = process.env.NEXT_PUBLIC_EMAILJS_REPLY_EMAIL || "";
 
 const isEmailConfigured = !!(SERVICE_ID && PUBLIC_KEY && APPROVAL_TEMPLATE_ID);
 const isInquiryEmailConfigured = !!(SERVICE_ID && PUBLIC_KEY && INQUIRY_TEMPLATE_ID);
@@ -65,14 +77,12 @@ export async function sendApprovalEmail(data: ApprovalEmailData): Promise<boolea
             SERVICE_ID,
             APPROVAL_TEMPLATE_ID,
             {
-                from_name: "EstateVue Support",
+                from_name: "EstateVue",
                 to_name: data.agentName,
                 to_email: data.agentEmail,
-                agent_code: data.agentCode,
-                app_name: "EstateVue",
-                subject: `EstateVue - Agent Application Update for ${data.agentName}`,
-                reply_to: "noreply@estatevue.com",
-                message: `Hello ${data.agentName},\n\nThank you for applying to become an agent on EstateVue. We are pleased to inform you that your application has been reviewed and approved.\n\nYou can now access the agent dashboard and begin listing properties.\n\nYour Verification Code: ${data.agentCode}\n\nPlease log in to your dashboard and enter this code to activate your agent account.\n\nBest regards,\nThe EstateVue Team`,
+                subject: "Your Agent Application Has Been Approved",
+                reply_to: REPLY_EMAIL || data.agentEmail,
+                message: `Hello ${data.agentName},\n\nGreat news! Your application to join EstateVue as an agent has been approved.\n\nYou can now access the agent dashboard and begin listing properties.\n\nYour Verification Code: ${data.agentCode}\n\nPlease log in to your dashboard and enter this code to activate your agent account.\n\nWelcome aboard!\n\nBest regards,\nThe EstateVue Team`,
             },
             PUBLIC_KEY
         );
@@ -101,14 +111,12 @@ export async function sendRejectionEmail(data: RejectionEmailData): Promise<bool
             SERVICE_ID,
             APPROVAL_TEMPLATE_ID,
             {
-                from_name: "EstateVue Support",
+                from_name: "EstateVue",
                 to_name: data.agentName,
                 to_email: data.agentEmail,
-                agent_code: "",
-                app_name: "EstateVue",
-                subject: `EstateVue - Agent Application Update for ${data.agentName}`,
-                reply_to: "noreply@estatevue.com",
-                message: `Hello ${data.agentName},\n\nThank you for your interest in joining EstateVue as an agent.\n\nAfter reviewing your application, we regret to inform you that we are unable to approve it at this time.${data.reason ? `\n\nReason: ${data.reason}` : ""}\n\nIf you have any questions or would like to reapply in the future, please reach out to our support team.\n\nBest regards,\nThe EstateVue Team`,
+                subject: "Update on Your Agent Application",
+                reply_to: REPLY_EMAIL || data.agentEmail,
+                message: `Hello ${data.agentName},\n\nThank you for your interest in joining EstateVue as an agent.\n\nAfter reviewing your application, we are unable to approve it at this time.${data.reason ? `\n\nReason: ${data.reason}` : ""}\n\nIf you have any questions or would like to reapply in the future, please feel free to reach out to our support team.\n\nBest regards,\nThe EstateVue Team`,
             },
             PUBLIC_KEY
         );
@@ -147,9 +155,8 @@ export async function sendInquiryEmail(data: InquiryEmailData): Promise<boolean>
                 to_name: data.agentName,
                 to_email: data.agentEmail,
                 reply_to: data.senderEmail,
-                app_name: "EstateVue",
-                subject: `New ${typeLabel} — ${data.propertyTitle}`,
-                message: `Hello ${data.agentName},\n\nYou have received a new ${typeLabel.toLowerCase()} on EstateVue for your property "${data.propertyTitle}".\n\n--- Sender Details ---\nName: ${data.senderName}\nEmail: ${data.senderEmail}\nPhone: ${data.senderPhone || "Not provided"}\n\n--- Message ---\n${data.message}\n\nYou can reply directly to this email to respond to ${data.senderName}.\n\nBest regards,\nEstateVue`,
+                subject: `New ${typeLabel} for ${data.propertyTitle}`,
+                message: `Hello ${data.agentName},\n\nYou have received a new ${typeLabel.toLowerCase()} for your property "${data.propertyTitle}" on EstateVue.\n\nSender Details:\nName: ${data.senderName}\nEmail: ${data.senderEmail}\nPhone: ${data.senderPhone || "Not provided"}\n\nMessage:\n${data.message}\n\nYou can reply directly to this email to respond to ${data.senderName}.\n\nBest regards,\nEstateVue`,
             },
             PUBLIC_KEY
         );
@@ -163,3 +170,4 @@ export async function sendInquiryEmail(data: InquiryEmailData): Promise<boolean>
 }
 
 export { isEmailConfigured, isInquiryEmailConfigured };
+
