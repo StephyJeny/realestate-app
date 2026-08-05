@@ -1,7 +1,39 @@
+"use client";
+import { useState } from "react";
 import Link from "next/link";
+import toast from "react-hot-toast";
+import { subscribeNewsletter } from "@/lib/firestore";
 import styles from "./Footer.module.css";
 
 export default function Footer() {
+    const [email, setEmail] = useState("");
+    const [subscribed, setSubscribed] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleNewsletter = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email.trim() || !email.includes("@")) {
+            toast.error("Please enter a valid email");
+            return;
+        }
+        setIsLoading(true);
+        try {
+            await subscribeNewsletter(email);
+            setSubscribed(true);
+            toast.success("Subscribed! 🎉 You'll receive the latest listings.");
+            setEmail("");
+        } catch (err: unknown) {
+            if (err instanceof Error && err.message === "already_subscribed") {
+                toast.success("You're already subscribed! ✅");
+                setSubscribed(true);
+            } else {
+                toast.error("Something went wrong. Please try again.");
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <footer className={styles.footer}>
             <div className={styles.container}>
@@ -69,6 +101,26 @@ export default function Footer() {
                                 <span>hello@estatevue.com</span>
                             </li>
                         </ul>
+                        {/* Newsletter Signup */}
+                        <div style={{ marginTop: "1.25rem" }}>
+                            <h5 style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "0.5rem", color: "rgba(255,255,255,0.85)" }}>Newsletter</h5>
+                            {subscribed ? (
+                                <p style={{ fontSize: "0.78rem", color: "var(--gold-400)" }}>✅ Subscribed! Check your inbox.</p>
+                            ) : (
+                                <form onSubmit={handleNewsletter} style={{ display: "flex", gap: "0.35rem" }}>
+                                    <input
+                                        type="email"
+                                        placeholder="Your email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        style={{ flex: 1, padding: "0.5rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: "0.78rem" }}
+                                    />
+                                    <button type="submit" disabled={isLoading} style={{ padding: "0.5rem 0.75rem", borderRadius: "var(--radius-sm)", border: "none", background: "var(--gold-500)", color: "#000", fontWeight: 700, fontSize: "0.75rem", cursor: isLoading ? "wait" : "pointer", whiteSpace: "nowrap", opacity: isLoading ? 0.7 : 1 }}>
+                                        {isLoading ? "..." : "Subscribe"}
+                                    </button>
+                                </form>
+                            )}
+                        </div>
                     </div>
                 </div>
 

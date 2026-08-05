@@ -1,18 +1,22 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
     getPropertiesByAgent,
     addProperty,
     deleteProperty,
+    updateProperty,
     getInquiriesByAgent,
     getUserNotifications,
     updateUserProfile,
+    replyToInquiry,
+    updateInquiryStatus,
     FirestoreProperty,
     Notification,
     Inquiry,
 } from "@/lib/firestore";
+import { uploadPropertyImages } from "@/lib/storage";
 import toast from "react-hot-toast";
 import styles from "../dashboard.module.css";
 import AgentGate from "@/components/agent/AgentGate";
@@ -28,6 +32,23 @@ export default function AgentDashboard() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showEditProfile, setShowEditProfile] = useState(false);
+
+    // Image upload state
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+    const [uploadProgress, setUploadProgress] = useState<number>(0);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Edit property state
+    const [editingProperty, setEditingProperty] = useState<FirestoreProperty | null>(null);
+    const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
+    const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
+    const [existingImages, setExistingImages] = useState<string[]>([]);
+    const editFileInputRef = useRef<HTMLInputElement>(null);
+
+    // Reply to inquiry state
+    const [replyingInquiry, setReplyingInquiry] = useState<Inquiry | null>(null);
+    const [replyText, setReplyText] = useState("");
 
     const [newProperty, setNewProperty] = useState({
         title: "", description: "", type: "apartment" as FirestoreProperty["type"],
@@ -76,6 +97,32 @@ export default function AgentDashboard() {
         }
     };
 
+    // Image selection for add modal
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+        const maxFiles = isEdit ? 6 - existingImages.length : 6;
+        const selected = files.slice(0, maxFiles);
+        const previews = selected.map((f) => URL.createObjectURL(f));
+        if (isEdit) {
+            setEditImageFiles((prev) => [...prev, ...selected]);
+            setEditImagePreviews((prev) => [...prev, ...previews]);
+        } else {
+            setImageFiles((prev) => [...prev, ...selected]);
+            setImagePreviews((prev) => [...prev, ...previews]);
+        }
+    };
+
+    const removeImage = (index: number, isEdit = false) => {
+        if (isEdit) {
+            setEditImageFiles((prev) => prev.filter((_, i) => i !== index));
+            setEditImagePreviews((prev) => prev.filter((_, i) => i !== index));
+        } else {
+            setImageFiles((prev) => prev.filter((_, i) => i !== index));
+            setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+        }
+    };
+
     const handleAddProperty = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user || !userProfile) return;
@@ -83,12 +130,17 @@ export default function AgentDashboard() {
             toast.error("Please fill in required fields");
             return;
         }
+        if (imageFiles.length === 0) {
+            toast.error("Please upload at least one property image");
+            return;
+        }
         setIsSubmitting(true);
         try {
-            await addProperty({
+            // First create property to get ID
+            const propId = await addProperty({
                 ...newProperty,
                 amenities: newProperty.amenities.split(",").map((a) => a.trim()).filter(Boolean),
-                images: ["/images/property-1.png"],
+                images: [],
                 agentId: user.uid,
                 agentName: userProfile.displayName,
                 agentEmail: userProfile.email,
@@ -98,6 +150,13 @@ export default function AgentDashboard() {
                 views: 0,
                 favorites: 0,
             });
+            // Upload images
+            setUploadProgress(0);
+            const urls = await uploadPropertyImages(imageFiles, user.uid, propId, (i, p) => {
+                setUploadProgress(Math.round(((i + p / 100) / imageFiles.length) * 100));
+            });
+            // Update property with image URLs
+            await updateProperty(propId, { images: urls });
             toast.success("Property listed successfully! 🏠");
             setShowAddModal(false);
             setNewProperty({
@@ -105,6 +164,9 @@ export default function AgentDashboard() {
                 price: 0, currency: "KES", bedrooms: 0, bathrooms: 0, area: 0,
                 yearBuilt: 2024, address: "", city: "", neighborhood: "", amenities: "",
             });
+            setImageFiles([]);
+            setImagePreviews([]);
+            setUploadProgress(0);
             loadData();
         } catch (err) {
             console.error("Failed to add property:", err);
@@ -123,6 +185,83 @@ export default function AgentDashboard() {
         } catch (err) {
             console.error("Failed to delete:", err);
             toast.error("Failed to delete property");
+        }
+    };
+
+    const openEditModal = (prop: FirestoreProperty) => {
+        setEditingProperty(prop);
+        setExistingImages(prop.images || []);
+        setEditImageFiles([]);
+        setEditImagePreviews([]);
+    };
+
+    const handleEditProperty = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!user || !editingProperty?.id) return;
+        setIsSubmitting(true);
+        try {
+            let updatedImages = [...existingImages];
+            if (editImageFiles.length > 0) {
+                setUploadProgress(0);
+                const newUrls = await uploadPropertyImages(editImageFiles, user.uid, editingProperty.id, (i, p) => {
+                    setUploadProgress(Math.round(((i + p / 100) / editImageFiles.length) * 100));
+                });
+                updatedImages = [...updatedImages, ...newUrls];
+            }
+            await updateProperty(editingProperty.id, {
+                title: editingProperty.title,
+                description: editingProperty.description,
+                type: editingProperty.type,
+                listingType: editingProperty.listingType,
+                price: editingProperty.price,
+                bedrooms: editingProperty.bedrooms,
+                bathrooms: editingProperty.bathrooms,
+                area: editingProperty.area,
+                address: editingProperty.address,
+                city: editingProperty.city,
+                neighborhood: editingProperty.neighborhood,
+                amenities: editingProperty.amenities,
+                images: updatedImages,
+            });
+            toast.success("Property updated! ✨");
+            setEditingProperty(null);
+            setEditImageFiles([]);
+            setEditImagePreviews([]);
+            setUploadProgress(0);
+            loadData();
+        } catch (err) {
+            console.error("Edit failed:", err);
+            toast.error("Failed to update property");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleStatusChange = async (propId: string, newStatus: FirestoreProperty["status"]) => {
+        try {
+            await updateProperty(propId, { status: newStatus });
+            toast.success(`Property marked as ${newStatus}`);
+            loadData();
+        } catch (err) {
+            console.error("Status change failed:", err);
+            toast.error("Failed to update status");
+        }
+    };
+
+    const handleReplyInquiry = async () => {
+        if (!replyingInquiry?.id || !replyText.trim() || !user || !userProfile) return;
+        setIsSubmitting(true);
+        try {
+            await replyToInquiry(replyingInquiry.id, user.uid, userProfile.displayName, replyText.trim());
+            toast.success("Reply sent! 💬");
+            setReplyingInquiry(null);
+            setReplyText("");
+            loadData();
+        } catch (err) {
+            console.error("Reply failed:", err);
+            toast.error("Failed to send reply");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -329,7 +468,11 @@ export default function AgentDashboard() {
                                         {properties.map((prop) => (
                                             <div key={prop.id} className={styles.propertyCard}>
                                                 <div className={styles.propertyImageWrap}>
-                                                    <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, var(--navy-300), var(--navy-500))", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "2rem" }}>🏠</div>
+                                                    {prop.images && prop.images.length > 0 && prop.images[0] ? (
+                                                        <img src={prop.images[0]} alt={prop.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                                    ) : (
+                                                        <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, var(--navy-300), var(--navy-500))", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "2rem" }}>🏠</div>
+                                                    )}
                                                     <span className={styles.propertyCardBadge} style={{ background: prop.listingType === "sale" ? "rgba(239,68,68,0.9)" : "rgba(59,130,246,0.9)", color: "#fff" }}>
                                                         {prop.listingType === "sale" ? "For Sale" : "For Rent"}
                                                     </span>
@@ -348,7 +491,26 @@ export default function AgentDashboard() {
                                                         <span>🚿 {prop.bathrooms} Baths</span>
                                                         <span>📐 {prop.area} sqft</span>
                                                     </div>
+                                                    {/* Status Badge */}
+                                                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+                                                        <span className={`${styles.statusBadge} ${prop.status === "active" ? styles.statusActive : prop.status === "sold" ? styles.statusApproved : styles.statusPending}`}>
+                                                            {prop.status === "active" ? "🟢 Active" : prop.status === "sold" ? "🔴 Sold" : prop.status === "rented" ? "🔵 Rented" : "⏳ Pending"}
+                                                        </span>
+                                                        {prop.status === "active" && (
+                                                            <>
+                                                                <button onClick={() => handleStatusChange(prop.id!, "sold")} style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "rgba(239,68,68,0.1)", color: "var(--error)", border: "1px solid rgba(239,68,68,0.2)", cursor: "pointer" }}>Mark Sold</button>
+                                                                <button onClick={() => handleStatusChange(prop.id!, "rented")} style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "rgba(59,130,246,0.1)", color: "var(--info)", border: "1px solid rgba(59,130,246,0.2)", cursor: "pointer" }}>Mark Rented</button>
+                                                            </>
+                                                        )}
+                                                        {(prop.status === "sold" || prop.status === "rented") && (
+                                                            <button onClick={() => handleStatusChange(prop.id!, "active")} style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "rgba(16,185,129,0.1)", color: "var(--success)", border: "1px solid rgba(16,185,129,0.2)", cursor: "pointer" }}>Reactivate</button>
+                                                        )}
+                                                    </div>
                                                     <div className={styles.propertyCardActions}>
+                                                        <button onClick={() => openEditModal(prop)}>
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                            Edit
+                                                        </button>
                                                         <button onClick={() => handleDeleteProperty(prop.id!)}>
                                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                                                             Delete
@@ -389,7 +551,9 @@ export default function AgentDashboard() {
                                             <th>Property</th>
                                             <th>Type</th>
                                             <th>Message</th>
+                                            <th>Status</th>
                                             <th>Date</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -411,7 +575,22 @@ export default function AgentDashboard() {
                                                 <td style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                                     {inq.message || ""}
                                                 </td>
+                                                <td>
+                                                    <span className={`${styles.statusBadge} ${inq.status === "replied" ? styles.statusApproved : inq.status === "closed" ? styles.statusPending : styles.statusActive}`}>
+                                                        {inq.status === "replied" ? "✅ Replied" : inq.status === "closed" ? "⬜ Closed" : "🆕 New"}
+                                                    </span>
+                                                </td>
                                                 <td>{inq.createdAt ? new Date(inq.createdAt.seconds * 1000).toLocaleDateString() : "N/A"}</td>
+                                                <td>
+                                                    <div style={{ display: "flex", gap: "0.35rem" }}>
+                                                        {inq.status !== "replied" && (
+                                                            <button onClick={() => { setReplyingInquiry(inq); setReplyText(""); }} style={{ fontSize: "0.72rem", padding: "0.25rem 0.5rem", borderRadius: "4px", background: "var(--navy-800)", color: "#fff", border: "none", cursor: "pointer" }}>Reply</button>
+                                                        )}
+                                                        {inq.status !== "closed" && (
+                                                            <button onClick={() => updateInquiryStatus(inq.id!, "closed").then(() => { toast.success("Inquiry closed"); loadData(); })} style={{ fontSize: "0.72rem", padding: "0.25rem 0.5rem", borderRadius: "4px", background: "rgba(107,114,128,0.1)", color: "var(--gray-600)", border: "1px solid var(--gray-200)", cursor: "pointer" }}>Close</button>
+                                                        )}
+                                                    </div>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -559,6 +738,34 @@ export default function AgentDashboard() {
                             </div>
                             <div className={styles.modalBody}>
                                 <form onSubmit={handleAddProperty} className={styles.formGrid}>
+                                    {/* Image Upload Zone */}
+                                    <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                        <label className={styles.formLabel}>Property Images * (max 6)</label>
+                                        <div
+                                            onClick={() => fileInputRef.current?.click()}
+                                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--gold-500)"; }}
+                                            onDragLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-color)"; }}
+                                            onDrop={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border-color)"; const dt = e.dataTransfer; if (dt.files) handleImageSelect({ target: { files: dt.files } } as React.ChangeEvent<HTMLInputElement>); }}
+                                            style={{ border: "2px dashed var(--border-color)", borderRadius: "var(--radius-md)", padding: "1.5rem", textAlign: "center", cursor: "pointer", background: "var(--bg-tertiary)" }}
+                                        >
+                                            <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📷</div>
+                                            <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>Drag & drop images here, or click to browse</p>
+                                            <p style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>JPG, PNG, WebP up to 10MB each</p>
+                                            <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }}
+                                                onChange={(e) => handleImageSelect(e)} />
+                                        </div>
+                                        {imagePreviews.length > 0 && (
+                                            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem", marginTop: "0.75rem" }}>
+                                                {imagePreviews.map((src, i) => (
+                                                    <div key={i} style={{ position: "relative", borderRadius: "8px", overflow: "hidden", aspectRatio: "4/3" }}>
+                                                        <img src={src} alt={`Preview ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                                        <button type="button" onClick={() => removeImage(i)}
+                                                            style={{ position: "absolute", top: "4px", right: "4px", width: "22px", height: "22px", borderRadius: "50%", background: "rgba(239,68,68,0.9)", color: "#fff", border: "none", cursor: "pointer", fontSize: "0.7rem", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                     <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                         <label className={styles.formLabel}>Property Title *</label>
                                         <input className={styles.formInput} value={newProperty.title}
@@ -569,27 +776,21 @@ export default function AgentDashboard() {
                                         <label className={styles.formLabel}>Property Type</label>
                                         <select className={`${styles.formInput} ${styles.formSelect}`} value={newProperty.type}
                                             onChange={(e) => setNewProperty({ ...newProperty, type: e.target.value as FirestoreProperty["type"] })}>
-                                            <option value="apartment">Apartment</option>
-                                            <option value="house">House</option>
-                                            <option value="villa">Villa</option>
-                                            <option value="townhouse">Townhouse</option>
-                                            <option value="land">Land</option>
-                                            <option value="commercial">Commercial</option>
+                                            <option value="apartment">Apartment</option><option value="house">House</option><option value="villa">Villa</option>
+                                            <option value="townhouse">Townhouse</option><option value="land">Land</option><option value="commercial">Commercial</option>
                                         </select>
                                     </div>
                                     <div className={styles.formGroup}>
                                         <label className={styles.formLabel}>Listing Type</label>
                                         <select className={`${styles.formInput} ${styles.formSelect}`} value={newProperty.listingType}
                                             onChange={(e) => setNewProperty({ ...newProperty, listingType: e.target.value as "sale" | "rent" })}>
-                                            <option value="sale">For Sale</option>
-                                            <option value="rent">For Rent</option>
+                                            <option value="sale">For Sale</option><option value="rent">For Rent</option>
                                         </select>
                                     </div>
                                     <div className={styles.formGroup}>
                                         <label className={styles.formLabel}>Price (KES) *</label>
                                         <input type="number" className={styles.formInput} value={newProperty.price || ""}
-                                            onChange={(e) => setNewProperty({ ...newProperty, price: Number(e.target.value) })}
-                                            placeholder="25000000" required />
+                                            onChange={(e) => setNewProperty({ ...newProperty, price: Number(e.target.value) })} placeholder="25000000" required />
                                     </div>
                                     <div className={styles.formGroup}>
                                         <label className={styles.formLabel}>Bedrooms</label>
@@ -609,40 +810,185 @@ export default function AgentDashboard() {
                                     <div className={styles.formGroup}>
                                         <label className={styles.formLabel}>City *</label>
                                         <input className={styles.formInput} value={newProperty.city}
-                                            onChange={(e) => setNewProperty({ ...newProperty, city: e.target.value })}
-                                            placeholder="Nairobi" required />
+                                            onChange={(e) => setNewProperty({ ...newProperty, city: e.target.value })} placeholder="Nairobi" required />
                                     </div>
                                     <div className={styles.formGroup}>
                                         <label className={styles.formLabel}>Neighborhood</label>
                                         <input className={styles.formInput} value={newProperty.neighborhood}
-                                            onChange={(e) => setNewProperty({ ...newProperty, neighborhood: e.target.value })}
-                                            placeholder="Westlands" />
+                                            onChange={(e) => setNewProperty({ ...newProperty, neighborhood: e.target.value })} placeholder="Westlands" />
                                     </div>
                                     <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                         <label className={styles.formLabel}>Address</label>
                                         <input className={styles.formInput} value={newProperty.address}
-                                            onChange={(e) => setNewProperty({ ...newProperty, address: e.target.value })}
-                                            placeholder="Full property address" />
+                                            onChange={(e) => setNewProperty({ ...newProperty, address: e.target.value })} placeholder="Full property address" />
                                     </div>
                                     <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                         <label className={styles.formLabel}>Description</label>
                                         <textarea className={`${styles.formInput} ${styles.formTextarea}`} value={newProperty.description}
-                                            onChange={(e) => setNewProperty({ ...newProperty, description: e.target.value })}
-                                            placeholder="Describe your property..." />
+                                            onChange={(e) => setNewProperty({ ...newProperty, description: e.target.value })} placeholder="Describe your property..." />
                                     </div>
                                     <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                         <label className={styles.formLabel}>Amenities (comma-separated)</label>
                                         <input className={styles.formInput} value={newProperty.amenities}
-                                            onChange={(e) => setNewProperty({ ...newProperty, amenities: e.target.value })}
-                                            placeholder="Swimming Pool, Gym, Parking, Security" />
+                                            onChange={(e) => setNewProperty({ ...newProperty, amenities: e.target.value })} placeholder="Swimming Pool, Gym, Parking, Security" />
                                     </div>
+                                    {isSubmitting && uploadProgress > 0 && (
+                                        <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                            <div style={{ background: "var(--gray-200)", borderRadius: "4px", height: "6px", overflow: "hidden" }}>
+                                                <div style={{ width: `${uploadProgress}%`, height: "100%", background: "var(--gold-500)", transition: "width 0.3s" }} />
+                                            </div>
+                                            <p style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", marginTop: "0.25rem" }}>Uploading images... {uploadProgress}%</p>
+                                        </div>
+                                    )}
                                     <div className={styles.formActions}>
                                         <button type="button" className={styles.formBtnSecondary} onClick={() => setShowAddModal(false)}>Cancel</button>
                                         <button type="submit" className={styles.formBtnPrimary} disabled={isSubmitting}>
-                                            {isSubmitting ? "Publishing..." : "Publish Property"}
+                                            {isSubmitting ? `Uploading... ${uploadProgress}%` : "Publish Property"}
                                         </button>
                                     </div>
                                 </form>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Edit Property Modal */}
+                {editingProperty && (
+                    <div className={styles.modalOverlay} onClick={() => setEditingProperty(null)}>
+                        <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+                            <div className={styles.modalHeader}>
+                                <h3 className={styles.modalTitle}>Edit Property</h3>
+                                <button className={styles.modalClose} onClick={() => setEditingProperty(null)}>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                </button>
+                            </div>
+                            <div className={styles.modalBody}>
+                                <form onSubmit={handleEditProperty} className={styles.formGrid}>
+                                    {/* Existing + New Images */}
+                                    <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                        <label className={styles.formLabel}>Property Images</label>
+                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
+                                            {existingImages.map((src, i) => (
+                                                <div key={`ex-${i}`} style={{ position: "relative", borderRadius: "8px", overflow: "hidden", aspectRatio: "4/3" }}>
+                                                    <img src={src} alt={`Image ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                                    <button type="button" onClick={() => setExistingImages(prev => prev.filter((_, j) => j !== i))}
+                                                        style={{ position: "absolute", top: "4px", right: "4px", width: "22px", height: "22px", borderRadius: "50%", background: "rgba(239,68,68,0.9)", color: "#fff", border: "none", cursor: "pointer", fontSize: "0.7rem", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                                                </div>
+                                            ))}
+                                            {editImagePreviews.map((src, i) => (
+                                                <div key={`new-${i}`} style={{ position: "relative", borderRadius: "8px", overflow: "hidden", aspectRatio: "4/3", border: "2px solid var(--gold-400)" }}>
+                                                    <img src={src} alt={`New ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                                    <button type="button" onClick={() => removeImage(i, true)}
+                                                        style={{ position: "absolute", top: "4px", right: "4px", width: "22px", height: "22px", borderRadius: "50%", background: "rgba(239,68,68,0.9)", color: "#fff", border: "none", cursor: "pointer", fontSize: "0.7rem", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {(existingImages.length + editImagePreviews.length) < 6 && (
+                                            <button type="button" onClick={() => editFileInputRef.current?.click()}
+                                                style={{ marginTop: "0.5rem", padding: "0.5rem 1rem", border: "1px dashed var(--border-color)", borderRadius: "var(--radius-md)", background: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "0.82rem" }}>
+                                                + Add More Images
+                                            </button>
+                                        )}
+                                        <input ref={editFileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }}
+                                            onChange={(e) => handleImageSelect(e, true)} />
+                                    </div>
+                                    <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                        <label className={styles.formLabel}>Property Title</label>
+                                        <input className={styles.formInput} value={editingProperty.title}
+                                            onChange={(e) => setEditingProperty({ ...editingProperty, title: e.target.value })} />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.formLabel}>Type</label>
+                                        <select className={`${styles.formInput} ${styles.formSelect}`} value={editingProperty.type}
+                                            onChange={(e) => setEditingProperty({ ...editingProperty, type: e.target.value as FirestoreProperty["type"] })}>
+                                            <option value="apartment">Apartment</option><option value="house">House</option><option value="villa">Villa</option>
+                                            <option value="townhouse">Townhouse</option><option value="land">Land</option><option value="commercial">Commercial</option>
+                                        </select>
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.formLabel}>Listing Type</label>
+                                        <select className={`${styles.formInput} ${styles.formSelect}`} value={editingProperty.listingType}
+                                            onChange={(e) => setEditingProperty({ ...editingProperty, listingType: e.target.value as "sale" | "rent" })}>
+                                            <option value="sale">For Sale</option><option value="rent">For Rent</option>
+                                        </select>
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.formLabel}>Price (KES)</label>
+                                        <input type="number" className={styles.formInput} value={editingProperty.price || ""}
+                                            onChange={(e) => setEditingProperty({ ...editingProperty, price: Number(e.target.value) })} />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.formLabel}>Bedrooms</label>
+                                        <input type="number" className={styles.formInput} value={editingProperty.bedrooms || ""}
+                                            onChange={(e) => setEditingProperty({ ...editingProperty, bedrooms: Number(e.target.value) })} />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.formLabel}>Bathrooms</label>
+                                        <input type="number" className={styles.formInput} value={editingProperty.bathrooms || ""}
+                                            onChange={(e) => setEditingProperty({ ...editingProperty, bathrooms: Number(e.target.value) })} />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.formLabel}>City</label>
+                                        <input className={styles.formInput} value={editingProperty.city}
+                                            onChange={(e) => setEditingProperty({ ...editingProperty, city: e.target.value })} />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.formLabel}>Neighborhood</label>
+                                        <input className={styles.formInput} value={editingProperty.neighborhood}
+                                            onChange={(e) => setEditingProperty({ ...editingProperty, neighborhood: e.target.value })} />
+                                    </div>
+                                    <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                        <label className={styles.formLabel}>Description</label>
+                                        <textarea className={`${styles.formInput} ${styles.formTextarea}`} value={editingProperty.description}
+                                            onChange={(e) => setEditingProperty({ ...editingProperty, description: e.target.value })} />
+                                    </div>
+                                    {isSubmitting && uploadProgress > 0 && (
+                                        <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                            <div style={{ background: "var(--gray-200)", borderRadius: "4px", height: "6px", overflow: "hidden" }}>
+                                                <div style={{ width: `${uploadProgress}%`, height: "100%", background: "var(--gold-500)", transition: "width 0.3s" }} />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className={styles.formActions}>
+                                        <button type="button" className={styles.formBtnSecondary} onClick={() => setEditingProperty(null)}>Cancel</button>
+                                        <button type="submit" className={styles.formBtnPrimary} disabled={isSubmitting}>
+                                            {isSubmitting ? "Saving..." : "Save Changes"}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Reply to Inquiry Modal */}
+                {replyingInquiry && (
+                    <div className={styles.modalOverlay} onClick={() => setReplyingInquiry(null)}>
+                        <div className={styles.modal} style={{ maxWidth: "500px" }} onClick={(e) => e.stopPropagation()}>
+                            <div className={styles.modalHeader}>
+                                <h3 className={styles.modalTitle}>Reply to Inquiry</h3>
+                                <button className={styles.modalClose} onClick={() => setReplyingInquiry(null)}>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                </button>
+                            </div>
+                            <div className={styles.modalBody}>
+                                <div style={{ background: "var(--bg-tertiary)", padding: "1rem", borderRadius: "var(--radius-md)", marginBottom: "1rem" }}>
+                                    <p style={{ fontSize: "0.78rem", color: "var(--text-tertiary)", marginBottom: "0.25rem" }}>From: <strong>{replyingInquiry.senderName}</strong></p>
+                                    <p style={{ fontSize: "0.78rem", color: "var(--text-tertiary)", marginBottom: "0.5rem" }}>Re: {replyingInquiry.propertyTitle}</p>
+                                    <p style={{ fontSize: "0.85rem", color: "var(--text-primary)" }}>{replyingInquiry.message}</p>
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Your Reply</label>
+                                    <textarea className={`${styles.formInput} ${styles.formTextarea}`}
+                                        value={replyText} onChange={(e) => setReplyText(e.target.value)}
+                                        placeholder="Type your reply to the buyer..." rows={4} autoFocus />
+                                </div>
+                                <div className={styles.formActions}>
+                                    <button className={styles.formBtnSecondary} onClick={() => setReplyingInquiry(null)}>Cancel</button>
+                                    <button className={styles.formBtnPrimary} onClick={handleReplyInquiry} disabled={isSubmitting || !replyText.trim()}>
+                                        {isSubmitting ? "Sending..." : "Send Reply"}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -655,3 +1001,4 @@ export default function AgentDashboard() {
         </AgentGate>
     );
 }
+
