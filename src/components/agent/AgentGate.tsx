@@ -19,7 +19,7 @@ export default function AgentGate({ children }: AgentGateProps) {
     const [showSuccess, setShowSuccess] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [pulseStep, setPulseStep] = useState(0);
-    const [countdown, setCountdown] = useState(10);
+
 
     // Animate the step indicators
     useEffect(() => {
@@ -70,17 +70,7 @@ export default function AgentGate({ children }: AgentGateProps) {
         }
     };
 
-    // Countdown timer for auto-redirect after success
-    useEffect(() => {
-        if (showSuccess && countdown > 0) {
-            const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
-            return () => clearTimeout(timer);
-        }
-        if (showSuccess && countdown === 0) {
-            handleSignInRedirect();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [showSuccess, countdown]);
+
 
     const handleSignInRedirect = async () => {
         await logout();
@@ -447,26 +437,7 @@ export default function AgentGate({ children }: AgentGateProps) {
                             </svg>
                         </button>
 
-                        <div className={styles.autoRedirect}>
-                            <div className={styles.countdownRing}>
-                                <svg width="28" height="28" viewBox="0 0 28 28">
-                                    <circle className={styles.countdownTrack} cx="14" cy="14" r="12" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
-                                    <circle
-                                        className={styles.countdownProgress}
-                                        cx="14" cy="14" r="12"
-                                        fill="none"
-                                        stroke="#d4a017"
-                                        strokeWidth="2"
-                                        strokeDasharray={`${(2 * Math.PI * 12)}`}
-                                        strokeDashoffset={`${(2 * Math.PI * 12) * (1 - countdown / 10)}`}
-                                        strokeLinecap="round"
-                                        transform="rotate(-90 14 14)"
-                                    />
-                                </svg>
-                                <span className={styles.countdownNum}>{countdown}</span>
-                            </div>
-                            <span>Auto-redirecting to sign in...</span>
-                        </div>
+
                     </div>
                 )}
             </div>

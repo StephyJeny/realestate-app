@@ -73,9 +73,9 @@ export default function Footer() {
                 <div className={styles.bottom}>
                     <p>© 2026 EstateVue. All rights reserved.</p>
                     <div className={styles.bottomLinks}>
-                        <Link href="#">Privacy Policy</Link>
-                        <Link href="#">Terms of Service</Link>
-                        <Link href="#">Cookie Policy</Link>
+                        <Link href="/legal/privacy">Privacy Policy</Link>
+                        <Link href="/legal/terms">Terms of Service</Link>
+                        <Link href="/legal/privacy">Cookie Policy</Link>
                     </div>
                 </div>
             </div>

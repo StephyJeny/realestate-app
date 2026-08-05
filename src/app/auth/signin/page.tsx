@@ -232,8 +232,8 @@ export default function SignInPage() {
 
                     <p className={styles.terms}>
                         By signing in, you agree to our{" "}
-                        <Link href="#">Terms of Service</Link> and{" "}
-                        <Link href="#">Privacy Policy</Link>
+                        <Link href="/legal/terms">Terms of Service</Link> and{" "}
+                        <Link href="/legal/privacy">Privacy Policy</Link>
                     </p>
                 </div>
             </div>

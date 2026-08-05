@@ -135,11 +135,30 @@
     border-radius: var(--radius-full);
     color: rgba(255, 255, 255, 0.8);
     transition: all var(--transition-fast);
+    position: relative;
 }
 
 .favBtn:hover {
     background: rgba(255, 255, 255, 0.1);
     color: var(--gold-400);
+}
+
+.favBadge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 16px;
+    height: 16px;
+    background: var(--error, #ef4444);
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 100px;
+    padding: 0 4px;
+    line-height: 1;
 }
 
 /* User Menu */
