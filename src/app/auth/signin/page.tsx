@@ -52,7 +52,7 @@ export default function SignInPage() {
             const message = firebaseError.message || "Sign in failed";
 
             if (code === "auth/user-not-found" || code === "auth/user-disabled") {
-                setError("No account found with this email.");
+                setError("Access denied: You don't have an active profile. Please complete the sign up process first.");
             } else if (
                 code === "auth/wrong-password" ||
                 code === "auth/invalid-credential" ||
@@ -67,6 +67,8 @@ export default function SignInPage() {
                 setError("Invalid email address format.");
             } else if (message.includes("not configured")) {
                 setError("Service temporarily unavailable. Please try again later.");
+            } else if (message.includes("User not found in the database")) {
+                setError("Access denied: You don't have an active profile. Please carefully complete the sign up process first.");
             } else {
                 setError(`Sign in failed: ${code || message}`);
             }

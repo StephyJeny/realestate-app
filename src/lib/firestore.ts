@@ -278,6 +278,8 @@ export interface FirestoreProperty {
     address: string;
     city: string;
     neighborhood: string;
+    latitude?: number;
+    longitude?: number;
     amenities: string[];
     images: string[];
     agentId: string;
@@ -504,17 +506,27 @@ export async function getAdminStats() {
 // ========================
 
 export async function subscribeNewsletter(email: string): Promise<void> {
-    // Use email as doc ID to prevent duplicates
-    const docId = email.toLowerCase().trim();
-    const ref = doc(db, "newsletter_subscribers", docId);
-    const existing = await getDoc(ref);
+    const normalizedEmail = email.toLowerCase().trim();
 
-    if (existing.exists()) {
-        throw new Error("already_subscribed");
+    // Check for duplicate by querying (no read restriction on own doc needed)
+    try {
+        const q = query(
+            collection(db, "newsletter_subscribers"),
+            where("email", "==", normalizedEmail)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+            throw new Error("already_subscribed");
+        }
+    } catch (err: unknown) {
+        // If it's our own "already_subscribed" error, re-throw
+        if (err instanceof Error && err.message === "already_subscribed") throw err;
+        // Otherwise the query failed (permissions) — just try to add anyway
+        console.warn("Could not check duplicates, proceeding with add:", err);
     }
 
-    await setDoc(ref, {
-        email: docId,
+    await addDoc(collection(db, "newsletter_subscribers"), {
+        email: normalizedEmail,
         subscribedAt: serverTimestamp(),
         active: true,
     });

@@ -92,7 +92,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         const result = await signInWithEmailAndPassword(auth, email, password);
         const profile = await fetchProfile(result.user.uid);
-        return profile || null;
+
+        if (!profile) {
+            await signOut(auth);
+            throw new Error("User not found in the database. Please sign up first.");
+        }
+
+        return profile;
     };
 
     const signUp = async (

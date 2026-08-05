@@ -449,6 +449,8 @@ export default function PropertyDetailPage({ params }: Props) {
                                     address={property.address || ""}
                                     city={typeof property.location === "object" ? property.location.city : (property as any).city || ""}
                                     neighborhood={typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood || ""}
+                                    latitude={firestoreProp?.latitude}
+                                    longitude={firestoreProp?.longitude}
                                     height="350px"
                                 />
                                 <p style={{ fontSize: "0.82rem", color: "var(--text-tertiary)", marginTop: "0.5rem" }}>

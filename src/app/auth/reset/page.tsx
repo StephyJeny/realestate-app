@@ -98,16 +98,23 @@ export default function ResetPasswordPage() {
                             </div>
 
                             <div style={{
-                                background: "rgba(16,185,129,0.06)",
-                                border: "1px solid rgba(16,185,129,0.15)",
+                                background: "rgba(234,179,8,0.08)",
+                                border: "1px solid rgba(234,179,8,0.2)",
                                 borderRadius: "var(--radius-md)",
                                 padding: "1rem",
                                 marginBottom: "1.5rem"
                             }}>
-                                <p style={{ fontSize: "0.85rem", color: "var(--gray-600)", lineHeight: "1.6" }}>
-                                    {"📌 "}
-                                    <strong>Tips:</strong>
-                                    {" Check your spam/junk folder if you don't see the email. The link expires in 1 hour."}
+                                <p style={{ fontSize: "0.85rem", color: "var(--text-primary)", lineHeight: "1.6", marginBottom: "0.5rem" }}>
+                                    {"⚠️ "}
+                                    <strong>Important:</strong>
+                                    {" The email may land in your "}
+                                    <strong>Spam or Junk folder</strong>
+                                    {". Please check there if you don't see it in your inbox."}
+                                </p>
+                                <p style={{ fontSize: "0.8rem", color: "var(--text-tertiary)", lineHeight: "1.5" }}>
+                                    {"The email comes from "}
+                                    <em>noreply@realestate-app-d8497.firebaseapp.com</em>
+                                    {". If it's in spam, click \"Report not spam\" to fix this for future emails. The link expires in 1 hour."}
                                 </p>
                             </div>
 

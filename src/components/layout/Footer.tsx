@@ -20,7 +20,7 @@ export default function Footer() {
         try {
             await subscribeNewsletter(email);
             setSubscribed(true);
-            toast.success("Subscribed! 🎉 You'll receive the latest listings.");
+            toast.success("Subscribed successfully! 🎉 You'll get updates on new listings.");
             setEmail("");
         } catch (err: unknown) {
             if (err instanceof Error && err.message === "already_subscribed") {
@@ -105,7 +105,7 @@ export default function Footer() {
                         <div style={{ marginTop: "1.25rem" }}>
                             <h5 style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "0.5rem", color: "rgba(255,255,255,0.85)" }}>Newsletter</h5>
                             {subscribed ? (
-                                <p style={{ fontSize: "0.78rem", color: "var(--gold-400)" }}>✅ Subscribed! Check your inbox.</p>
+                                <p style={{ fontSize: "0.78rem", color: "var(--gold-400)" }}>✅ Subscribed! You&apos;ll get updates on new listings.</p>
                             ) : (
                                 <form onSubmit={handleNewsletter} style={{ display: "flex", gap: "0.35rem" }}>
                                     <input
