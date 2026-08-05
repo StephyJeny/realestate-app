@@ -33,8 +33,10 @@ export default function Footer() {
                             <li><Link href="/properties?type=sale">Buy Property</Link></li>
                             <li><Link href="/properties?type=rent">Rent Property</Link></li>
                             <li><Link href="/properties">All Listings</Link></li>
-                            <li><Link href="#">Our Agents</Link></li>
-                            <li><Link href="#">About Us</Link></li>
+                            <li><Link href="/agents">Our Agents</Link></li>
+                            <li><Link href="/about">About Us</Link></li>
+                            <li><Link href="/contact">Contact Us</Link></li>
+                            <li><Link href="/faq">FAQ</Link></li>
                         </ul>
                     </div>
 

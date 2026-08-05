@@ -1,0 +1,307 @@
+/* ========================================
+   FAQ PAGE
+   ======================================== */
+
+.page {
+    padding-top: var(--navbar-height);
+    min-height: 100vh;
+    background: var(--gray-50);
+}
+
+.hero {
+    background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-700) 100%);
+    padding: 4rem 0 3rem;
+    text-align: center;
+}
+
+.heroTitle {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    color: var(--white);
+    margin-bottom: 0.75rem;
+}
+
+.heroSubtitle {
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.7);
+    max-width: 550px;
+    margin: 0 auto;
+}
+
+.content {
+    padding: var(--space-2xl) 0 4rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Category Tabs */
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: var(--space-xl);
+    justify-content: center;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-full);
+    background: var(--white);
+    color: var(--gray-600);
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.tab:hover {
+    border-color: var(--gold-300);
+    color: var(--navy-800);
+}
+
+.tabActive {
+    background: var(--navy-800);
+    border-color: var(--navy-800);
+    color: var(--white);
+}
+
+.tabActive:hover {
+    color: var(--white);
+}
+
+.tabIcon {
+    font-size: 1.1rem;
+}
+
+/* FAQ List */
+.faqList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.faqItem {
+    background: var(--white);
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: all var(--transition-fast);
+}
+
+.faqItem:hover {
+    border-color: var(--gray-200);
+}
+
+.faqOpen {
+    border-color: var(--gold-300);
+    box-shadow: 0 2px 10px rgba(212, 175, 55, 0.08);
+}
+
+.faqQuestion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    padding: 1.15rem 1.5rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--navy-800);
+    transition: color var(--transition-fast);
+}
+
+.faqQuestion:hover {
+    color: var(--gold-600, #b8860b);
+}
+
+.faqChevron {
+    flex-shrink: 0;
+    color: var(--gray-400);
+    transition: transform 0.3s ease;
+}
+
+.faqOpen .faqChevron {
+    transform: rotate(180deg);
+    color: var(--gold-500);
+}
+
+.faqAnswer {
+    padding: 0 1.5rem 1.25rem;
+    animation: fadeIn 0.25s ease-out;
+}
+
+.faqAnswer p {
+    font-size: 0.92rem;
+    color: var(--gray-600);
+    line-height: 1.7;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Help Card */
+.helpCard {
+    text-align: center;
+    margin-top: 3rem;
+    padding: 2.5rem;
+    background: var(--white);
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius-xl);
+}
+
+.helpIcon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.helpCard h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--navy-800);
+    margin-bottom: 0.4rem;
+}
+
+.helpCard p {
+    color: var(--gray-500);
+    font-size: 0.92rem;
+    margin-bottom: 1.25rem;
+}
+
+.helpActions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.helpBtn {
+    display: inline-block;
+    padding: 0.65rem 1.75rem;
+    background: var(--navy-800);
+    color: var(--white);
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+}
+
+.helpBtn:hover {
+    background: var(--navy-900);
+    transform: translateY(-1px);
+}
+
+.helpOr {
+    color: var(--gray-400);
+    font-size: 0.85rem;
+}
+
+.helpChat {
+    color: var(--gray-500);
+    font-size: 0.88rem;
+}
+
+/* ========================================
+   DARK MODE
+   ======================================== */
+
+:global([data-theme="dark"]) .page {
+    background: var(--bg-secondary);
+}
+
+:global([data-theme="dark"]) .hero {
+    background: linear-gradient(135deg, #0a1628 0%, #142136 100%);
+}
+
+:global([data-theme="dark"]) .tab {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .tab:hover {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .tabActive {
+    background: var(--gold-500);
+    border-color: var(--gold-500);
+    color: var(--navy-900);
+}
+
+:global([data-theme="dark"]) .tabActive:hover {
+    color: var(--navy-900);
+}
+
+:global([data-theme="dark"]) .faqItem {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .faqQuestion {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .faqAnswer p {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .helpCard {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .helpCard h3 {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .helpCard p {
+    color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .heroTitle {
+        font-size: 1.75rem;
+    }
+
+    .tabs {
+        gap: 0.35rem;
+    }
+
+    .tab {
+        padding: 0.5rem 0.85rem;
+        font-size: 0.82rem;
+    }
+
+    .faqQuestion {
+        padding: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .faqAnswer {
+        padding: 0 1rem 1rem;
+    }
+
+    .helpCard {
+        padding: 1.5rem;
+    }
+}
