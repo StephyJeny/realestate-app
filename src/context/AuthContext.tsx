@@ -90,12 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.error("Firebase not configured. API Key present:", !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
             throw new Error("Firebase is not configured. Please add your credentials to .env.local");
         }
+
         const result = await signInWithEmailAndPassword(auth, email, password);
         const profile = await fetchProfile(result.user.uid);
 
         if (!profile) {
             await signOut(auth);
-            throw new Error("User not found in the database. Please sign up first.");
+            throw new Error("NO_ACCOUNT_EXISTS");
         }
 
         return profile;
