@@ -42,6 +42,20 @@
     z-index: 2;
 }
 
+.statusOverlay {
+    position: absolute;
+    bottom: var(--space-md);
+    right: var(--space-md);
+    z-index: 3;
+}
+
+.statusOverlay .badge {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.85rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    letter-spacing: 0.8px;
+}
+
 .favButton {
     position: absolute;
     top: var(--space-md);

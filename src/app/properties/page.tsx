@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useEffect, Suspense } from "react";
+import { useState, useMemo, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { sampleProperties, Property } from "@/lib/data";
 import { getAllProperties, FirestoreProperty } from "@/lib/firestore";
@@ -8,6 +8,15 @@ import styles from "./page.module.css";
 
 const propertyTypes = ["All", "Apartment", "House", "Villa", "Townhouse", "Land", "Commercial"];
 const bedroomOptions = ["Any", "1", "2", "3", "4", "5+"];
+const bathroomOptions = ["Any", "1", "2", "3", "4+"];
+const statusOptions = [
+    { value: "all", label: "All Listings" },
+    { value: "active", label: "🟢 Active" },
+    { value: "under_offer", label: "🟠 Under Offer" },
+    { value: "price_reduced", label: "💰 Price Reduced" },
+    { value: "sold", label: "🔴 Sold" },
+    { value: "rented", label: "🟣 Rented" },
+];
 
 function firestoreToProperty(fp: FirestoreProperty): Property {
     return {
@@ -44,18 +53,37 @@ function firestoreToProperty(fp: FirestoreProperty): Property {
     };
 }
 
+function formatSliderPrice(val: number): string {
+    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
+    return val.toLocaleString();
+}
+
 function PropertiesContent() {
     const searchParams = useSearchParams();
     const [selectedType, setSelectedType] = useState("All");
     const [selectedBedrooms, setSelectedBedrooms] = useState("Any");
+    const [selectedBathrooms, setSelectedBathrooms] = useState("Any");
     const [selectedListing, setSelectedListing] = useState("all");
+    const [selectedStatus, setSelectedStatus] = useState("all");
+    const [selectedCity, setSelectedCity] = useState("All");
+    const [selectedNeighborhood, setSelectedNeighborhood] = useState("All");
     const [sortBy, setSortBy] = useState("newest");
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-    const [minPrice, setMinPrice] = useState("");
-    const [maxPrice, setMaxPrice] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [firestoreProperties, setFirestoreProperties] = useState<Property[]>([]);
     const [loadingFirestore, setLoadingFirestore] = useState(true);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+    // Price range slider
+    const PRICE_MIN = 0;
+    const PRICE_MAX = 200000000;
+    const PRICE_STEP = 500000;
+    const [priceRange, setPriceRange] = useState<[number, number]>([PRICE_MIN, PRICE_MAX]);
+
+    // Area range
+    const [minArea, setMinArea] = useState("");
+    const [maxArea, setMaxArea] = useState("");
 
     // Read filters from URL params
     useEffect(() => {
@@ -80,7 +108,7 @@ function PropertiesContent() {
             try {
                 const data = await getAllProperties();
                 const converted = data
-                    .filter((p) => p.status === "active")
+                    .filter((p) => p.status === "active" || p.status === "under_offer" || p.status === "price_reduced" || p.status === "sold" || p.status === "rented")
                     .map(firestoreToProperty);
                 setFirestoreProperties(converted);
             } catch (err) {
@@ -114,6 +142,37 @@ function PropertiesContent() {
         return merged;
     }, [firestoreProperties]);
 
+    // Extract unique cities and neighborhoods for dropdown filters
+    const { cities, neighborhoods } = useMemo(() => {
+        const citySet = new Set<string>();
+        const neighborhoodSet = new Set<string>();
+        for (const p of allProperties) {
+            if (p.location.city) citySet.add(p.location.city);
+            if (p.location.neighborhood) neighborhoodSet.add(p.location.neighborhood);
+        }
+        return {
+            cities: ["All", ...Array.from(citySet).sort()],
+            neighborhoods: ["All", ...Array.from(neighborhoodSet).sort()],
+        };
+    }, [allProperties]);
+
+    // Filter neighborhoods based on selected city
+    const filteredNeighborhoods = useMemo(() => {
+        if (selectedCity === "All") return neighborhoods;
+        const neighborhoodSet = new Set<string>();
+        for (const p of allProperties) {
+            if (p.location.city === selectedCity && p.location.neighborhood) {
+                neighborhoodSet.add(p.location.neighborhood);
+            }
+        }
+        return ["All", ...Array.from(neighborhoodSet).sort()];
+    }, [selectedCity, allProperties, neighborhoods]);
+
+    // Reset neighborhood when city changes
+    useEffect(() => {
+        setSelectedNeighborhood("All");
+    }, [selectedCity]);
+
     const filtered = useMemo(() => {
         let result = [...allProperties];
 
@@ -141,15 +200,41 @@ function PropertiesContent() {
             const beds = parseInt(selectedBedrooms);
             result = result.filter((p) => (selectedBedrooms === "5+" ? p.bedrooms >= 5 : p.bedrooms === beds));
         }
-
-        // Price range
-        if (minPrice) {
-            const min = parseInt(minPrice.replace(/\D/g, ""));
-            if (!isNaN(min)) result = result.filter((p) => p.price >= min);
+        if (selectedBathrooms !== "Any") {
+            const baths = parseInt(selectedBathrooms);
+            result = result.filter((p) => (selectedBathrooms === "4+" ? p.bathrooms >= 4 : p.bathrooms === baths));
         }
-        if (maxPrice) {
-            const max = parseInt(maxPrice.replace(/\D/g, ""));
-            if (!isNaN(max)) result = result.filter((p) => p.price <= max);
+
+        // City filter
+        if (selectedCity !== "All") {
+            result = result.filter((p) => p.location.city === selectedCity);
+        }
+        // Neighborhood filter
+        if (selectedNeighborhood !== "All") {
+            result = result.filter((p) => p.location.neighborhood === selectedNeighborhood);
+        }
+
+        // Status filter
+        if (selectedStatus !== "all") {
+            result = result.filter((p) => p.status === selectedStatus);
+        }
+
+        // Price range (slider)
+        if (priceRange[0] > PRICE_MIN) {
+            result = result.filter((p) => p.price >= priceRange[0]);
+        }
+        if (priceRange[1] < PRICE_MAX) {
+            result = result.filter((p) => p.price <= priceRange[1]);
+        }
+
+        // Area range
+        if (minArea) {
+            const min = parseInt(minArea);
+            if (!isNaN(min)) result = result.filter((p) => p.area >= min);
+        }
+        if (maxArea) {
+            const max = parseInt(maxArea);
+            if (!isNaN(max)) result = result.filter((p) => p.area <= max);
         }
 
         switch (sortBy) {
@@ -160,7 +245,37 @@ function PropertiesContent() {
         }
 
         return result;
-    }, [allProperties, selectedType, selectedBedrooms, selectedListing, sortBy, minPrice, maxPrice, searchQuery]);
+    }, [allProperties, selectedType, selectedBedrooms, selectedBathrooms, selectedListing, selectedStatus, selectedCity, selectedNeighborhood, sortBy, priceRange, minArea, maxArea, searchQuery]);
+
+    // Count active filters
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (selectedType !== "All") count++;
+        if (selectedBedrooms !== "Any") count++;
+        if (selectedBathrooms !== "Any") count++;
+        if (selectedListing !== "all") count++;
+        if (selectedStatus !== "all") count++;
+        if (selectedCity !== "All") count++;
+        if (selectedNeighborhood !== "All") count++;
+        if (priceRange[0] > PRICE_MIN || priceRange[1] < PRICE_MAX) count++;
+        if (minArea || maxArea) count++;
+        if (searchQuery.trim()) count++;
+        return count;
+    }, [selectedType, selectedBedrooms, selectedBathrooms, selectedListing, selectedStatus, selectedCity, selectedNeighborhood, priceRange, minArea, maxArea, searchQuery]);
+
+    const resetAll = useCallback(() => {
+        setSelectedType("All");
+        setSelectedBedrooms("Any");
+        setSelectedBathrooms("Any");
+        setSelectedListing("all");
+        setSelectedStatus("all");
+        setSelectedCity("All");
+        setSelectedNeighborhood("All");
+        setPriceRange([PRICE_MIN, PRICE_MAX]);
+        setMinArea("");
+        setMaxArea("");
+        setSearchQuery("");
+    }, []);
 
     return (
         <div className={styles.page}>
@@ -195,8 +310,38 @@ function PropertiesContent() {
             </div>
 
             <div className={`container ${styles.layout}`}>
+                {/* Mobile Filter Toggle */}
+                <button
+                    className={styles.mobileFilterBtn}
+                    onClick={() => setShowMobileFilters(!showMobileFilters)}
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" />
+                        <circle cx="8" cy="6" r="2" fill="currentColor" /><circle cx="16" cy="12" r="2" fill="currentColor" /><circle cx="10" cy="18" r="2" fill="currentColor" />
+                    </svg>
+                    Filters {activeFilterCount > 0 && <span className={styles.filterBadge}>{activeFilterCount}</span>}
+                </button>
+
                 {/* Sidebar Filters */}
-                <aside className={styles.sidebar}>
+                <aside className={`${styles.sidebar} ${showMobileFilters ? styles.sidebarOpen : ""}`}>
+                    <div className={styles.sidebarHeader}>
+                        <h3 className={styles.sidebarTitle}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" />
+                            </svg>
+                            Filters
+                            {activeFilterCount > 0 && (
+                                <span className={styles.filterCountBadge}>{activeFilterCount}</span>
+                            )}
+                        </h3>
+                        <button className={styles.mobileClose} onClick={() => setShowMobileFilters(false)}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    {/* Listing Type */}
                     <div className={styles.filterSection}>
                         <h3 className={styles.filterTitle}>Listing Type</h3>
                         <div className={styles.listingToggle}>
@@ -216,6 +361,7 @@ function PropertiesContent() {
                         </div>
                     </div>
 
+                    {/* Property Type */}
                     <div className={styles.filterSection}>
                         <h3 className={styles.filterTitle}>Property Type</h3>
                         <div className={styles.typeList}>
@@ -231,6 +377,57 @@ function PropertiesContent() {
                         </div>
                     </div>
 
+                    {/* Price Range Slider */}
+                    <div className={styles.filterSection}>
+                        <h3 className={styles.filterTitle}>Price Range</h3>
+                        <div className={styles.priceSliderLabels}>
+                            <span>KES {formatSliderPrice(priceRange[0])}</span>
+                            <span>KES {formatSliderPrice(priceRange[1])}{priceRange[1] >= PRICE_MAX ? "+" : ""}</span>
+                        </div>
+                        <div className={styles.dualSlider}>
+                            <div className={styles.sliderTrack}>
+                                <div
+                                    className={styles.sliderFill}
+                                    style={{
+                                        left: `${(priceRange[0] / PRICE_MAX) * 100}%`,
+                                        right: `${100 - (priceRange[1] / PRICE_MAX) * 100}%`,
+                                    }}
+                                />
+                            </div>
+                            <input
+                                type="range"
+                                min={PRICE_MIN}
+                                max={PRICE_MAX}
+                                step={PRICE_STEP}
+                                value={priceRange[0]}
+                                onChange={(e) => {
+                                    const val = Math.min(Number(e.target.value), priceRange[1] - PRICE_STEP);
+                                    setPriceRange([val, priceRange[1]]);
+                                }}
+                                className={styles.sliderInput}
+                            />
+                            <input
+                                type="range"
+                                min={PRICE_MIN}
+                                max={PRICE_MAX}
+                                step={PRICE_STEP}
+                                value={priceRange[1]}
+                                onChange={(e) => {
+                                    const val = Math.max(Number(e.target.value), priceRange[0] + PRICE_STEP);
+                                    setPriceRange([priceRange[0], val]);
+                                }}
+                                className={styles.sliderInput}
+                            />
+                        </div>
+                        {/* Quick price presets */}
+                        <div className={styles.pricePresets}>
+                            <button onClick={() => setPriceRange([0, 10000000])} className={priceRange[1] === 10000000 ? styles.presetActive : ""}>Under 10M</button>
+                            <button onClick={() => setPriceRange([10000000, 50000000])} className={priceRange[0] === 10000000 && priceRange[1] === 50000000 ? styles.presetActive : ""}>10M - 50M</button>
+                            <button onClick={() => setPriceRange([50000000, PRICE_MAX])} className={priceRange[0] === 50000000 ? styles.presetActive : ""}>50M+</button>
+                        </div>
+                    </div>
+
+                    {/* Bedrooms */}
                     <div className={styles.filterSection}>
                         <h3 className={styles.filterTitle}>Bedrooms</h3>
                         <div className={styles.bedroomGrid}>
@@ -246,38 +443,93 @@ function PropertiesContent() {
                         </div>
                     </div>
 
+                    {/* Bathrooms */}
                     <div className={styles.filterSection}>
-                        <h3 className={styles.filterTitle}>Price Range</h3>
+                        <h3 className={styles.filterTitle}>Bathrooms</h3>
+                        <div className={styles.bedroomGrid}>
+                            {bathroomOptions.map((opt) => (
+                                <button
+                                    key={`bath-${opt}`}
+                                    className={`${styles.bedroomBtn} ${selectedBathrooms === opt ? styles.bedroomActive : ""}`}
+                                    onClick={() => setSelectedBathrooms(opt)}
+                                >
+                                    {opt}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* City */}
+                    <div className={styles.filterSection}>
+                        <h3 className={styles.filterTitle}>City</h3>
+                        <select
+                            className={styles.filterSelect}
+                            value={selectedCity}
+                            onChange={(e) => setSelectedCity(e.target.value)}
+                        >
+                            {cities.map((c) => (
+                                <option key={c} value={c}>{c === "All" ? "All Cities" : c}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Neighborhood */}
+                    <div className={styles.filterSection}>
+                        <h3 className={styles.filterTitle}>Neighborhood</h3>
+                        <select
+                            className={styles.filterSelect}
+                            value={selectedNeighborhood}
+                            onChange={(e) => setSelectedNeighborhood(e.target.value)}
+                        >
+                            {filteredNeighborhoods.map((n) => (
+                                <option key={n} value={n}>{n === "All" ? "All Neighborhoods" : n}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Area Range */}
+                    <div className={styles.filterSection}>
+                        <h3 className={styles.filterTitle}>Area (sqft)</h3>
                         <div className={styles.priceInputs}>
                             <input
-                                type="text"
-                                placeholder="Min (KES)"
+                                type="number"
+                                placeholder="Min"
                                 className={styles.priceInput}
-                                value={minPrice}
-                                onChange={(e) => setMinPrice(e.target.value)}
+                                value={minArea}
+                                onChange={(e) => setMinArea(e.target.value)}
                             />
                             <span className={styles.priceSep}>—</span>
                             <input
-                                type="text"
-                                placeholder="Max (KES)"
+                                type="number"
+                                placeholder="Max"
                                 className={styles.priceInput}
-                                value={maxPrice}
-                                onChange={(e) => setMaxPrice(e.target.value)}
+                                value={maxArea}
+                                onChange={(e) => setMaxArea(e.target.value)}
                             />
                         </div>
                     </div>
 
+                    {/* Status Filter */}
+                    <div className={styles.filterSection}>
+                        <h3 className={styles.filterTitle}>Status</h3>
+                        <select
+                            className={styles.filterSelect}
+                            value={selectedStatus}
+                            onChange={(e) => setSelectedStatus(e.target.value)}
+                        >
+                            {statusOptions.map((s) => (
+                                <option key={s.value} value={s.value}>{s.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     <button
                         className={styles.resetBtn}
-                        onClick={() => {
-                            setSelectedType("All");
-                            setSelectedBedrooms("Any");
-                            setSelectedListing("all");
-                            setMinPrice("");
-                            setMaxPrice("");
-                            setSearchQuery("");
-                        }}
+                        onClick={resetAll}
                     >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
+                        </svg>
                         Reset All Filters
                     </button>
                 </aside>
@@ -291,6 +543,24 @@ function PropertiesContent() {
                                 <span style={{ fontSize: "0.8rem", color: "var(--text-tertiary)", marginLeft: "0.5rem" }}>
                                     (loading more...)
                                 </span>
+                            )}
+                            {activeFilterCount > 0 && (
+                                <button
+                                    onClick={resetAll}
+                                    style={{
+                                        marginLeft: "0.75rem",
+                                        fontSize: "0.75rem",
+                                        padding: "0.2rem 0.6rem",
+                                        borderRadius: "var(--radius-full)",
+                                        background: "rgba(239,68,68,0.08)",
+                                        color: "var(--error)",
+                                        border: "1px solid rgba(239,68,68,0.15)",
+                                        cursor: "pointer",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    Clear {activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""}
+                                </button>
                             )}
                         </span>
 
@@ -336,6 +606,11 @@ function PropertiesContent() {
                             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
                             <h3>No properties found</h3>
                             <p>Try adjusting your filters to see more results</p>
+                            {activeFilterCount > 0 && (
+                                <button onClick={resetAll} className={styles.emptyResetBtn}>
+                                    Reset All Filters
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>

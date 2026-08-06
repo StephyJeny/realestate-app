@@ -16,6 +16,9 @@ import {
     FirestoreProperty,
     Notification,
     Inquiry,
+    getReviewsByAgent,
+    respondToReview,
+    Review,
 } from "@/lib/firestore";
 import { uploadPropertyImages } from "@/lib/storage";
 import toast from "react-hot-toast";
@@ -29,6 +32,9 @@ export default function AgentDashboard() {
     const [properties, setProperties] = useState<FirestoreProperty[]>([]);
     const [inquiries, setInquiries] = useState<Inquiry[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [agentReviews, setAgentReviews] = useState<Review[]>([]);
+    const [respondingReview, setRespondingReview] = useState<string | null>(null);
+    const [responseText, setResponseText] = useState("");
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,16 +92,35 @@ export default function AgentDashboard() {
     const loadData = async () => {
         if (!user) return;
         try {
-            const [props, inqs, notifs] = await Promise.all([
+            const [props, inqs, notifs, reviews] = await Promise.all([
                 getPropertiesByAgent(user.uid),
                 getInquiriesByAgent(user.uid),
                 getUserNotifications(user.uid),
+                getReviewsByAgent(user.uid),
             ]);
             setProperties(props);
             setInquiries(inqs);
             setNotifications(notifs);
+            setAgentReviews(reviews);
         } catch (err) {
             console.error("Failed to load data:", err);
+        }
+    };
+
+    const handleRespondToReview = async (reviewId: string) => {
+        if (!responseText.trim()) {
+            toast.error("Please type a response");
+            return;
+        }
+        try {
+            await respondToReview(reviewId, responseText.trim());
+            toast.success("Response posted!");
+            setRespondingReview(null);
+            setResponseText("");
+            loadData();
+        } catch (err) {
+            console.error("Failed to respond:", err);
+            toast.error("Failed to post response");
         }
     };
 
@@ -356,6 +381,12 @@ export default function AgentDashboard() {
                                     <span className={styles.sidebarBadge}>{notifications.filter(n => !n.read).length}</span>
                                 )}
                             </button>
+                            <button className={`${styles.sidebarLink} ${activeTab === "reviews" ? styles.sidebarLinkActive : ""}`}
+                                onClick={() => { setActiveTab("reviews"); setSidebarOpen(false); }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                                Reviews
+                                {agentReviews.length > 0 && <span className={styles.sidebarBadge}>{agentReviews.length}</span>}
+                            </button>
                         </div>
 
                         <div className={styles.sidebarSection}>
@@ -479,6 +510,18 @@ export default function AgentDashboard() {
                                                     <span className={styles.propertyCardBadge} style={{ background: prop.listingType === "sale" ? "rgba(239,68,68,0.9)" : "rgba(59,130,246,0.9)", color: "#fff" }}>
                                                         {prop.listingType === "sale" ? "For Sale" : "For Rent"}
                                                     </span>
+                                                    {prop.status !== "active" && prop.status !== "pending" && (
+                                                        <span className={`badge ${prop.status === "sold" ? "badge-sold" :
+                                                            prop.status === "rented" ? "badge-rented" :
+                                                                prop.status === "under_offer" ? "badge-under-offer" :
+                                                                    prop.status === "price_reduced" ? "badge-price-reduced" : ""
+                                                            }`} style={{ position: "absolute", top: "8px", right: "8px", fontSize: "0.68rem" }}>
+                                                            {prop.status === "sold" && "Sold"}
+                                                            {prop.status === "rented" && "Rented"}
+                                                            {prop.status === "under_offer" && "Under Offer"}
+                                                            {prop.status === "price_reduced" && "Price Reduced"}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className={styles.propertyCardBody}>
                                                     <h4 className={styles.propertyCardTitle}>{prop.title}</h4>
@@ -496,14 +539,36 @@ export default function AgentDashboard() {
                                                     </div>
                                                     {/* Status Badge */}
                                                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
-                                                        <span className={`${styles.statusBadge} ${prop.status === "active" ? styles.statusActive : prop.status === "sold" ? styles.statusApproved : styles.statusPending}`}>
-                                                            {prop.status === "active" ? "🟢 Active" : prop.status === "sold" ? "🔴 Sold" : prop.status === "rented" ? "🔵 Rented" : "⏳ Pending"}
+                                                        <span className={`badge ${prop.status === "active" ? "badge-sale" :
+                                                            prop.status === "sold" ? "badge-sold" :
+                                                                prop.status === "rented" ? "badge-rented" :
+                                                                    prop.status === "under_offer" ? "badge-under-offer" :
+                                                                        prop.status === "price_reduced" ? "badge-price-reduced" :
+                                                                            ""
+                                                            }`} style={{ fontSize: "0.72rem" }}>
+                                                            {prop.status === "active" && "🟢 Active"}
+                                                            {prop.status === "sold" && "🔴 Sold"}
+                                                            {prop.status === "rented" && "🟣 Rented"}
+                                                            {prop.status === "under_offer" && "🟠 Under Offer"}
+                                                            {prop.status === "price_reduced" && "💰 Price Reduced"}
+                                                            {prop.status === "pending" && "⏳ Pending"}
                                                         </span>
                                                         {prop.status === "active" && (
                                                             <>
+                                                                <button onClick={() => handleStatusChange(prop.id!, "under_offer")} style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "rgba(245,158,11,0.1)", color: "#d97706", border: "1px solid rgba(245,158,11,0.2)", cursor: "pointer" }}>Under Offer</button>
+                                                                <button onClick={() => handleStatusChange(prop.id!, "price_reduced")} style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "rgba(16,185,129,0.1)", color: "var(--success)", border: "1px solid rgba(16,185,129,0.2)", cursor: "pointer" }}>Price Reduced</button>
                                                                 <button onClick={() => handleStatusChange(prop.id!, "sold")} style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "rgba(239,68,68,0.1)", color: "var(--error)", border: "1px solid rgba(239,68,68,0.2)", cursor: "pointer" }}>Mark Sold</button>
-                                                                <button onClick={() => handleStatusChange(prop.id!, "rented")} style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "rgba(59,130,246,0.1)", color: "var(--info)", border: "1px solid rgba(59,130,246,0.2)", cursor: "pointer" }}>Mark Rented</button>
+                                                                <button onClick={() => handleStatusChange(prop.id!, "rented")} style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "rgba(124,58,237,0.1)", color: "#7c3aed", border: "1px solid rgba(124,58,237,0.2)", cursor: "pointer" }}>Mark Rented</button>
                                                             </>
+                                                        )}
+                                                        {prop.status === "under_offer" && (
+                                                            <>
+                                                                <button onClick={() => handleStatusChange(prop.id!, "sold")} style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "rgba(239,68,68,0.1)", color: "var(--error)", border: "1px solid rgba(239,68,68,0.2)", cursor: "pointer" }}>Mark Sold</button>
+                                                                <button onClick={() => handleStatusChange(prop.id!, "active")} style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "rgba(16,185,129,0.1)", color: "var(--success)", border: "1px solid rgba(16,185,129,0.2)", cursor: "pointer" }}>Reactivate</button>
+                                                            </>
+                                                        )}
+                                                        {prop.status === "price_reduced" && (
+                                                            <button onClick={() => handleStatusChange(prop.id!, "active")} style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "rgba(16,185,129,0.1)", color: "var(--success)", border: "1px solid rgba(16,185,129,0.2)", cursor: "pointer" }}>Remove Badge</button>
                                                         )}
                                                         {(prop.status === "sold" || prop.status === "rented") && (
                                                             <button onClick={() => handleStatusChange(prop.id!, "active")} style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "rgba(16,185,129,0.1)", color: "var(--success)", border: "1px solid rgba(16,185,129,0.2)", cursor: "pointer" }}>Reactivate</button>
@@ -752,6 +817,153 @@ export default function AgentDashboard() {
                                         Delete My Account
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "reviews" && (
+                        <div className={styles.contentCard}>
+                            <div className={styles.contentCardHeader}>
+                                <h3 className={styles.contentCardTitle}>Reviews & Ratings</h3>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                            <svg key={star} width="16" height="16" viewBox="0 0 24 24"
+                                                fill={star <= Math.round(userProfile?.rating || 0) ? "var(--gold-500)" : "var(--gray-200)"}
+                                            ><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                                        ))}
+                                    </div>
+                                    <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                                        {userProfile?.rating || 0}
+                                    </span>
+                                    <span style={{ fontSize: "0.78rem", color: "var(--text-tertiary)" }}>
+                                        ({agentReviews.length} review{agentReviews.length !== 1 ? "s" : ""})
+                                    </span>
+                                </div>
+                            </div>
+                            <div className={styles.contentCardBody}>
+                                {agentReviews.length === 0 ? (
+                                    <div style={{ textAlign: "center", padding: "3rem 1rem", color: "var(--text-tertiary)" }}>
+                                        <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>⭐</div>
+                                        <h4 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.5rem", color: "var(--text-primary)" }}>No Reviews Yet</h4>
+                                        <p style={{ fontSize: "0.85rem" }}>When clients leave reviews, they&apos;ll appear here. Great service leads to great reviews!</p>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                                        {agentReviews.map((review) => (
+                                            <div key={review.id} style={{
+                                                padding: "1.25rem",
+                                                background: "var(--bg-secondary)",
+                                                borderRadius: "var(--radius-lg)",
+                                                border: "1px solid var(--border-light)",
+                                            }}>
+                                                {/* Review Header */}
+                                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                                                        <div style={{
+                                                            width: "40px", height: "40px", borderRadius: "50%",
+                                                            background: review.reviewerAvatar ? "none" : "linear-gradient(135deg, var(--navy-400), var(--navy-600))",
+                                                            display: "flex", alignItems: "center", justifyContent: "center",
+                                                            color: "#fff", fontWeight: 700, fontSize: "0.85rem",
+                                                            overflow: "hidden", flexShrink: 0,
+                                                        }}>
+                                                            {review.reviewerAvatar ? (
+                                                                <Image src={review.reviewerAvatar} alt="" width={40} height={40} style={{ objectFit: "cover" }} />
+                                                            ) : (
+                                                                review.reviewerName.charAt(0).toUpperCase()
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text-primary)" }}>
+                                                                {review.reviewerName}
+                                                            </div>
+                                                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                                                <div style={{ display: "flex", gap: "1px" }}>
+                                                                    {[1, 2, 3, 4, 5].map((star) => (
+                                                                        <svg key={star} width="13" height="13" viewBox="0 0 24 24"
+                                                                            fill={star <= review.rating ? "var(--gold-500)" : "var(--gray-200)"}
+                                                                        ><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                                                                    ))}
+                                                                </div>
+                                                                <span style={{ fontSize: "0.72rem", color: "var(--text-tertiary)" }}>
+                                                                    {review.createdAt ? new Date(review.createdAt.seconds * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {review.propertyTitle && (
+                                                        <span style={{ fontSize: "0.72rem", padding: "0.2rem 0.6rem", borderRadius: "50px", background: "rgba(59,130,246,0.08)", color: "var(--info)", fontWeight: 500 }}>
+                                                            {review.propertyTitle.length > 30 ? review.propertyTitle.slice(0, 30) + "..." : review.propertyTitle}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Review Content */}
+                                                {review.title && (
+                                                    <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-heading)", marginBottom: "0.4rem" }}>{review.title}</h4>
+                                                )}
+                                                <p style={{ fontSize: "0.88rem", color: "var(--text-secondary)", lineHeight: 1.7 }}>{review.comment}</p>
+
+                                                {/* Existing Response */}
+                                                {review.agentResponse && (
+                                                    <div style={{ marginTop: "0.75rem", padding: "0.85rem", background: "rgba(212,160,23,0.06)", borderRadius: "var(--radius-md)", borderLeft: "3px solid var(--gold-500)" }}>
+                                                        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--gold-600)", marginBottom: "0.3rem" }}>
+                                                            💬 Your Response
+                                                        </div>
+                                                        <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>{review.agentResponse}</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Respond Button / Form */}
+                                                {!review.agentResponse && (
+                                                    <>
+                                                        {respondingReview === review.id ? (
+                                                            <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                                                                <textarea
+                                                                    className={`${styles.formInput} ${styles.formTextarea}`}
+                                                                    value={responseText}
+                                                                    onChange={(e) => setResponseText(e.target.value)}
+                                                                    placeholder="Write your response to this review..."
+                                                                    rows={3}
+                                                                    autoFocus
+                                                                />
+                                                                <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                                                                    <button
+                                                                        className={styles.formBtnSecondary}
+                                                                        onClick={() => { setRespondingReview(null); setResponseText(""); }}
+                                                                        style={{ padding: "0.4rem 0.8rem", fontSize: "0.82rem" }}
+                                                                    >Cancel</button>
+                                                                    <button
+                                                                        className={styles.formBtnPrimary}
+                                                                        onClick={() => handleRespondToReview(review.id!)}
+                                                                        disabled={!responseText.trim()}
+                                                                        style={{ padding: "0.4rem 0.8rem", fontSize: "0.82rem" }}
+                                                                    >Post Response</button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => { setRespondingReview(review.id!); setResponseText(""); }}
+                                                                style={{
+                                                                    marginTop: "0.75rem",
+                                                                    display: "flex", alignItems: "center", gap: "0.35rem",
+                                                                    fontSize: "0.78rem", color: "var(--gold-600)",
+                                                                    cursor: "pointer", padding: "0.3rem 0.6rem",
+                                                                    borderRadius: "var(--radius-sm)",
+                                                                    border: "1px solid rgba(212,160,23,0.3)",
+                                                                    background: "none", transition: "all 0.15s",
+                                                                }}
+                                                            >
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                                                                Respond
+                                                            </button>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

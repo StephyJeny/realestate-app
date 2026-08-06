@@ -1,0 +1,630 @@
+.page {
+    min-height: 100vh;
+    padding-top: var(--navbar-height);
+}
+
+/* ========================================
+   HERO
+   ======================================== */
+
+.hero {
+    padding: 4rem 0 3rem;
+    background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-800) 50%, var(--navy-700) 100%);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+.heroLabel {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold-400);
+    margin-bottom: 0.75rem;
+    position: relative;
+}
+
+.heroTitle {
+    font-size: 2.8rem;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 0.75rem;
+    line-height: 1.15;
+    position: relative;
+}
+
+.heroSubtitle {
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.65);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.7;
+    position: relative;
+}
+
+/* ========================================
+   NEIGHBORHOOD GRID
+   ======================================== */
+
+.gridSection {
+    padding: 3rem 0 4rem;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.sectionTitle {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text-heading);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.cityFilter {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.cityBtn {
+    padding: 0.4rem 1rem;
+    border-radius: 50px;
+    border: 1px solid var(--border-color);
+    background: none;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cityBtn:hover {
+    border-color: var(--gold-400);
+    color: var(--gold-600);
+}
+
+.cityBtnActive {
+    background: var(--gold-500);
+    color: #fff;
+    border-color: var(--gold-500);
+}
+
+.cityBtnActive:hover {
+    background: var(--gold-600);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+/* ========================================
+   NEIGHBORHOOD CARD
+   ======================================== */
+
+.card {
+    position: relative;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    cursor: pointer;
+    aspect-ratio: 4/3;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-xl);
+}
+
+.cardImage {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.card:hover .cardImage {
+    transform: scale(1.06);
+}
+
+.cardOverlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 30%, rgba(0, 0, 0, 0.9) 100%);
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 1.5rem;
+    transition: background 0.3s ease;
+}
+
+.card:hover .cardOverlay {
+    background: linear-gradient(180deg, transparent 10%, rgba(0, 0, 0, 0.85) 100%);
+}
+
+.cardCity {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gold-400);
+    margin-bottom: 0.25rem;
+}
+
+.cardName {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 0.3rem;
+    line-height: 1.2;
+}
+
+.cardTagline {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+}
+
+.cardStats {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.cardStat {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.cardStat strong {
+    color: #fff;
+    font-weight: 700;
+}
+
+.cardBadge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 3;
+    padding: 0.3rem 0.7rem;
+    border-radius: 50px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    backdrop-filter: blur(8px);
+}
+
+.cardBadgePopular {
+    background: rgba(212, 160, 23, 0.85);
+    color: #fff;
+}
+
+.cardBadgeTrending {
+    background: rgba(239, 68, 68, 0.85);
+    color: #fff;
+}
+
+.cardBadgeUpcoming {
+    background: rgba(59, 130, 246, 0.85);
+    color: #fff;
+}
+
+/* Explore button on hover */
+.cardExplore {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gold-400);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.3s ease;
+}
+
+.card:hover .cardExplore {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ========================================
+   DETAIL MODAL
+   ======================================== */
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    animation: fadeIn 0.25s ease-out;
+}
+
+.modal {
+    background: var(--bg-primary);
+    border-radius: var(--radius-xl);
+    max-width: 720px;
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    animation: slideUp 0.35s ease-out;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
+}
+
+.modalImage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/7;
+    overflow: hidden;
+}
+
+.modalImage img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.modalImageOverlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, 0.7) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 1.5rem;
+}
+
+.modalClose {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    z-index: 5;
+}
+
+.modalClose:hover {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.modalBody {
+    padding: 1.75rem;
+}
+
+.modalCityLabel {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gold-400);
+    margin-bottom: 0.25rem;
+}
+
+.modalTitle {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.modalDescription {
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+    line-height: 1.8;
+    margin-bottom: 1.5rem;
+}
+
+.modalStatsGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.modalStat {
+    text-align: center;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+}
+
+.modalStatValue {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--text-heading);
+    display: block;
+}
+
+.modalStatLabel {
+    font-size: 0.72rem;
+    color: var(--text-tertiary);
+    margin-top: 0.2rem;
+    display: block;
+}
+
+/* What's Nearby */
+.nearbySection {
+    margin-bottom: 1.5rem;
+}
+
+.nearbySectionTitle {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-heading);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.nearbyGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.nearbyItem {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.nearbyIcon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(212, 160, 23, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+/* Vibe Tags */
+.vibeTags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1.5rem;
+}
+
+.vibeTag {
+    padding: 0.3rem 0.7rem;
+    border-radius: 50px;
+    background: rgba(212, 160, 23, 0.08);
+    color: var(--gold-600);
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid rgba(212, 160, 23, 0.15);
+}
+
+/* Safety Rating */
+.safetyBar {
+    height: 6px;
+    background: var(--gray-100);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.safetyFill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s ease;
+}
+
+/* CTA section in modal */
+.modalCTA {
+    display: flex;
+    gap: 0.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-light);
+}
+
+.modalCTA a {
+    flex: 1;
+    text-align: center;
+}
+
+/* ========================================
+   CTA SECTION
+   ======================================== */
+
+.ctaSection {
+    padding: 4rem 0;
+    background: var(--bg-secondary);
+}
+
+.ctaCard {
+    max-width: 700px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 3rem 2rem;
+    background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-800) 100%);
+    border-radius: var(--radius-xl);
+    position: relative;
+    overflow: hidden;
+}
+
+.ctaCard::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(212, 160, 23, 0.15) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+.ctaTitle {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 0.5rem;
+    position: relative;
+}
+
+.ctaSubtitle {
+    font-size: 0.92rem;
+    color: rgba(255, 255, 255, 0.65);
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 1024px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .modalStatsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .heroTitle {
+        font-size: 2rem;
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .card {
+        aspect-ratio: 16/10;
+    }
+
+    .sectionHeader {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .modalBody {
+        padding: 1.25rem;
+    }
+
+    .modalStatsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .nearbyGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .modalCTA {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .heroTitle {
+        font-size: 1.7rem;
+    }
+
+    .cityFilter {
+        gap: 0.35rem;
+    }
+
+    .cityBtn {
+        padding: 0.35rem 0.75rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* ========================================
+   DARK MODE
+   ======================================== */
+
+[data-theme="dark"] .card {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .modalStat {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .nearbyItem {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .ctaSection {
+    background: var(--bg-tertiary);
+}

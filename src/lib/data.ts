@@ -22,7 +22,7 @@ export interface Property {
     agentImage: string;
     agentPhone: string;
     agentEmail: string;
-    status: "active" | "pending" | "sold" | "rented";
+    status: "active" | "pending" | "sold" | "rented" | "under_offer" | "price_reduced";
     isFeatured: boolean;
     views: number;
     favorites: number;
