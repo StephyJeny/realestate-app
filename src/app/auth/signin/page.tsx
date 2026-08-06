@@ -43,39 +43,29 @@ export default function SignInPage() {
         setIsLoading(true);
         setError("");
         setNoAccount(false);
-        try {
-            const profile = await signIn(form.email, form.password);
-            toast.success("Welcome back! 🏠");
-            router.push(getRedirectPath(profile?.role));
-        } catch (err: unknown) {
-            console.error("Sign in error:", err);
-            // Firebase Auth errors have a 'code' property like "auth/invalid-credential"
-            const firebaseError = err as { code?: string; message?: string };
-            const code = firebaseError.code || "";
-            const message = firebaseError.message || "Sign in failed";
 
-            if (message === "NO_ACCOUNT_EXISTS" || code === "auth/user-not-found" || code === "auth/user-disabled") {
+        const { profile, error: signInError } = await signIn(form.email, form.password);
+
+        if (signInError) {
+            if (signInError === "NO_ACCOUNT_EXISTS") {
                 setNoAccount(true);
-            } else if (
-                code === "auth/wrong-password" ||
-                code === "auth/invalid-credential" ||
-                code === "auth/invalid-login-credentials"
-            ) {
-                setError("Incorrect email or password. Please try again.");
-            } else if (code === "auth/too-many-requests") {
+            } else if (signInError === "TOO_MANY_REQUESTS") {
                 setError("Too many attempts. Please try again later.");
-            } else if (code === "auth/network-request-failed") {
+            } else if (signInError === "NETWORK_ERROR") {
                 setError("Network error. Please check your connection.");
-            } else if (code === "auth/invalid-email") {
+            } else if (signInError === "INVALID_EMAIL") {
                 setError("Invalid email address format.");
-            } else if (message.includes("not configured")) {
+            } else if (signInError === "NOT_CONFIGURED") {
                 setError("Service temporarily unavailable. Please try again later.");
             } else {
-                setError(`Sign in failed: ${code || message}`);
+                setError("Sign in failed. Please try again.");
             }
-        } finally {
-            setIsLoading(false);
+        } else if (profile) {
+            toast.success("Welcome back! 🏠");
+            router.push(getRedirectPath(profile.role));
         }
+
+        setIsLoading(false);
     };
 
     const handleGoogleSignIn = async () => {
@@ -152,8 +142,9 @@ export default function SignInPage() {
                         <div className={styles.warningMsg}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                             <div>
-                                <strong>No account found for this email.</strong><br />
-                                It looks like you haven&apos;t signed up yet. You need to create an account before you can sign in.<br />
+                                <strong>We couldn&apos;t verify your account.</strong><br />
+                                This email may not be registered yet. If you don&apos;t have an account, you&apos;ll need to sign up first before you can sign in.<br />
+                                If you already have an account, double-check your password and try again.<br />
                                 <Link href="/auth/signup">Click here to Sign Up →</Link>
                             </div>
                         </div>
