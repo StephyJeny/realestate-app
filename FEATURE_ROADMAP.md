@@ -62,7 +62,8 @@ These features are already live in the codebase:
 **✅ Feature #2 — Advanced Search & Filters — COMPLETED** (Aug 6, 2026)
 **✅ Feature #3 — Agent Reviews & Ratings — COMPLETED** (Aug 6, 2026)
 **✅ Feature #4 — Neighborhood Guides — COMPLETED** (Aug 6, 2026)
+**✅ Feature #5 — Virtual Tour Links — COMPLETED** (Aug 6, 2026)
 
-**Next up: Feature #5 — Virtual Tour Links**
+**Next up: Feature #6 — Real-time Chat**
 
 Ready to continue! Say "Go" to begin the next feature.

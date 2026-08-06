@@ -99,6 +99,11 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                         <span className="badge badge-price-reduced">💰 Price Reduced</span>
                     </div>
                 )}
+                {property.virtualTourUrl && (
+                    <div className={styles.tourBadge}>
+                        <span>🎬 360°</span>
+                    </div>
+                )}
                 <button
                     className={`${styles.favButton} ${isSaved ? styles.favButtonActive : ""}`}
                     aria-label={isSaved ? "Remove from saved" : "Save property"}

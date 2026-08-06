@@ -24,6 +24,7 @@ export interface Property {
     agentEmail: string;
     status: "active" | "pending" | "sold" | "rented" | "under_offer" | "price_reduced";
     isFeatured: boolean;
+    virtualTourUrl?: string;
     views: number;
     favorites: number;
     createdAt: string;
@@ -53,6 +54,7 @@ export const sampleProperties: Property[] = [
         agentEmail: "sarah@estatevue.com",
         status: "active",
         isFeatured: true,
+        virtualTourUrl: "https://www.youtube.com/watch?v=2lBnBVoSMHc",
         views: 1240,
         favorites: 89,
         createdAt: "2026-07-15",
@@ -107,6 +109,7 @@ export const sampleProperties: Property[] = [
         agentEmail: "sarah@estatevue.com",
         status: "active",
         isFeatured: true,
+        virtualTourUrl: "https://www.youtube.com/watch?v=uxykI30fS54",
         views: 650,
         favorites: 45,
         createdAt: "2026-07-18",
@@ -161,6 +164,7 @@ export const sampleProperties: Property[] = [
         agentEmail: "sarah@estatevue.com",
         status: "active",
         isFeatured: false,
+        virtualTourUrl: "https://www.youtube.com/watch?v=SJaMg4UiS-0",
         views: 780,
         favorites: 56,
         createdAt: "2026-07-10",

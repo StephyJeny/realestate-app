@@ -211,6 +211,23 @@ export default function PropertyDetailPage({ params }: Props) {
         "Solar Panels": "☀️", "Rainwater Harvesting": "🌧️", "EV Charging": "⚡",
     };
 
+    // Virtual Tour URL helper — converts YouTube/Matterport URLs to embeddable format
+    const getEmbedUrl = (url: string): string | null => {
+        if (!url) return null;
+        // YouTube
+        const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+        if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`;
+        // Matterport
+        const mpMatch = url.match(/matterport\.com\/show\/\?m=([\w-]+)/);
+        if (mpMatch) return `https://my.matterport.com/show/?m=${mpMatch[1]}&play=1`;
+        // Already an embed or iframe-compatible URL
+        if (url.includes("embed") || url.includes("player")) return url;
+        return null;
+    };
+
+    const virtualTourUrl = sampleProp?.virtualTourUrl || firestoreProp?.virtualTourUrl || "";
+    const embedUrl = getEmbedUrl(virtualTourUrl);
+
     // Mortgage calculation
     const loanAmount = mortgagePrice * (1 - downPayment / 100);
     const monthlyRate = interestRate / 100 / 12;
@@ -336,6 +353,7 @@ export default function PropertyDetailPage({ params }: Props) {
                                 {property.status === "rented" && <span className="badge badge-rented">🟣 Rented</span>}
                                 {property.status === "under_offer" && <span className="badge badge-under-offer">🟠 Under Offer</span>}
                                 {property.status === "price_reduced" && <span className="badge badge-price-reduced">💰 Price Reduced</span>}
+                                {virtualTourUrl && <span className="badge badge-featured" style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)", border: "none" }}>🎬 360° Tour</span>}
                             </div>
                             {/* Share Button */}
                             <div className={styles.shareWrap}>
@@ -458,6 +476,57 @@ export default function PropertyDetailPage({ params }: Props) {
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Virtual Tour */}
+                            {virtualTourUrl && (
+                                <div className={styles.section}>
+                                    <h2 className={styles.sectionTitle}>🎬 Virtual Tour</h2>
+                                    <div className={styles.virtualTourWrap}>
+                                        <div className={styles.virtualTourHeader}>
+                                            <div className={styles.virtualTourBadge}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" /></svg>
+                                                <span>360° Immersive Tour</span>
+                                            </div>
+                                            <a
+                                                href={virtualTourUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={styles.virtualTourExternal}
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                                                Open Full Screen
+                                            </a>
+                                        </div>
+                                        {embedUrl ? (
+                                            <div className={styles.virtualTourEmbed}>
+                                                <iframe
+                                                    src={embedUrl}
+                                                    title="Virtual Tour"
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; xr-spatial-tracking"
+                                                    allowFullScreen
+                                                    className={styles.virtualTourIframe}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className={styles.virtualTourFallback}>
+                                                <div className={styles.virtualTourFallbackIcon}>🎬</div>
+                                                <p>This property has a virtual tour available.</p>
+                                                <a
+                                                    href={virtualTourUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="btn btn-primary"
+                                                >
+                                                    Open Virtual Tour →
+                                                </a>
+                                            </div>
+                                        )}
+                                        <p className={styles.virtualTourNote}>
+                                            💡 Use your mouse or touch to look around. Click the fullscreen button for the best experience.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Mortgage Calculator */}
                             {property.listingType === "sale" && (

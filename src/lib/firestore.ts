@@ -292,6 +292,7 @@ export interface FirestoreProperty {
     longitude?: number;
     amenities: string[];
     images: string[];
+    virtualTourUrl?: string;
     agentId: string;
     agentName: string;
     agentEmail: string;
