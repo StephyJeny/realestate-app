@@ -104,6 +104,16 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     return snap.exists() ? (snap.data() as UserProfile) : null;
 }
 
+export async function checkUserExistsByEmail(email: string): Promise<boolean> {
+    const q = query(
+        collection(db, "users"),
+        where("email", "==", email.toLowerCase().trim()),
+        limit(1)
+    );
+    const snap = await getDocs(q);
+    return !snap.empty;
+}
+
 export async function updateUserProfile(
     uid: string,
     data: Partial<UserProfile>

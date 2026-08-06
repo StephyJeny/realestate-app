@@ -178,6 +178,59 @@
     margin-bottom: 1.25rem;
 }
 
+/* Warning — No Account */
+.warningMsg {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 1rem 1.15rem;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(234, 88, 12, 0.06));
+    border: 1.5px solid rgba(245, 158, 11, 0.3);
+    border-radius: var(--radius-md);
+    color: #92400e;
+    font-size: 0.85rem;
+    font-weight: 500;
+    line-height: 1.55;
+    margin-bottom: 1.25rem;
+    animation: slideDown 0.3s ease-out;
+}
+
+.warningMsg svg {
+    flex-shrink: 0;
+    color: #d97706;
+    margin-top: 1px;
+}
+
+.warningMsg a {
+    color: #d97706;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color var(--transition-fast);
+}
+
+.warningMsg a:hover {
+    color: #92400e;
+}
+
+:global([data-theme="dark"]) .warningMsg {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(234, 88, 12, 0.08));
+    border-color: rgba(245, 158, 11, 0.35);
+    color: #fbbf24;
+}
+
+:global([data-theme="dark"]) .warningMsg svg {
+    color: #fbbf24;
+}
+
+:global([data-theme="dark"]) .warningMsg a {
+    color: #f59e0b;
+}
+
+:global([data-theme="dark"]) .warningMsg a:hover {
+    color: #fbbf24;
+}
+
 /* Social */
 .socialBtns {
     display: flex;
