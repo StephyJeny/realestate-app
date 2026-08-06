@@ -296,7 +296,7 @@ export interface FirestoreProperty {
     agentName: string;
     agentEmail: string;
     agentPhone: string;
-    status: "active" | "pending" | "sold" | "rented";
+    status: "active" | "pending" | "sold" | "rented" | "under_offer" | "price_reduced";
     isFeatured: boolean;
     views: number;
     favorites: number;
@@ -539,5 +539,128 @@ export async function subscribeNewsletter(email: string): Promise<void> {
         email: normalizedEmail,
         subscribedAt: serverTimestamp(),
         active: true,
+    });
+}
+
+// ========================
+// REVIEWS & RATINGS
+// ========================
+
+export interface Review {
+    id?: string;
+    agentId: string;
+    agentName: string;
+    reviewerId: string;
+    reviewerName: string;
+    reviewerAvatar: string;
+    propertyId?: string;
+    propertyTitle?: string;
+    rating: number; // 1-5
+    title: string;
+    comment: string;
+    agentResponse?: string;
+    agentRespondedAt?: Timestamp;
+    isVerifiedPurchase: boolean;
+    helpfulCount: number;
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
+}
+
+export async function submitReview(data: Omit<Review, "id" | "createdAt" | "updatedAt" | "helpfulCount">): Promise<string> {
+    // Check if user already reviewed this agent (one review per agent per user)
+    const existingQ = query(
+        collection(db, "reviews"),
+        where("agentId", "==", data.agentId),
+        where("reviewerId", "==", data.reviewerId)
+    );
+    const existingSnap = await getDocs(existingQ);
+    if (!existingSnap.empty) {
+        throw new Error("already_reviewed");
+    }
+
+    const ref = await addDoc(collection(db, "reviews"), {
+        ...data,
+        helpfulCount: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+
+    // Recalculate agent's average rating
+    await recalculateAgentRating(data.agentId);
+
+    // Send notification to agent
+    await addDoc(collection(db, "notifications"), {
+        userId: data.agentId,
+        type: "new_review",
+        title: "New Review ⭐",
+        message: `${data.reviewerName} left a ${data.rating}-star review: "${data.comment.length > 100 ? data.comment.slice(0, 100) + "..." : data.comment}"`,
+        read: false,
+        createdAt: serverTimestamp(),
+    });
+
+    return ref.id;
+}
+
+export async function getReviewsByAgent(agentId: string): Promise<Review[]> {
+    const q = query(
+        collection(db, "reviews"),
+        where("agentId", "==", agentId)
+    );
+    const snap = await getDocs(q);
+    const results = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Review));
+    return results.sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
+}
+
+export async function getReviewsByProperty(propertyId: string): Promise<Review[]> {
+    const q = query(
+        collection(db, "reviews"),
+        where("propertyId", "==", propertyId)
+    );
+    const snap = await getDocs(q);
+    const results = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Review));
+    return results.sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
+}
+
+export async function respondToReview(reviewId: string, response: string) {
+    const ref = doc(db, "reviews", reviewId);
+    await updateDoc(ref, {
+        agentResponse: response,
+        agentRespondedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+}
+
+export async function deleteReview(reviewId: string, agentId: string) {
+    await deleteDoc(doc(db, "reviews", reviewId));
+    await recalculateAgentRating(agentId);
+}
+
+export async function markReviewHelpful(reviewId: string) {
+    const ref = doc(db, "reviews", reviewId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+        const current = snap.data().helpfulCount || 0;
+        await updateDoc(ref, { helpfulCount: current + 1 });
+    }
+}
+
+async function recalculateAgentRating(agentId: string) {
+    const reviews = await getReviewsByAgent(agentId);
+    if (reviews.length === 0) {
+        await updateDoc(doc(db, "users", agentId), {
+            rating: 0,
+            totalReviews: 0,
+            updatedAt: serverTimestamp(),
+        });
+        return;
+    }
+
+    const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
+    const avgRating = Math.round((totalRating / reviews.length) * 10) / 10;
+
+    await updateDoc(doc(db, "users", agentId), {
+        rating: avgRating,
+        totalReviews: reviews.length,
+        updatedAt: serverTimestamp(),
     });
 }

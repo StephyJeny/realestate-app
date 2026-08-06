@@ -78,6 +78,27 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                         <span className="badge badge-featured">Featured</span>
                     )}
                 </div>
+                {/* Status Badges */}
+                {property.status === "sold" && (
+                    <div className={styles.statusOverlay}>
+                        <span className="badge badge-sold">🔴 Sold</span>
+                    </div>
+                )}
+                {property.status === "rented" && (
+                    <div className={styles.statusOverlay}>
+                        <span className="badge badge-rented">🟣 Rented</span>
+                    </div>
+                )}
+                {property.status === "under_offer" && (
+                    <div className={styles.statusOverlay}>
+                        <span className="badge badge-under-offer">🟠 Under Offer</span>
+                    </div>
+                )}
+                {property.status === "price_reduced" && (
+                    <div className={styles.statusOverlay}>
+                        <span className="badge badge-price-reduced">💰 Price Reduced</span>
+                    </div>
+                )}
                 <button
                     className={`${styles.favButton} ${isSaved ? styles.favButtonActive : ""}`}
                     aria-label={isSaved ? "Remove from saved" : "Save property"}

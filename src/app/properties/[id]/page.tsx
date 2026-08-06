@@ -3,7 +3,7 @@ import { use, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { sampleProperties, formatPriceFull, formatPrice } from "@/lib/data";
-import { sendInquiry, getPropertyById, FirestoreProperty } from "@/lib/firestore";
+import { sendInquiry, getPropertyById, FirestoreProperty, submitReview, getReviewsByAgent, Review, markReviewHelpful } from "@/lib/firestore";
 import { addToRecentlyViewed } from "@/lib/recentlyViewed";
 import { sendInquiryEmail } from "@/lib/email";
 import { useAuth } from "@/context/AuthContext";
@@ -46,6 +46,17 @@ export default function PropertyDetailPage({ params }: Props) {
         phone: "",
         message: "I'm interested in this property...",
         type: "inquiry" as "inquiry" | "viewing" | "offer",
+    });
+
+    // Review system state
+    const [agentReviews, setAgentReviews] = useState<Review[]>([]);
+    const [showReviewForm, setShowReviewForm] = useState(false);
+    const [reviewSubmitting, setReviewSubmitting] = useState(false);
+    const [hoverRating, setHoverRating] = useState(0);
+    const [reviewForm, setReviewForm] = useState({
+        rating: 0,
+        title: "",
+        comment: "",
     });
 
     // Load Firestore property if not found in samples
@@ -117,6 +128,67 @@ export default function PropertyDetailPage({ params }: Props) {
             setMortgagePrice(property.price);
         }
     }, [property?.price, property?.listingType]);
+
+    // Load agent reviews
+    useEffect(() => {
+        if (property && firestoreProp?.agentId) {
+            getReviewsByAgent(firestoreProp.agentId)
+                .then(setAgentReviews)
+                .catch(console.error);
+        }
+    }, [property, firestoreProp?.agentId]);
+
+    const handleReviewSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!user || !userProfile) {
+            toast.error("Please sign in to leave a review");
+            return;
+        }
+        if (reviewForm.rating === 0) {
+            toast.error("Please select a star rating");
+            return;
+        }
+        if (!reviewForm.comment.trim()) {
+            toast.error("Please write a comment");
+            return;
+        }
+        if (!firestoreProp?.agentId) {
+            toast.error("Cannot submit review for this listing");
+            return;
+        }
+
+        setReviewSubmitting(true);
+        try {
+            await submitReview({
+                agentId: firestoreProp.agentId,
+                agentName: firestoreProp.agentName,
+                reviewerId: user.uid,
+                reviewerName: userProfile.displayName || "Anonymous",
+                reviewerAvatar: userProfile.avatar || "",
+                propertyId: property?.id || id,
+                propertyTitle: property?.title || "",
+                rating: reviewForm.rating,
+                title: reviewForm.title,
+                comment: reviewForm.comment,
+                isVerifiedPurchase: false,
+            });
+            toast.success("Review submitted! Thank you ⭐");
+            setReviewForm({ rating: 0, title: "", comment: "" });
+            setShowReviewForm(false);
+            // Reload reviews
+            const updated = await getReviewsByAgent(firestoreProp.agentId);
+            setAgentReviews(updated);
+        } catch (err: unknown) {
+            if (err instanceof Error && err.message === "already_reviewed") {
+                toast.error("You've already reviewed this agent");
+            } else {
+                console.error("Review submission failed:", err);
+                toast.error("Failed to submit review");
+            }
+        } finally {
+            setReviewSubmitting(false);
+        }
+    };
 
     if (!property) {
         return (
@@ -260,6 +332,10 @@ export default function PropertyDetailPage({ params }: Props) {
                                     For {property.listingType === "sale" ? "Sale" : "Rent"}
                                 </span>
                                 {property.isFeatured && <span className="badge badge-featured">Featured</span>}
+                                {property.status === "sold" && <span className="badge badge-sold">🔴 Sold</span>}
+                                {property.status === "rented" && <span className="badge badge-rented">🟣 Rented</span>}
+                                {property.status === "under_offer" && <span className="badge badge-under-offer">🟠 Under Offer</span>}
+                                {property.status === "price_reduced" && <span className="badge badge-price-reduced">💰 Price Reduced</span>}
                             </div>
                             {/* Share Button */}
                             <div className={styles.shareWrap}>
@@ -323,6 +399,21 @@ export default function PropertyDetailPage({ params }: Props) {
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                                         {property.address}, {property.location.neighborhood}, {property.location.city}
                                     </p>
+                                    {/* Property Status Badge */}
+                                    {property.status && property.status !== "active" && property.status !== "pending" && (
+                                        <div style={{ marginTop: "0.75rem" }}>
+                                            <span className={`badge ${property.status === "sold" ? "badge-sold" :
+                                                property.status === "rented" ? "badge-rented" :
+                                                    property.status === "under_offer" ? "badge-under-offer" :
+                                                        property.status === "price_reduced" ? "badge-price-reduced" : ""
+                                                }`} style={{ fontSize: "0.82rem", padding: "0.35rem 1rem" }}>
+                                                {property.status === "sold" && "🔴 Sold"}
+                                                {property.status === "rented" && "🟣 Rented"}
+                                                {property.status === "under_offer" && "🟠 Under Offer"}
+                                                {property.status === "price_reduced" && "💰 Price Reduced"}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className={styles.propPrice}>
                                     <span className={styles.priceValue}>{formatPriceFull(property.price, property.currency)}</span>
@@ -441,6 +532,228 @@ export default function PropertyDetailPage({ params }: Props) {
                                     )}
                                 </div>
                             )}
+
+                            {/* Agent Reviews */}
+                            <div className={styles.section}>
+                                <h2 className={styles.sectionTitle}>⭐ Agent Reviews</h2>
+
+                                {/* Rating Summary */}
+                                {agentReviews.length > 0 ? (
+                                    <div style={{ display: "flex", gap: "2rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+                                        {/* Average Score */}
+                                        <div style={{ textAlign: "center", minWidth: "120px" }}>
+                                            <div style={{ fontSize: "3rem", fontWeight: 800, color: "var(--navy-900)", lineHeight: 1 }}>
+                                                {(agentReviews.reduce((s, r) => s + r.rating, 0) / agentReviews.length).toFixed(1)}
+                                            </div>
+                                            <div style={{ display: "flex", justifyContent: "center", gap: "2px", margin: "0.5rem 0" }}>
+                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                    <svg key={star} width="16" height="16" viewBox="0 0 24 24"
+                                                        fill={star <= Math.round(agentReviews.reduce((s, r) => s + r.rating, 0) / agentReviews.length) ? "var(--gold-500)" : "var(--gray-200)"}
+                                                    ><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                                                ))}
+                                            </div>
+                                            <div style={{ fontSize: "0.82rem", color: "var(--text-tertiary)" }}>
+                                                {agentReviews.length} review{agentReviews.length !== 1 ? "s" : ""}
+                                            </div>
+                                        </div>
+
+                                        {/* Rating Distribution */}
+                                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.3rem", justifyContent: "center" }}>
+                                            {[5, 4, 3, 2, 1].map((star) => {
+                                                const count = agentReviews.filter(r => r.rating === star).length;
+                                                const pct = agentReviews.length > 0 ? (count / agentReviews.length) * 100 : 0;
+                                                return (
+                                                    <div key={star} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                                        <span style={{ fontSize: "0.78rem", color: "var(--text-tertiary)", width: "14px" }}>{star}</span>
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--gold-500)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                                                        <div style={{ flex: 1, height: "8px", background: "var(--gray-100)", borderRadius: "4px", overflow: "hidden" }}>
+                                                            <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg, var(--gold-400), var(--gold-500))", borderRadius: "4px", transition: "width 0.5s ease" }} />
+                                                        </div>
+                                                        <span style={{ fontSize: "0.72rem", color: "var(--text-tertiary)", width: "24px", textAlign: "right" }}>{count}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-tertiary)", fontSize: "0.9rem" }}>
+                                        <p style={{ marginBottom: "0.5rem" }}>No reviews yet for this agent</p>
+                                        <p style={{ fontSize: "0.8rem" }}>Be the first to share your experience!</p>
+                                    </div>
+                                )}
+
+                                {/* Write Review Button */}
+                                <button
+                                    onClick={() => {
+                                        if (!user) {
+                                            toast.error("Please sign in to leave a review");
+                                            return;
+                                        }
+                                        setShowReviewForm(!showReviewForm);
+                                    }}
+                                    style={{
+                                        width: "100%",
+                                        padding: "0.75rem",
+                                        borderRadius: "var(--radius-md)",
+                                        border: "1px dashed var(--gold-400)",
+                                        background: showReviewForm ? "rgba(212,160,23,0.08)" : "none",
+                                        color: "var(--gold-600)",
+                                        fontWeight: 600,
+                                        fontSize: "0.88rem",
+                                        cursor: "pointer",
+                                        transition: "all 0.2s",
+                                        marginBottom: showReviewForm ? "1rem" : "0",
+                                    }}
+                                >
+                                    {showReviewForm ? "Cancel" : "✍️ Write a Review"}
+                                </button>
+
+                                {/* Review Form */}
+                                {showReviewForm && (
+                                    <form onSubmit={handleReviewSubmit} style={{ padding: "1.25rem", background: "var(--bg-tertiary)", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "1rem", animation: "fadeInUp 0.3s ease-out" }}>
+                                        {/* Star Rating Selector */}
+                                        <div>
+                                            <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.4rem", display: "block" }}>Your Rating *</label>
+                                            <div style={{ display: "flex", gap: "4px" }}>
+                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                    <button
+                                                        key={star}
+                                                        type="button"
+                                                        onClick={() => setReviewForm({ ...reviewForm, rating: star })}
+                                                        onMouseEnter={() => setHoverRating(star)}
+                                                        onMouseLeave={() => setHoverRating(0)}
+                                                        style={{ padding: "4px", cursor: "pointer", transition: "transform 0.15s" }}
+                                                    >
+                                                        <svg width="28" height="28" viewBox="0 0 24 24"
+                                                            fill={star <= (hoverRating || reviewForm.rating) ? "var(--gold-500)" : "var(--gray-200)"}
+                                                            style={{ transition: "fill 0.15s", transform: star <= (hoverRating || reviewForm.rating) ? "scale(1.1)" : "scale(1)" }}
+                                                        ><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                                                    </button>
+                                                ))}
+                                                {reviewForm.rating > 0 && (
+                                                    <span style={{ marginLeft: "0.5rem", fontSize: "0.85rem", color: "var(--gold-600)", fontWeight: 600, alignSelf: "center" }}>
+                                                        {["", "Poor", "Fair", "Good", "Great", "Excellent"][reviewForm.rating]}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {/* Title */}
+                                        <div>
+                                            <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.4rem", display: "block" }}>Review Title</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Sum up your experience..."
+                                                value={reviewForm.title}
+                                                onChange={(e) => setReviewForm({ ...reviewForm, title: e.target.value })}
+                                                className={styles.formInput}
+                                            />
+                                        </div>
+                                        {/* Comment */}
+                                        <div>
+                                            <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.4rem", display: "block" }}>Your Review *</label>
+                                            <textarea
+                                                placeholder="Share your experience with this agent..."
+                                                value={reviewForm.comment}
+                                                onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+                                                className={styles.formTextarea}
+                                                rows={4}
+                                                required
+                                            />
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={reviewSubmitting || reviewForm.rating === 0}
+                                            className="btn btn-primary"
+                                            style={{ width: "100%" }}
+                                        >
+                                            {reviewSubmitting ? "Submitting..." : "Submit Review"}
+                                        </button>
+                                    </form>
+                                )}
+
+                                {/* Review List */}
+                                {agentReviews.length > 0 && (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1.5rem" }}>
+                                        {agentReviews.map((review) => (
+                                            <div key={review.id} style={{ padding: "1.25rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-light)" }}>
+                                                {/* Review Header */}
+                                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                                                        <div style={{
+                                                            width: "40px", height: "40px", borderRadius: "50%",
+                                                            background: review.reviewerAvatar ? "none" : "linear-gradient(135deg, var(--navy-400), var(--navy-600))",
+                                                            display: "flex", alignItems: "center", justifyContent: "center",
+                                                            color: "#fff", fontWeight: 700, fontSize: "0.85rem",
+                                                            overflow: "hidden", flexShrink: 0,
+                                                        }}>
+                                                            {review.reviewerAvatar ? (
+                                                                <Image src={review.reviewerAvatar} alt="" width={40} height={40} style={{ objectFit: "cover" }} />
+                                                            ) : (
+                                                                review.reviewerName.charAt(0).toUpperCase()
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text-primary)" }}>{review.reviewerName}</div>
+                                                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                                                <div style={{ display: "flex", gap: "1px" }}>
+                                                                    {[1, 2, 3, 4, 5].map((star) => (
+                                                                        <svg key={star} width="13" height="13" viewBox="0 0 24 24"
+                                                                            fill={star <= review.rating ? "var(--gold-500)" : "var(--gray-200)"}
+                                                                        ><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                                                                    ))}
+                                                                </div>
+                                                                <span style={{ fontSize: "0.72rem", color: "var(--text-tertiary)" }}>
+                                                                    {review.createdAt ? new Date(review.createdAt.seconds * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {review.isVerifiedPurchase && (
+                                                        <span style={{ fontSize: "0.68rem", padding: "0.2rem 0.5rem", borderRadius: "50px", background: "rgba(16,185,129,0.1)", color: "var(--success)", fontWeight: 600 }}>
+                                                            ✓ Verified
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Review Content */}
+                                                {review.title && (
+                                                    <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-heading)", marginBottom: "0.4rem" }}>{review.title}</h4>
+                                                )}
+                                                <p style={{ fontSize: "0.88rem", color: "var(--text-secondary)", lineHeight: 1.7 }}>{review.comment}</p>
+
+                                                {/* Agent Response */}
+                                                {review.agentResponse && (
+                                                    <div style={{ marginTop: "0.75rem", padding: "0.85rem", background: "rgba(212,160,23,0.06)", borderRadius: "var(--radius-md)", borderLeft: "3px solid var(--gold-500)" }}>
+                                                        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--gold-600)", marginBottom: "0.3rem" }}>
+                                                            💬 Agent Response
+                                                        </div>
+                                                        <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>{review.agentResponse}</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Helpful Button */}
+                                                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem" }}>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!review.id) return;
+                                                            try {
+                                                                await markReviewHelpful(review.id);
+                                                                setAgentReviews(prev => prev.map(r =>
+                                                                    r.id === review.id ? { ...r, helpfulCount: (r.helpfulCount || 0) + 1 } : r
+                                                                ));
+                                                            } catch { /* ignore */ }
+                                                        }}
+                                                        style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.75rem", color: "var(--text-tertiary)", cursor: "pointer", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", transition: "all 0.15s" }}
+                                                    >
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" /></svg>
+                                                        Helpful {review.helpfulCount > 0 && `(${review.helpfulCount})`}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Location Map */}
                             <div className={styles.section}>
