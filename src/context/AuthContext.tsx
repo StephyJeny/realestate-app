@@ -18,7 +18,7 @@ interface AuthContextType {
     userProfile: UserProfile | null;
     loading: boolean;
     isFirebaseReady: boolean;
-    signIn: (email: string, password: string) => Promise<UserProfile | null>;
+    signIn: (email: string, password: string) => Promise<{ profile: UserProfile | null; error?: string }>;
     signUp: (email: string, password: string, fullName: string, phone?: string, role?: "buyer" | "agent", agentData?: {
         agency?: string;
         specialization?: string;
@@ -85,21 +85,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const signIn = async (email: string, password: string): Promise<UserProfile | null> => {
+    const signIn = async (email: string, password: string): Promise<{ profile: UserProfile | null; error?: string }> => {
         if (!isConfigured) {
-            console.error("Firebase not configured. API Key present:", !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
-            throw new Error("Firebase is not configured. Please add your credentials to .env.local");
+            return { profile: null, error: "NOT_CONFIGURED" };
         }
 
-        const result = await signInWithEmailAndPassword(auth, email, password);
+        let result;
+        try {
+            result = await signInWithEmailAndPassword(auth, email, password);
+        } catch (firebaseErr: unknown) {
+            const fbError = firebaseErr as { code?: string };
+            const code = fbError.code || "";
+            if (
+                code === "auth/invalid-credential" ||
+                code === "auth/user-not-found" ||
+                code === "auth/wrong-password" ||
+                code === "auth/invalid-login-credentials" ||
+                code === "auth/user-disabled"
+            ) {
+                return { profile: null, error: "NO_ACCOUNT_EXISTS" };
+            }
+            if (code === "auth/too-many-requests") {
+                return { profile: null, error: "TOO_MANY_REQUESTS" };
+            }
+            if (code === "auth/network-request-failed") {
+                return { profile: null, error: "NETWORK_ERROR" };
+            }
+            if (code === "auth/invalid-email") {
+                return { profile: null, error: "INVALID_EMAIL" };
+            }
+            return { profile: null, error: code || "UNKNOWN_ERROR" };
+        }
+
         const profile = await fetchProfile(result.user.uid);
 
         if (!profile) {
             await signOut(auth);
-            throw new Error("NO_ACCOUNT_EXISTS");
+            return { profile: null, error: "NO_ACCOUNT_EXISTS" };
         }
 
-        return profile;
+        return { profile };
     };
 
     const signUp = async (
