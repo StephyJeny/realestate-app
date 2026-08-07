@@ -11,6 +11,8 @@ import PropertyCard from "@/components/property/PropertyCard";
 import PropertyMap from "@/components/property/PropertyMap";
 import { getRecentlyViewed, RecentlyViewedItem } from "@/lib/recentlyViewed";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
+import { getOrCreateConversation } from "@/lib/chat";
 import styles from "./page.module.css";
 
 interface Props {
@@ -20,6 +22,7 @@ interface Props {
 export default function PropertyDetailPage({ params }: Props) {
     const { id } = use(params);
     const { user, userProfile } = useAuth();
+    const router = useRouter();
 
     // Try sample data first, then Firestore
     const sampleProp = sampleProperties.find((p) => p.id === id);
@@ -878,6 +881,53 @@ export default function PropertyDetailPage({ params }: Props) {
 
                                 <button className="btn btn-primary btn-lg" style={{ width: "100%" }} onClick={() => setShowInquiry(!showInquiry)}>
                                     {showInquiry ? "Close Inquiry Form" : "Send Inquiry"}
+                                </button>
+
+                                <button
+                                    className="btn btn-lg"
+                                    style={{
+                                        width: "100%",
+                                        background: "linear-gradient(135deg, #1a1a2e, #16213e)",
+                                        color: "#fff",
+                                        border: "1px solid rgba(212,160,23,0.2)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "0.5rem",
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                    }}
+                                    onClick={async () => {
+                                        if (!user || !userProfile) {
+                                            toast.error("Please sign in to chat with the agent");
+                                            router.push("/auth/signin");
+                                            return;
+                                        }
+                                        try {
+                                            toast.loading("Starting conversation...", { id: "chat" });
+                                            const agentId = firestoreProp?.agentId || property.agentId || "";
+                                            const convoId = await getOrCreateConversation({
+                                                currentUserId: user.uid,
+                                                currentUserName: userProfile.displayName || "Buyer",
+                                                currentUserAvatar: userProfile.photoURL || "",
+                                                otherUserId: agentId,
+                                                otherUserName: property.agentName || "Agent",
+                                                otherUserAvatar: property.agentImage || "",
+                                                propertyId: id,
+                                                propertyTitle: property.title,
+                                            });
+                                            toast.success("Chat ready! 💬", { id: "chat" });
+                                            router.push(`/messages?c=${convoId}`);
+                                        } catch (err) {
+                                            console.error("Failed to create conversation:", err);
+                                            toast.error("Failed to start chat. Try again.", { id: "chat" });
+                                        }
+                                    }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                    </svg>
+                                    Chat with Agent
                                 </button>
 
                                 {showInquiry && (

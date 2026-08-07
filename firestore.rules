@@ -104,5 +104,27 @@ service cloud.firestore {
       allow delete: if isRegisteredUser() && 
         (resource.data.reviewerId == request.auth.uid || isAdmin());
     }
+
+    // ========================
+    // CONVERSATIONS (Real-time Chat)
+    // Only participants can read/write conversations
+    // ========================
+    match /conversations/{convoId} {
+      allow read: if isRegisteredUser() && 
+        request.auth.uid in resource.data.participants;
+      allow create: if isRegisteredUser();
+      allow update: if isRegisteredUser() && 
+        request.auth.uid in resource.data.participants;
+      allow delete: if isAdmin();
+
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if isRegisteredUser() && 
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
+        allow create: if isRegisteredUser() && 
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
+        allow update, delete: if isAdmin();
+      }
+    }
   }
 }

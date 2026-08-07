@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
+import { subscribeToConversations, Conversation } from "@/lib/chat";
 import styles from "./Navbar.module.css";
 
 export default function Navbar() {
@@ -10,6 +11,7 @@ export default function Navbar() {
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const { theme, toggleTheme } = useTheme();
     const { user, userProfile, logout, loading, getDashboardPath } = useAuth();
+    const [unreadMessages, setUnreadMessages] = useState(0);
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -22,6 +24,19 @@ export default function Navbar() {
         document.body.style.overflow = isMobileOpen ? "hidden" : "";
         return () => { document.body.style.overflow = ""; };
     }, [isMobileOpen]);
+
+    // Real-time unread message count
+    useEffect(() => {
+        if (!user) { setUnreadMessages(0); return; }
+        const unsub = subscribeToConversations(user.uid, (convos: Conversation[]) => {
+            const total = convos.reduce(
+                (sum, c) => sum + (c.unreadCount?.[user.uid] || 0),
+                0
+            );
+            setUnreadMessages(total);
+        });
+        return () => unsub();
+    }, [user]);
 
     const handleLogout = async () => {
         try {
@@ -80,6 +95,18 @@ export default function Navbar() {
                             <span className={styles.favBadge}>{userProfile.savedProperties.length}</span>
                         )}
                     </Link>
+
+                    {/* Messages */}
+                    {user && (
+                        <Link href="/messages" className={styles.favBtn} aria-label="Messages" style={{ position: "relative" }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                            </svg>
+                            {unreadMessages > 0 && (
+                                <span className={styles.favBadge}>{unreadMessages > 9 ? "9+" : unreadMessages}</span>
+                            )}
+                        </Link>
+                    )}
 
                     {/* Auth Button */}
                     {!loading && (
