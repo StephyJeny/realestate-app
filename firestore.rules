@@ -126,5 +126,17 @@ service cloud.firestore {
         allow update, delete: if isAdmin();
       }
     }
+    // ========================
+    // SAVED SEARCHES (Search Alerts)
+    // Users can only access their own saved searches
+    // ========================
+    match /savedSearches/{searchId} {
+      allow read: if isRegisteredUser() && 
+        resource.data.userId == request.auth.uid;
+      allow create: if isRegisteredUser() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isRegisteredUser() && 
+        resource.data.userId == request.auth.uid;
+    }
   }
 }

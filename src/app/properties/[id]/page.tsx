@@ -930,6 +930,29 @@ export default function PropertyDetailPage({ params }: Props) {
                                     Chat with Agent
                                 </button>
 
+                                <Link
+                                    href={`/mortgage-calculator?price=${property.price}`}
+                                    className="btn btn-lg"
+                                    style={{
+                                        width: "100%",
+                                        background: "rgba(212,160,23,0.08)",
+                                        color: "var(--gold-600, #b8860b)",
+                                        border: "1px solid rgba(212,160,23,0.2)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "0.5rem",
+                                        fontWeight: 600,
+                                        textDecoration: "none",
+                                        borderRadius: "var(--radius-md)",
+                                        padding: "0.65rem 1rem",
+                                        fontSize: "0.9rem",
+                                    }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
+                                    Calculate Mortgage
+                                </Link>
+
                                 {showInquiry && (
                                     <form className={styles.inquiryForm} onSubmit={handleInquirySubmit}>
                                         <input

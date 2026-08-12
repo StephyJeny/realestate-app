@@ -67,6 +67,7 @@ export default function Footer() {
                             <li><Link href="/properties">All Listings</Link></li>
                             <li><Link href="/agents">Our Agents</Link></li>
                             <li><Link href="/about">About Us</Link></li>
+                            <li><Link href="/mortgage-calculator">Mortgage Calculator</Link></li>
                             <li><Link href="/contact">Contact Us</Link></li>
                             <li><Link href="/faq">FAQ</Link></li>
                         </ul>

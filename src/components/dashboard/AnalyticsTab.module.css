@@ -1,0 +1,230 @@
+/* ========================================
+   ANALYTICS TAB — Premium Charts & KPIs
+   ======================================== */
+
+.analyticsWrap {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* ---- KPI Cards ---- */
+.kpiGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+.kpiCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.15rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.2s;
+}
+
+.kpiCard:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow);
+}
+
+.kpiIcon {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.kpiIconBlue {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.kpiIconGold {
+    background: rgba(212, 160, 23, 0.1);
+}
+
+.kpiIconGreen {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.kpiIconPurple {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.kpiContent {
+    flex: 1;
+    min-width: 0;
+}
+
+.kpiValue {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-heading);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.kpiLabel {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-top: 0.1rem;
+}
+
+/* ---- Chart Row ---- */
+.chartRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+
+/* ---- Chart Card ---- */
+.chartCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: all 0.2s;
+}
+
+.chartCard:hover {
+    box-shadow: var(--card-shadow);
+}
+
+.chartHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.chartTitle {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-heading);
+}
+
+.chartSubtitle {
+    font-size: 0.72rem;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    background: var(--bg-tertiary);
+    padding: 0.2rem 0.6rem;
+    border-radius: 50px;
+}
+
+.chartBody {
+    padding: 1.25rem;
+    height: 240px;
+    position: relative;
+}
+
+.chartBodySmall {
+    padding: 1rem 2rem 1.25rem;
+    height: 260px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ---- Activity Feed ---- */
+.activityCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.activityList {
+    padding: 0;
+}
+
+.activityItem {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+    transition: background 0.15s;
+}
+
+.activityItem:last-child {
+    border-bottom: none;
+}
+
+.activityItem:hover {
+    background: var(--bg-tertiary);
+}
+
+.activityIcon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.activityContent {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.activityLabel {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.activityTime {
+    font-size: 0.72rem;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 1024px) {
+    .kpiGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .chartRow {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .kpiGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .kpiCard {
+        padding: 1rem;
+    }
+
+    .kpiValue {
+        font-size: 1.1rem;
+    }
+
+    .chartBody,
+    .chartBodySmall {
+        height: 200px;
+    }
+}
