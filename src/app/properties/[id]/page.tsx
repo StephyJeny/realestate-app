@@ -1,6 +1,7 @@
 "use client";
 import { use, useState, useEffect } from "react";
 import Image from "next/image";
+import OptimizedImage from "@/components/ui/OptimizedImage";
 import Link from "next/link";
 import { sampleProperties, formatPriceFull, formatPrice } from "@/lib/data";
 import { sendInquiry, getPropertyById, FirestoreProperty, submitReview, getReviewsByAgent, Review, markReviewHelpful } from "@/lib/firestore";
@@ -340,10 +341,11 @@ export default function PropertyDetailPage({ params }: Props) {
                 <div className="container">
                     <div className={styles.galleryGrid}>
                         <div className={styles.mainImage}>
-                            <Image
+                            <OptimizedImage
                                 src={property.images[activeImage]}
                                 alt={property.title}
                                 fill
+                                priority
                                 quality={90}
                                 className={styles.mainImg}
                             />
@@ -398,7 +400,7 @@ export default function PropertyDetailPage({ params }: Props) {
                                     className={`${styles.thumbnail} ${activeImage === i ? styles.thumbActive : ""}`}
                                     onClick={() => setActiveImage(i)}
                                 >
-                                    <Image src={img} alt={`View ${i + 1}`} fill sizes="120px" className={styles.thumbImg} />
+                                    <OptimizedImage src={img} alt={`View ${i + 1}`} fill sizes="120px" className={styles.thumbImg} />
                                 </button>
                             ))}
                         </div>

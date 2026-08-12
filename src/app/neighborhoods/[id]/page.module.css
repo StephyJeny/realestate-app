@@ -1,0 +1,486 @@
+/* ========================================
+   NEIGHBORHOOD DETAIL PAGE
+   ======================================== */
+
+.page {
+    padding-top: var(--navbar-height);
+    min-height: 100vh;
+    background: var(--bg-primary);
+}
+
+/* Hero / Banner */
+.hero {
+    position: relative;
+    height: 340px;
+    overflow: hidden;
+}
+
+.heroImage {
+    object-fit: cover;
+}
+
+.heroOverlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(10, 14, 26, 0.92) 0%, rgba(10, 14, 26, 0.3) 60%, rgba(10, 14, 26, 0.15) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 2rem 2.5rem;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 0.75rem;
+}
+
+.breadcrumb a {
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.breadcrumb a:hover {
+    color: var(--gold-400);
+}
+
+.heroCity {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gold-400);
+    background: rgba(212, 160, 23, 0.12);
+    border-radius: 50px;
+    margin-bottom: 0.4rem;
+    width: fit-content;
+}
+
+.heroTitle {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 0.25rem;
+}
+
+.heroTagline {
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.6);
+    max-width: 600px;
+}
+
+.heroBadge {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.5rem;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 50px;
+    z-index: 2;
+}
+
+.badgePopular {
+    background: rgba(239, 68, 68, 0.9);
+    color: #fff;
+}
+
+.badgeTrending {
+    background: rgba(59, 130, 246, 0.9);
+    color: #fff;
+}
+
+.badgeUpcoming {
+    background: rgba(16, 185, 129, 0.9);
+    color: #fff;
+}
+
+/* Layout */
+.layout {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 2rem;
+    align-items: start;
+}
+
+/* Cards */
+.card {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-color, #e2e6ee);
+    border-radius: var(--radius-xl, 16px);
+    overflow: hidden;
+}
+
+.cardHeader {
+    padding: 1.15rem 1.5rem;
+    border-bottom: 1px solid var(--border-light, #f0f1f5);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-heading, #0f1629);
+}
+
+.cardBody {
+    padding: 1.25rem 1.5rem;
+}
+
+/* About Section */
+.description {
+    font-size: 0.95rem;
+    line-height: 1.75;
+    color: var(--text-primary, #374151);
+    margin-bottom: 1.25rem;
+}
+
+/* Vibes */
+.vibeRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1.5rem;
+}
+
+.vibeTag {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--navy-700);
+    background: rgba(10, 14, 26, 0.05);
+    border-radius: 50px;
+}
+
+/* Scores */
+.scoreGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.scoreCard {
+    text-align: center;
+    padding: 1rem 0.5rem;
+    background: var(--bg-secondary, #f8f9fc);
+    border-radius: var(--radius-md);
+}
+
+.scoreIcon {
+    display: block;
+    font-size: 1.4rem;
+    margin-bottom: 0.35rem;
+}
+
+.scoreValue {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-heading, #0f1629);
+}
+
+.scoreLabel {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-tertiary, #9ca3af);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Score Bars */
+.scoreBar {
+    margin-bottom: 1rem;
+}
+
+.scoreBarHeader {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+}
+
+.scoreBarLabel {
+    color: var(--text-secondary, #6b7280);
+}
+
+.scoreBarValue {
+    color: var(--text-heading, #0f1629);
+    font-weight: 700;
+}
+
+.scoreBarTrack {
+    height: 8px;
+    background: var(--bg-tertiary, #eef0f4);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.scoreBarFill {
+    height: 100%;
+    border-radius: 8px;
+    transition: width 0.6s ease;
+}
+
+.scoreBarSafety {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.scoreBarWalk {
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.scoreBarTransit {
+    background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+
+.scoreBarLifestyle {
+    background: linear-gradient(90deg, var(--gold-500), var(--gold-400));
+}
+
+/* Nearby Places */
+.nearbySection {
+    margin-bottom: 1rem;
+}
+
+.nearbyTitle {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-heading, #0f1629);
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.nearbyGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.nearbyItem {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.65rem;
+    background: var(--bg-secondary, #f8f9fc);
+    border-radius: var(--radius-sm);
+    transition: background 0.15s;
+}
+
+.nearbyItem:hover {
+    background: var(--bg-tertiary, #eef0f4);
+}
+
+.nearbyItemIcon {
+    font-size: 1.1rem;
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.nearbyItemName {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-heading, #0f1629);
+}
+
+.nearbyItemType {
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #9ca3af);
+}
+
+/* Sidebar — Price & Quick Info */
+.sidebarCard {
+    position: sticky;
+    top: calc(var(--navbar-height) + 1.5rem);
+}
+
+.priceBlock {
+    text-align: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-light, #f0f1f5);
+}
+
+.priceLabel {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-tertiary, #9ca3af);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.priceValue {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--gold-600, #b8860b);
+    margin-bottom: 0.15rem;
+}
+
+.priceRange {
+    font-size: 0.78rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+/* Quick Stats */
+.quickStats {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.quickStat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--border-light, #f0f1f5);
+}
+
+.quickStat:last-child {
+    border-bottom: none;
+}
+
+.quickStatLabel {
+    font-size: 0.82rem;
+    color: var(--text-secondary, #6b7280);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.quickStatValue {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-heading, #0f1629);
+}
+
+/* CTA */
+.ctaBlock {
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ctaBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.ctaPrimary {
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--gold-500), var(--gold-600));
+    border: none;
+}
+
+.ctaPrimary:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-gold);
+}
+
+.ctaOutline {
+    color: var(--text-secondary, #6b7280);
+    background: none;
+    border: 1px solid var(--border-color, #e2e6ee);
+}
+
+.ctaOutline:hover {
+    border-color: var(--navy-400);
+    color: var(--text-heading);
+}
+
+/* Back link */
+.backLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-decoration: none;
+    margin-bottom: 1.25rem;
+    transition: color 0.15s;
+}
+
+.backLink:hover {
+    color: var(--gold-600);
+}
+
+/* ========================================
+   DARK MODE
+   ======================================== */
+
+:global([data-theme="dark"]) .vibeTag {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .scoreCard {
+    background: var(--bg-tertiary);
+}
+
+:global([data-theme="dark"]) .nearbyItem {
+    background: var(--bg-tertiary);
+}
+
+:global([data-theme="dark"]) .nearbyItem:hover {
+    background: var(--bg-elevated);
+}
+
+:global([data-theme="dark"]) .scoreBarTrack {
+    background: var(--border-color);
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+    .hero {
+        height: 260px;
+    }
+
+    .heroTitle {
+        font-size: 1.75rem;
+    }
+
+    .heroOverlay {
+        padding: 1.5rem;
+    }
+
+    .layout {
+        grid-template-columns: 1fr;
+        padding: 1.25rem 1rem 3rem;
+    }
+
+    .sidebarCard {
+        position: static;
+    }
+
+    .scoreGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import Image from "next/image";
+import OptimizedImage from "@/components/ui/OptimizedImage";
 import Link from "next/link";
 import { Property, formatPrice } from "@/lib/data";
 import { useAuth } from "@/context/AuthContext";
@@ -73,7 +73,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     return (
         <Link href={`/properties/${property.id}`} className={styles.card}>
             <div className={styles.imageWrapper}>
-                <Image
+                <OptimizedImage
                     src={property.images[0]}
                     alt={property.title}
                     fill

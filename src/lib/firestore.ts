@@ -543,6 +543,38 @@ export async function subscribeNewsletter(email: string): Promise<void> {
     });
 }
 
+export interface NewsletterSubscriber {
+    id: string;
+    email: string;
+    subscribedAt: Date | null;
+    active: boolean;
+}
+
+export async function getNewsletterSubscribers(): Promise<NewsletterSubscriber[]> {
+    const snap = await getDocs(
+        query(collection(db, "newsletter_subscribers"), orderBy("subscribedAt", "desc"))
+    );
+    return snap.docs.map((d) => {
+        const data = d.data();
+        return {
+            id: d.id,
+            email: data.email,
+            subscribedAt: data.subscribedAt?.toDate?.() || null,
+            active: data.active ?? true,
+        };
+    });
+}
+
+export async function toggleSubscriberActive(subId: string, active: boolean): Promise<void> {
+    const ref = doc(db, "newsletter_subscribers", subId);
+    await updateDoc(ref, { active });
+}
+
+export async function deleteSubscriber(subId: string): Promise<void> {
+    const ref = doc(db, "newsletter_subscribers", subId);
+    await deleteDoc(ref);
+}
+
 // ========================
 // REVIEWS & RATINGS
 // ========================
