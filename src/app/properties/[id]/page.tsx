@@ -907,11 +907,11 @@ export default function PropertyDetailPage({ params }: Props) {
                                         }
                                         try {
                                             toast.loading("Starting conversation...", { id: "chat" });
-                                            const agentId = firestoreProp?.agentId || property.agentId || "";
+                                            const agentId = firestoreProp?.agentId || (property as any).agentId || "";
                                             const convoId = await getOrCreateConversation({
                                                 currentUserId: user.uid,
                                                 currentUserName: userProfile.displayName || "Buyer",
-                                                currentUserAvatar: userProfile.photoURL || "",
+                                                currentUserAvatar: userProfile.avatar || "",
                                                 otherUserId: agentId,
                                                 otherUserName: property.agentName || "Agent",
                                                 otherUserAvatar: property.agentImage || "",

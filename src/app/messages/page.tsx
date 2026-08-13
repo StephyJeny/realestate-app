@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -50,7 +50,7 @@ function getDateLabel(ts?: Timestamp): string {
     return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 }
 
-export default function MessagesPage() {
+function MessagesContent() {
     const { user, userProfile, loading } = useAuth();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
@@ -438,5 +438,19 @@ export default function MessagesPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function MessagesPage() {
+    return (
+        <Suspense
+            fallback={
+                <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: "var(--navbar-height)" }}>
+                    <div style={{ width: 36, height: 36, border: "3px solid var(--gray-200)", borderTopColor: "var(--gold-500)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                </div>
+            }
+        >
+            <MessagesContent />
+        </Suspense>
     );
 }
