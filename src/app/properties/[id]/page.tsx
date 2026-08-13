@@ -4,6 +4,7 @@ import Image from "next/image";
 import OptimizedImage from "@/components/ui/OptimizedImage";
 import Link from "next/link";
 import { sampleProperties, formatPriceFull, formatPrice } from "@/lib/data";
+import { getNeighborhoodByName } from "@/lib/neighborhoods";
 import { sendInquiry, getPropertyById, FirestoreProperty, submitReview, getReviewsByAgent, Review, markReviewHelpful } from "@/lib/firestore";
 import { addToRecentlyViewed } from "@/lib/recentlyViewed";
 import { sendInquiryEmail } from "@/lib/email";
@@ -844,6 +845,114 @@ export default function PropertyDetailPage({ params }: Props) {
                                     {property.address || ""}{property.address ? ", " : ""}{typeof property.location === "object" ? `${property.location.neighborhood}, ${property.location.city}` : (property as any).city || ""}
                                 </p>
                             </div>
+
+                            {/* Neighborhood Insights */}
+                            {(() => {
+                                const neighborhoodName = typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood || "";
+                                const neighborhoodData = getNeighborhoodByName(neighborhoodName);
+                                if (!neighborhoodData) return null;
+
+                                const insightCategories = [
+                                    { title: "🎓 Schools & Education", data: neighborhoodData.nearbySchools },
+                                    { title: "🏥 Healthcare", data: neighborhoodData.nearbyHospitals },
+                                    { title: "🛒 Shopping", data: neighborhoodData.nearbyShopping },
+                                    { title: "🍽️ Dining & Cafés", data: neighborhoodData.nearbyDining },
+                                    { title: "🌿 Parks & Recreation", data: neighborhoodData.nearbyParks },
+                                ];
+
+                                return (
+                                    <div className={styles.section}>
+                                        <h2 className={styles.sectionTitle}>🏘️ Neighborhood Insights — {neighborhoodData.name}</h2>
+
+                                        {/* Scores Row */}
+                                        <div className={styles.neighborhoodScores}>
+                                            <div className={styles.scoreItem}>
+                                                <div className={styles.scoreRing}>
+                                                    <svg viewBox="0 0 36 36" className={styles.scoreSvg}>
+                                                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--gray-100)" strokeWidth="3" />
+                                                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--success)" strokeWidth="3"
+                                                            strokeDasharray={`${neighborhoodData.safetyRating * 10} 100`}
+                                                            strokeLinecap="round" transform="rotate(-90 18 18)" />
+                                                    </svg>
+                                                    <span className={styles.scoreValue}>{neighborhoodData.safetyRating}</span>
+                                                </div>
+                                                <span className={styles.scoreLabel}>🛡️ Safety</span>
+                                            </div>
+                                            <div className={styles.scoreItem}>
+                                                <div className={styles.scoreRing}>
+                                                    <svg viewBox="0 0 36 36" className={styles.scoreSvg}>
+                                                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--gray-100)" strokeWidth="3" />
+                                                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--info, #3b82f6)" strokeWidth="3"
+                                                            strokeDasharray={`${neighborhoodData.walkabilityScore * 10} 100`}
+                                                            strokeLinecap="round" transform="rotate(-90 18 18)" />
+                                                    </svg>
+                                                    <span className={styles.scoreValue}>{neighborhoodData.walkabilityScore}</span>
+                                                </div>
+                                                <span className={styles.scoreLabel}>🚶 Walkability</span>
+                                            </div>
+                                            <div className={styles.scoreItem}>
+                                                <div className={styles.scoreRing}>
+                                                    <svg viewBox="0 0 36 36" className={styles.scoreSvg}>
+                                                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--gray-100)" strokeWidth="3" />
+                                                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--gold-500)" strokeWidth="3"
+                                                            strokeDasharray={`${neighborhoodData.transitScore * 10} 100`}
+                                                            strokeLinecap="round" transform="rotate(-90 18 18)" />
+                                                    </svg>
+                                                    <span className={styles.scoreValue}>{neighborhoodData.transitScore}</span>
+                                                </div>
+                                                <span className={styles.scoreLabel}>🚌 Transit</span>
+                                            </div>
+                                            <div className={styles.scoreItem}>
+                                                <div className={styles.scoreRing}>
+                                                    <svg viewBox="0 0 36 36" className={styles.scoreSvg}>
+                                                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--gray-100)" strokeWidth="3" />
+                                                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#a855f7" strokeWidth="3"
+                                                            strokeDasharray={`${neighborhoodData.lifestyleScore * 10} 100`}
+                                                            strokeLinecap="round" transform="rotate(-90 18 18)" />
+                                                    </svg>
+                                                    <span className={styles.scoreValue}>{neighborhoodData.lifestyleScore}</span>
+                                                </div>
+                                                <span className={styles.scoreLabel}>✨ Lifestyle</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Vibes */}
+                                        <div className={styles.neighborhoodVibes}>
+                                            {neighborhoodData.vibes.map((v) => (
+                                                <span key={v} className={styles.vibeBadge}>{v}</span>
+                                            ))}
+                                        </div>
+
+                                        {/* Nearby Places Grid */}
+                                        <div className={styles.nearbyGrid}>
+                                            {insightCategories.map((cat) => (
+                                                <div key={cat.title} className={styles.nearbyCategory}>
+                                                    <h4 className={styles.nearbyCategoryTitle}>{cat.title}</h4>
+                                                    <ul className={styles.nearbyList}>
+                                                        {cat.data.map((place) => (
+                                                            <li key={place.name} className={styles.nearbyItem}>
+                                                                <span className={styles.nearbyIcon}>{place.icon}</span>
+                                                                <div>
+                                                                    <span className={styles.nearbyName}>{place.name}</span>
+                                                                    <span className={styles.nearbyType}>{place.type}</span>
+                                                                </div>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Link to full neighborhood page */}
+                                        <Link
+                                            href={`/neighborhoods/${neighborhoodData.id}`}
+                                            className={styles.neighborhoodLink}
+                                        >
+                                            View Full {neighborhoodData.name} Neighborhood Guide →
+                                        </Link>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {/* Right Column */}
