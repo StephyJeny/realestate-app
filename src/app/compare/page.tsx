@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { sampleProperties, Property, formatPrice } from "@/lib/data";
@@ -141,7 +141,7 @@ function CompareContent() {
         { label: "Amenities", key: "amenities" },
     ];
 
-    const getCellValue = (prop: UnifiedProperty, key: string): string | JSX.Element => {
+    const getCellValue = (prop: UnifiedProperty, key: string): React.ReactNode => {
         switch (key) {
             case "price":
                 return formatPrice(prop.price, prop.currency);
