@@ -1,0 +1,289 @@
+/* ========================================
+   NEWSLETTER TAB - ADMIN DASHBOARD
+   ======================================== */
+
+.container {
+    max-width: 100%;
+}
+
+/* Stats Bar */
+.statsBar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.miniStat {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    text-align: center;
+}
+
+.miniStatValue {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-heading);
+    display: block;
+}
+
+.miniStatLabel {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Toolbar */
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.searchInput {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.55rem 1rem;
+    font-size: 0.85rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.searchInput:focus {
+    border-color: var(--gold-500);
+}
+
+.filterSelect {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.82rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    cursor: pointer;
+    outline: none;
+}
+
+.actionBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.55rem 1rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.exportBtn {
+    background: linear-gradient(135deg, var(--gold-500), var(--gold-600));
+    color: #000;
+}
+
+.exportBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-gold);
+}
+
+/* Table */
+.tableWrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th {
+    padding: 0.75rem 1rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: left;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.table td {
+    padding: 0.65rem 1rem;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+}
+
+.table tr:last-child td {
+    border-bottom: none;
+}
+
+.table tr:hover td {
+    background: rgba(212, 160, 23, 0.02);
+}
+
+.emailCell {
+    font-weight: 600;
+    color: var(--text-heading);
+}
+
+/* Status Badge */
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 50px;
+}
+
+.statusActive {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success, #10b981);
+}
+
+.statusInactive {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--error, #ef4444);
+}
+
+/* Action Buttons */
+.rowActions {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.rowBtn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+}
+
+.rowBtn:hover {
+    border-color: var(--gold-500);
+    color: var(--gold-600);
+}
+
+.rowBtnDanger:hover {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+/* Checkbox */
+.checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--gold-500);
+}
+
+/* Empty State */
+.empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-tertiary);
+}
+
+.emptyIcon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.emptyTitle {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-heading);
+    margin-bottom: 0.25rem;
+}
+
+.emptyText {
+    font-size: 0.82rem;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    border-top: 1px solid var(--border-light);
+}
+
+.paginationBtns {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.pageBtn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.pageBtn:hover:not(:disabled) {
+    border-color: var(--gold-500);
+    color: var(--gold-600);
+}
+
+.pageBtn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.pageBtnActive {
+    background: var(--gold-500);
+    color: #000;
+    border-color: var(--gold-500);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .statsBar {
+        grid-template-columns: 1fr;
+    }
+
+    .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .table {
+        font-size: 0.78rem;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.5rem 0.65rem;
+    }
+}

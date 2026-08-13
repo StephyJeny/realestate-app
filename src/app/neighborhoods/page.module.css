@@ -1,6 +1,11 @@
+/* ========================================
+   NEIGHBORHOODS PAGE — Premium Redesign
+   ======================================== */
+
 .page {
     min-height: 100vh;
     padding-top: var(--navbar-height);
+    background: var(--bg-primary);
 }
 
 /* ========================================
@@ -8,8 +13,8 @@
    ======================================== */
 
 .hero {
-    padding: 4rem 0 3rem;
-    background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-800) 50%, var(--navy-700) 100%);
+    padding: 5rem 0 4rem;
+    background: linear-gradient(160deg, var(--navy-900) 0%, #0c1425 40%, #111d35 100%);
     text-align: center;
     position: relative;
     overflow: hidden;
@@ -19,120 +24,229 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    background: radial-gradient(ellipse at 30% 80%, rgba(212, 160, 23, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.hero::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100px;
+    background: linear-gradient(to top, var(--bg-primary), transparent);
+    pointer-events: none;
+}
+
+.heroInner {
+    position: relative;
+    z-index: 2;
 }
 
 .heroLabel {
-    display: inline-block;
-    font-size: 0.78rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: 2px;
+    letter-spacing: 2.5px;
     text-transform: uppercase;
     color: var(--gold-400);
-    margin-bottom: 0.75rem;
-    position: relative;
+    margin-bottom: 1rem;
+    padding: 0.35rem 1rem;
+    background: rgba(212, 160, 23, 0.08);
+    border: 1px solid rgba(212, 160, 23, 0.15);
+    border-radius: 50px;
 }
 
 .heroTitle {
-    font-size: 2.8rem;
-    font-weight: 800;
+    font-size: 3.2rem;
+    font-weight: 900;
     color: #fff;
-    margin-bottom: 0.75rem;
-    line-height: 1.15;
-    position: relative;
+    margin-bottom: 1rem;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+}
+
+.heroTitleAccent {
+    background: linear-gradient(135deg, var(--gold-400), var(--gold-600));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .heroSubtitle {
-    font-size: 1.05rem;
-    color: rgba(255, 255, 255, 0.65);
-    max-width: 600px;
-    margin: 0 auto;
+    font-size: 1.08rem;
+    color: rgba(255, 255, 255, 0.55);
+    max-width: 580px;
+    margin: 0 auto 2rem;
     line-height: 1.7;
-    position: relative;
+}
+
+.heroStats {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    flex-wrap: wrap;
+}
+
+.heroStat {
+    text-align: center;
+}
+
+.heroStatNumber {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #fff;
+    display: block;
+    line-height: 1;
+}
+
+.heroStatLabel {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.45);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 0.3rem;
+    display: block;
 }
 
 /* ========================================
-   NEIGHBORHOOD GRID
+   FILTER BAR
    ======================================== */
 
-.gridSection {
-    padding: 3rem 0 4rem;
+.filterSection {
+    padding: 2.5rem 0 0;
 }
 
-.sectionHeader {
+.filterBar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 2rem;
     flex-wrap: wrap;
     gap: 1rem;
+    margin-bottom: 2rem;
 }
 
-.sectionTitle {
-    font-size: 1.6rem;
-    font-weight: 800;
-    color: var(--text-heading);
+.filterLeft {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-}
-
-.cityFilter {
-    display: flex;
-    gap: 0.5rem;
+    gap: 1.5rem;
     flex-wrap: wrap;
 }
 
-.cityBtn {
-    padding: 0.4rem 1rem;
-    border-radius: 50px;
-    border: 1px solid var(--border-color);
+.filterTitle {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-heading);
+}
+
+.filterCount {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-tertiary);
+}
+
+.cityTabs {
+    display: flex;
+    gap: 0.35rem;
+    padding: 4px;
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+}
+
+.cityTab {
+    padding: 0.5rem 1.1rem;
+    border-radius: 8px;
+    border: none;
     background: none;
     color: var(--text-secondary);
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
-.cityBtn:hover {
-    border-color: var(--gold-400);
-    color: var(--gold-600);
+.cityTab:hover {
+    color: var(--text-primary);
+    background: rgba(212, 160, 23, 0.06);
 }
 
-.cityBtnActive {
-    background: var(--gold-500);
-    color: #fff;
-    border-color: var(--gold-500);
+.cityTabActive {
+    background: var(--gold-500) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(212, 160, 23, 0.3);
 }
 
-.cityBtnActive:hover {
-    background: var(--gold-600);
+.viewToggle {
+    display: flex;
+    gap: 0.25rem;
+    padding: 3px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
 }
 
-.grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
+.viewBtn {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.viewBtnActive {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 /* ========================================
-   NEIGHBORHOOD CARD
+   GRID LAYOUTS
+   ======================================== */
+
+.gridView {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    padding-bottom: 3rem;
+}
+
+.listView {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-bottom: 3rem;
+}
+
+/* ========================================
+   NEIGHBORHOOD CARD — Grid
    ======================================== */
 
 .card {
     position: relative;
-    border-radius: var(--radius-xl);
+    border-radius: 20px;
     overflow: hidden;
     cursor: pointer;
-    aspect-ratio: 4/3;
-    box-shadow: var(--shadow-md);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    aspect-ratio: 3/3.5;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.4s ease;
+    will-change: transform;
 }
 
 .card:hover {
-    transform: translateY(-6px);
-    box-shadow: var(--shadow-xl);
+    transform: translateY(-8px) scale(1.01);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
 }
 
 .cardImage {
@@ -141,111 +255,96 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.5s ease;
+    transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .card:hover .cardImage {
-    transform: scale(1.06);
+    transform: scale(1.08);
 }
 
-.cardOverlay {
+.cardGradient {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, transparent 30%, rgba(0, 0, 0, 0.9) 100%);
+    background: linear-gradient(180deg,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.02) 30%,
+            rgba(0, 0, 0, 0.5) 65%,
+            rgba(0, 0, 0, 0.92) 100%);
     z-index: 2;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    padding: 1.5rem;
-    transition: background 0.3s ease;
+    transition: background 0.4s ease;
 }
 
-.card:hover .cardOverlay {
-    background: linear-gradient(180deg, transparent 10%, rgba(0, 0, 0, 0.85) 100%);
+.card:hover .cardGradient {
+    background: linear-gradient(180deg,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.1) 25%,
+            rgba(0, 0, 0, 0.6) 55%,
+            rgba(0, 0, 0, 0.95) 100%);
+}
+
+.cardContent {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1.5rem;
+    z-index: 3;
 }
 
 .cardCity {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 700;
-    letter-spacing: 1.5px;
+    letter-spacing: 2px;
     text-transform: uppercase;
     color: var(--gold-400);
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.3rem;
 }
 
 .cardName {
-    font-size: 1.4rem;
+    font-size: 1.5rem;
     font-weight: 800;
     color: #fff;
-    margin-bottom: 0.3rem;
-    line-height: 1.2;
+    margin-bottom: 0.25rem;
+    line-height: 1.15;
 }
 
 .cardTagline {
-    font-size: 0.82rem;
-    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 0.85rem;
     line-height: 1.5;
+}
+
+.cardMeta {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
     margin-bottom: 0.75rem;
 }
 
-.cardStats {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 0.5rem;
-}
-
-.cardStat {
-    font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.8);
-    display: flex;
+.cardChip {
+    display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-}
-
-.cardStat strong {
-    color: #fff;
-    font-weight: 700;
-}
-
-.cardBadge {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    z-index: 3;
-    padding: 0.3rem 0.7rem;
+    padding: 0.25rem 0.6rem;
     border-radius: 50px;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+    background: rgba(255, 255, 255, 0.12);
     backdrop-filter: blur(8px);
-}
-
-.cardBadgePopular {
-    background: rgba(212, 160, 23, 0.85);
+    font-size: 0.7rem;
+    font-weight: 600;
     color: #fff;
 }
 
-.cardBadgeTrending {
-    background: rgba(239, 68, 68, 0.85);
-    color: #fff;
-}
-
-.cardBadgeUpcoming {
-    background: rgba(59, 130, 246, 0.85);
-    color: #fff;
-}
-
-/* Explore button on hover */
 .cardExplore {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 600;
     color: var(--gold-400);
     opacity: 0;
-    transform: translateY(8px);
-    transition: all 0.3s ease;
+    transform: translateY(10px);
+    transition: all 0.35s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .card:hover .cardExplore {
@@ -253,145 +352,443 @@
     transform: translateY(0);
 }
 
+/* Badge */
+.badge {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 4;
+    padding: 0.35rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.badgePopular {
+    background: rgba(212, 160, 23, 0.85);
+    color: #fff;
+}
+
+.badgeTrending {
+    background: rgba(239, 68, 68, 0.85);
+    color: #fff;
+}
+
+.badgeUpcoming {
+    background: rgba(59, 130, 246, 0.85);
+    color: #fff;
+}
+
+/* Score pill (top right) */
+.scorePill {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 4;
+    padding: 0.3rem 0.65rem;
+    border-radius: 50px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(12px);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
 /* ========================================
-   DETAIL MODAL
+   CARD — List View
+   ======================================== */
+
+.listCard {
+    display: flex;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    min-height: 200px;
+}
+
+.listCard:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+}
+
+.listCardImage {
+    position: relative;
+    width: 280px;
+    min-height: 200px;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.listCardImage img {
+    transition: transform 0.5s ease;
+}
+
+.listCard:hover .listCardImage img {
+    transform: scale(1.05);
+}
+
+.listCardBody {
+    flex: 1;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.listCardCity {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gold-500);
+    margin-bottom: 0.2rem;
+}
+
+.listCardName {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-heading);
+    margin-bottom: 0.25rem;
+}
+
+.listCardTagline {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+.listCardStats {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-top: auto;
+}
+
+.listCardStat {
+    text-align: center;
+}
+
+.listCardStatValue {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-heading);
+    display: block;
+}
+
+.listCardStatLabel {
+    font-size: 0.68rem;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.listCardVibes {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+}
+
+.listVibeTag {
+    padding: 0.2rem 0.6rem;
+    border-radius: 50px;
+    background: rgba(212, 160, 23, 0.06);
+    color: var(--gold-600);
+    font-size: 0.7rem;
+    font-weight: 600;
+    border: 1px solid rgba(212, 160, 23, 0.12);
+}
+
+/* ========================================
+   DETAIL MODAL — Premium
    ======================================== */
 
 .modalOverlay {
     position: fixed;
     inset: 0;
     z-index: 1000;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(6px);
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 1.5rem;
-    animation: fadeIn 0.25s ease-out;
+    animation: fadeIn 0.2s ease-out;
 }
 
 .modal {
     background: var(--bg-primary);
-    border-radius: var(--radius-xl);
-    max-width: 720px;
+    border-radius: 24px;
+    max-width: 760px;
     width: 100%;
-    max-height: 88vh;
+    max-height: 90vh;
     overflow-y: auto;
-    animation: slideUp 0.35s ease-out;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.35);
 }
 
-.modalImage {
+.modal::-webkit-scrollbar {
+    width: 5px;
+}
+
+.modal::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.modal::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 3px;
+}
+
+.modalHero {
     position: relative;
     width: 100%;
     aspect-ratio: 16/7;
     overflow: hidden;
 }
 
-.modalImage img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.modalImageOverlay {
+.modalHeroOverlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, 0.7) 100%);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.7) 100%);
+    z-index: 2;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    padding: 1.5rem;
+    padding: 2rem;
 }
 
 .modalClose {
     position: absolute;
     top: 1rem;
     right: 1rem;
-    width: 36px;
-    height: 36px;
+    z-index: 5;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(8px);
-    border: none;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: #fff;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s;
-    z-index: 5;
+    transition: all 0.2s;
 }
 
 .modalClose:hover {
     background: rgba(0, 0, 0, 0.7);
+    transform: scale(1.05);
+}
+
+.modalHeroCity {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold-400);
+    margin-bottom: 0.3rem;
+}
+
+.modalHeroTitle {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1.15;
 }
 
 .modalBody {
-    padding: 1.75rem;
+    padding: 2rem;
 }
 
-.modalCityLabel {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--gold-400);
-    margin-bottom: 0.25rem;
-}
-
-.modalTitle {
-    font-size: 1.75rem;
-    font-weight: 800;
-    color: #fff;
-    line-height: 1.2;
-}
-
-.modalDescription {
-    font-size: 0.92rem;
+.modalDesc {
+    font-size: 0.95rem;
     color: var(--text-secondary);
-    line-height: 1.8;
+    line-height: 1.85;
     margin-bottom: 1.5rem;
 }
 
-.modalStatsGrid {
+/* Vibe tags */
+.vibeRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1.75rem;
+}
+
+.vibeTag {
+    padding: 0.3rem 0.75rem;
+    border-radius: 50px;
+    background: rgba(212, 160, 23, 0.07);
+    color: var(--gold-600);
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid rgba(212, 160, 23, 0.12);
+    transition: all 0.2s;
+}
+
+.vibeTag:hover {
+    background: rgba(212, 160, 23, 0.14);
+}
+
+/* Score Cards */
+.scoreGrid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    gap: 0.75rem;
+    margin-bottom: 1.75rem;
 }
 
-.modalStat {
+.scoreCard {
     text-align: center;
-    padding: 0.75rem;
+    padding: 1rem 0.5rem;
     background: var(--bg-tertiary);
-    border-radius: var(--radius-md);
+    border-radius: 14px;
+    border: 1px solid var(--border-light);
+    transition: transform 0.2s;
 }
 
-.modalStatValue {
-    font-size: 1.2rem;
+.scoreCard:hover {
+    transform: translateY(-2px);
+}
+
+.scoreIcon {
+    font-size: 1.3rem;
+    display: block;
+    margin-bottom: 0.4rem;
+}
+
+.scoreValue {
+    font-size: 1.15rem;
     font-weight: 800;
     color: var(--text-heading);
     display: block;
+    line-height: 1;
 }
 
-.modalStatLabel {
-    font-size: 0.72rem;
+.scoreLabel {
+    font-size: 0.68rem;
     color: var(--text-tertiary);
-    margin-top: 0.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 0.3rem;
     display: block;
 }
 
-/* What's Nearby */
-.nearbySection {
-    margin-bottom: 1.5rem;
+/* Safety & Price Panels */
+.infoPanel {
+    padding: 1rem 1.25rem;
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
 }
 
-.nearbySectionTitle {
-    font-size: 0.92rem;
+.safetyPanel {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(16, 185, 129, 0.02));
+    border: 1px solid rgba(16, 185, 129, 0.12);
+}
+
+.pricePanel {
+    background: linear-gradient(135deg, rgba(212, 160, 23, 0.06), rgba(212, 160, 23, 0.02));
+    border: 1px solid rgba(212, 160, 23, 0.12);
+}
+
+.infoPanelLeft {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.infoPanelIcon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.safetyIcon {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.priceIcon {
+    background: rgba(212, 160, 23, 0.1);
+}
+
+.infoPanelLabel {
+    font-size: 0.72rem;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.infoPanelValue {
+    font-size: 1.05rem;
     font-weight: 700;
     color: var(--text-heading);
-    margin-bottom: 0.75rem;
+    display: block;
+    margin-top: 0.15rem;
+}
+
+/* Safety bar */
+.safetyBarWrapper {
+    width: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+
+.safetyBarTrack {
+    width: 100%;
+    height: 6px;
+    background: rgba(16, 185, 129, 0.12);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.safetyBarFill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    transition: width 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.safetyScore {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #10b981;
+}
+
+/* Nearby Sections */
+.nearbyBlock {
+    margin-bottom: 1.25rem;
+}
+
+.nearbyTitle {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-heading);
+    margin-bottom: 0.6rem;
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -406,68 +803,52 @@
 .nearbyItem {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    padding: 0.6rem 0.75rem;
+    gap: 0.65rem;
+    padding: 0.65rem 0.85rem;
     background: var(--bg-tertiary);
-    border-radius: var(--radius-md);
-    font-size: 0.82rem;
-    color: var(--text-secondary);
+    border-radius: 10px;
+    border: 1px solid var(--border-light);
+    transition: all 0.15s;
 }
 
-.nearbyIcon {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    background: rgba(212, 160, 23, 0.1);
+.nearbyItem:hover {
+    border-color: var(--gold-300);
+    transform: translateX(2px);
+}
+
+.nearbyItemIcon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(212, 160, 23, 0.08);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     flex-shrink: 0;
 }
 
-/* Vibe Tags */
-.vibeTags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    margin-bottom: 1.5rem;
-}
-
-.vibeTag {
-    padding: 0.3rem 0.7rem;
-    border-radius: 50px;
-    background: rgba(212, 160, 23, 0.08);
-    color: var(--gold-600);
-    font-size: 0.75rem;
+.nearbyItemName {
+    font-size: 0.82rem;
     font-weight: 600;
-    border: 1px solid rgba(212, 160, 23, 0.15);
+    color: var(--text-primary);
 }
 
-/* Safety Rating */
-.safetyBar {
-    height: 6px;
-    background: var(--gray-100);
-    border-radius: 3px;
-    overflow: hidden;
-    margin-top: 0.5rem;
+.nearbyItemType {
+    font-size: 0.68rem;
+    color: var(--text-tertiary);
 }
 
-.safetyFill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.6s ease;
-}
-
-/* CTA section in modal */
+/* Modal CTA */
 .modalCTA {
-    display: flex;
-    gap: 0.75rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--border-light);
+    display: flex;
+    gap: 0.75rem;
 }
 
-.modalCTA a {
+.modalCTA a,
+.modalCTA button {
     flex: 1;
     text-align: center;
 }
@@ -477,45 +858,62 @@
    ======================================== */
 
 .ctaSection {
-    padding: 4rem 0;
-    background: var(--bg-secondary);
+    padding: 3rem 0 4rem;
 }
 
 .ctaCard {
-    max-width: 700px;
+    max-width: 740px;
     margin: 0 auto;
     text-align: center;
-    padding: 3rem 2rem;
-    background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-800) 100%);
-    border-radius: var(--radius-xl);
+    padding: 3.5rem 2.5rem;
+    background: linear-gradient(160deg, var(--navy-900) 0%, #0c1425 60%, #111d35 100%);
+    border-radius: 24px;
     position: relative;
     overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .ctaCard::before {
     content: "";
     position: absolute;
-    top: -50%;
-    right: -20%;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(212, 160, 23, 0.15) 0%, transparent 70%);
+    top: -60%;
+    right: -15%;
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(212, 160, 23, 0.12) 0%, transparent 70%);
     border-radius: 50%;
+    pointer-events: none;
+}
+
+.ctaCard::after {
+    content: "";
+    position: absolute;
+    bottom: -40%;
+    left: -10%;
+    width: 250px;
+    height: 250px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
 }
 
 .ctaTitle {
-    font-size: 1.6rem;
+    font-size: 1.75rem;
     font-weight: 800;
     color: #fff;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.6rem;
     position: relative;
 }
 
 .ctaSubtitle {
-    font-size: 0.92rem;
-    color: rgba(255, 255, 255, 0.65);
-    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.55);
+    margin-bottom: 1.75rem;
     position: relative;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.7;
 }
 
 /* ========================================
@@ -535,7 +933,7 @@
 @keyframes slideUp {
     from {
         opacity: 0;
-        transform: translateY(24px);
+        transform: translateY(30px);
     }
 
     to {
@@ -549,39 +947,61 @@
    ======================================== */
 
 @media (max-width: 1024px) {
-    .grid {
+    .gridView {
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .modalStatsGrid {
+    .scoreGrid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 
 @media (max-width: 768px) {
-    .heroTitle {
-        font-size: 2rem;
+    .hero {
+        padding: 3.5rem 0 3rem;
     }
 
-    .grid {
+    .heroTitle {
+        font-size: 2.2rem;
+    }
+
+    .heroStats {
+        gap: 1.5rem;
+    }
+
+    .gridView {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
 
     .card {
-        aspect-ratio: 16/10;
+        aspect-ratio: 16/12;
     }
 
-    .sectionHeader {
+    .listCardImage {
+        width: 140px;
+        min-height: 160px;
+    }
+
+    .listCardName {
+        font-size: 1.1rem;
+    }
+
+    .filterBar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filterLeft {
         flex-direction: column;
         align-items: flex-start;
     }
 
     .modalBody {
-        padding: 1.25rem;
+        padding: 1.5rem;
     }
 
-    .modalStatsGrid {
+    .scoreGrid {
         grid-template-columns: repeat(2, 1fr);
     }
 
@@ -592,20 +1012,36 @@
     .modalCTA {
         flex-direction: column;
     }
+
+    .ctaCard {
+        padding: 2.5rem 1.5rem;
+    }
 }
 
 @media (max-width: 480px) {
     .heroTitle {
-        font-size: 1.7rem;
+        font-size: 1.85rem;
     }
 
-    .cityFilter {
-        gap: 0.35rem;
+    .heroStatNumber {
+        font-size: 1.4rem;
     }
 
-    .cityBtn {
-        padding: 0.35rem 0.75rem;
-        font-size: 0.75rem;
+    .card {
+        aspect-ratio: 16/14;
+    }
+
+    .cardName {
+        font-size: 1.25rem;
+    }
+
+    .listCard {
+        flex-direction: column;
+    }
+
+    .listCardImage {
+        width: 100%;
+        min-height: 180px;
     }
 }
 
@@ -614,17 +1050,21 @@
    ======================================== */
 
 [data-theme="dark"] .card {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
 }
 
-[data-theme="dark"] .modalStat {
-    background: rgba(255, 255, 255, 0.05);
+[data-theme="dark"] .listCard {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .scoreCard {
+    background: rgba(255, 255, 255, 0.04);
 }
 
 [data-theme="dark"] .nearbyItem {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.04);
 }
 
-[data-theme="dark"] .ctaSection {
-    background: var(--bg-tertiary);
+[data-theme="dark"] .infoPanel {
+    border-color: rgba(255, 255, 255, 0.06);
 }

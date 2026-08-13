@@ -56,6 +56,27 @@
     letter-spacing: 0.8px;
 }
 
+.tourBadge {
+    position: absolute;
+    bottom: var(--space-md);
+    right: var(--space-md);
+    z-index: 3;
+}
+
+.tourBadge span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.4);
+}
+
 .favButton {
     position: absolute;
     top: var(--space-md);
@@ -94,6 +115,42 @@
 .favButton:disabled {
     opacity: 0.6;
     cursor: wait;
+}
+
+/* Compare Button */
+.compareButton {
+    position: absolute;
+    top: calc(var(--space-md) + 42px);
+    right: var(--space-md);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    border-radius: var(--radius-full);
+    color: var(--gray-400);
+    transition: all var(--transition-fast);
+    z-index: 2;
+    cursor: pointer;
+    border: none;
+}
+
+.compareButton:hover {
+    background: rgba(212, 160, 23, 0.15);
+    color: var(--gold-600);
+    transform: scale(1.1);
+}
+
+.compareButtonActive {
+    background: var(--gold-500) !important;
+    color: #000 !important;
+}
+
+.compareButtonActive:hover {
+    opacity: 0.85;
+    transform: scale(1.1);
 }
 
 .toast {

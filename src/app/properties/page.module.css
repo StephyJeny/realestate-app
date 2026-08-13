@@ -710,6 +710,267 @@
 }
 
 /* ========================================
+   SAVE SEARCH BUTTON & MODAL
+   ======================================== */
+
+.saveSearchBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--gold-600);
+    background: rgba(212, 160, 23, 0.08);
+    border: 1px solid rgba(212, 160, 23, 0.2);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.saveSearchBtn:hover {
+    background: rgba(212, 160, 23, 0.15);
+    border-color: var(--gold-400);
+    transform: translateY(-1px);
+}
+
+.saveSearchBtn svg {
+    color: var(--gold-500);
+}
+
+/* Modal Overlay */
+.saveModalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 14, 26, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 1.5rem;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.saveModalCard {
+    background: var(--white);
+    border-radius: var(--radius-xl, 16px);
+    width: 100%;
+    max-width: 460px;
+    box-shadow: 0 25px 60px rgba(10, 14, 26, 0.25);
+    animation: scaleIn 0.25s ease;
+    overflow: hidden;
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.saveModalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.saveModalHeader h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--navy-900);
+}
+
+.saveModalClose {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--gray-400);
+    transition: all 0.15s;
+}
+
+.saveModalClose:hover {
+    background: var(--gray-100);
+    color: var(--navy-800);
+}
+
+.saveModalBody {
+    padding: 1.25rem 1.5rem;
+}
+
+.saveModalDesc {
+    font-size: 0.88rem;
+    color: var(--gray-500);
+    margin-bottom: 0.85rem;
+    line-height: 1.45;
+}
+
+.saveModalFilters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 1.25rem;
+}
+
+.saveModalTag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--navy-700);
+    background: rgba(10, 14, 26, 0.06);
+    border-radius: var(--radius-full);
+}
+
+.saveModalLabel {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--navy-800);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.4rem;
+    display: block;
+}
+
+.saveModalInput {
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    font-size: 0.92rem;
+    color: var(--gray-800);
+    background: var(--gray-50);
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    transition: all 0.15s;
+}
+
+.saveModalInput:focus {
+    border-color: var(--gold-500);
+    box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.1);
+    outline: none;
+}
+
+.saveModalFooter {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--gray-100);
+    background: var(--gray-50);
+}
+
+.saveModalCancel {
+    padding: 0.6rem 1.1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    background: none;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.saveModalCancel:hover {
+    border-color: var(--gray-400);
+    color: var(--gray-700);
+}
+
+.saveModalSave {
+    padding: 0.6rem 1.25rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--gold-500), var(--gold-600));
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.saveModalSave:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-gold);
+}
+
+.saveModalSave:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Dark mode for modal */
+:global([data-theme="dark"]) .saveModalCard {
+    background: var(--bg-card);
+}
+
+:global([data-theme="dark"]) .saveModalHeader {
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .saveModalHeader h3 {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .saveModalClose {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .saveModalClose:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .saveModalDesc {
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .saveModalTag {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .saveModalLabel {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .saveModalInput {
+    background: var(--bg-input);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+:global([data-theme="dark"]) .saveModalFooter {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .saveModalCancel {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+/* ========================================
    RESPONSIVE
    ======================================== */
 

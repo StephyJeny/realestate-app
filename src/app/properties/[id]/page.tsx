@@ -1,6 +1,7 @@
 "use client";
 import { use, useState, useEffect } from "react";
 import Image from "next/image";
+import OptimizedImage from "@/components/ui/OptimizedImage";
 import Link from "next/link";
 import { sampleProperties, formatPriceFull, formatPrice } from "@/lib/data";
 import { sendInquiry, getPropertyById, FirestoreProperty, submitReview, getReviewsByAgent, Review, markReviewHelpful } from "@/lib/firestore";
@@ -11,6 +12,8 @@ import PropertyCard from "@/components/property/PropertyCard";
 import PropertyMap from "@/components/property/PropertyMap";
 import { getRecentlyViewed, RecentlyViewedItem } from "@/lib/recentlyViewed";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
+import { getOrCreateConversation } from "@/lib/chat";
 import styles from "./page.module.css";
 
 interface Props {
@@ -20,6 +23,7 @@ interface Props {
 export default function PropertyDetailPage({ params }: Props) {
     const { id } = use(params);
     const { user, userProfile } = useAuth();
+    const router = useRouter();
 
     // Try sample data first, then Firestore
     const sampleProp = sampleProperties.find((p) => p.id === id);
@@ -211,6 +215,23 @@ export default function PropertyDetailPage({ params }: Props) {
         "Solar Panels": "☀️", "Rainwater Harvesting": "🌧️", "EV Charging": "⚡",
     };
 
+    // Virtual Tour URL helper — converts YouTube/Matterport URLs to embeddable format
+    const getEmbedUrl = (url: string): string | null => {
+        if (!url) return null;
+        // YouTube
+        const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+        if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`;
+        // Matterport
+        const mpMatch = url.match(/matterport\.com\/show\/\?m=([\w-]+)/);
+        if (mpMatch) return `https://my.matterport.com/show/?m=${mpMatch[1]}&play=1`;
+        // Already an embed or iframe-compatible URL
+        if (url.includes("embed") || url.includes("player")) return url;
+        return null;
+    };
+
+    const virtualTourUrl = sampleProp?.virtualTourUrl || firestoreProp?.virtualTourUrl || "";
+    const embedUrl = getEmbedUrl(virtualTourUrl);
+
     // Mortgage calculation
     const loanAmount = mortgagePrice * (1 - downPayment / 100);
     const monthlyRate = interestRate / 100 / 12;
@@ -320,10 +341,11 @@ export default function PropertyDetailPage({ params }: Props) {
                 <div className="container">
                     <div className={styles.galleryGrid}>
                         <div className={styles.mainImage}>
-                            <Image
+                            <OptimizedImage
                                 src={property.images[activeImage]}
                                 alt={property.title}
                                 fill
+                                priority
                                 quality={90}
                                 className={styles.mainImg}
                             />
@@ -336,6 +358,7 @@ export default function PropertyDetailPage({ params }: Props) {
                                 {property.status === "rented" && <span className="badge badge-rented">🟣 Rented</span>}
                                 {property.status === "under_offer" && <span className="badge badge-under-offer">🟠 Under Offer</span>}
                                 {property.status === "price_reduced" && <span className="badge badge-price-reduced">💰 Price Reduced</span>}
+                                {virtualTourUrl && <span className="badge badge-featured" style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)", border: "none" }}>🎬 360° Tour</span>}
                             </div>
                             {/* Share Button */}
                             <div className={styles.shareWrap}>
@@ -377,7 +400,7 @@ export default function PropertyDetailPage({ params }: Props) {
                                     className={`${styles.thumbnail} ${activeImage === i ? styles.thumbActive : ""}`}
                                     onClick={() => setActiveImage(i)}
                                 >
-                                    <Image src={img} alt={`View ${i + 1}`} fill sizes="120px" className={styles.thumbImg} />
+                                    <OptimizedImage src={img} alt={`View ${i + 1}`} fill sizes="120px" className={styles.thumbImg} />
                                 </button>
                             ))}
                         </div>
@@ -458,6 +481,57 @@ export default function PropertyDetailPage({ params }: Props) {
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Virtual Tour */}
+                            {virtualTourUrl && (
+                                <div className={styles.section}>
+                                    <h2 className={styles.sectionTitle}>🎬 Virtual Tour</h2>
+                                    <div className={styles.virtualTourWrap}>
+                                        <div className={styles.virtualTourHeader}>
+                                            <div className={styles.virtualTourBadge}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" /></svg>
+                                                <span>360° Immersive Tour</span>
+                                            </div>
+                                            <a
+                                                href={virtualTourUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={styles.virtualTourExternal}
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                                                Open Full Screen
+                                            </a>
+                                        </div>
+                                        {embedUrl ? (
+                                            <div className={styles.virtualTourEmbed}>
+                                                <iframe
+                                                    src={embedUrl}
+                                                    title="Virtual Tour"
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; xr-spatial-tracking"
+                                                    allowFullScreen
+                                                    className={styles.virtualTourIframe}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className={styles.virtualTourFallback}>
+                                                <div className={styles.virtualTourFallbackIcon}>🎬</div>
+                                                <p>This property has a virtual tour available.</p>
+                                                <a
+                                                    href={virtualTourUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="btn btn-primary"
+                                                >
+                                                    Open Virtual Tour →
+                                                </a>
+                                            </div>
+                                        )}
+                                        <p className={styles.virtualTourNote}>
+                                            💡 Use your mouse or touch to look around. Click the fullscreen button for the best experience.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Mortgage Calculator */}
                             {property.listingType === "sale" && (
@@ -810,6 +884,76 @@ export default function PropertyDetailPage({ params }: Props) {
                                 <button className="btn btn-primary btn-lg" style={{ width: "100%" }} onClick={() => setShowInquiry(!showInquiry)}>
                                     {showInquiry ? "Close Inquiry Form" : "Send Inquiry"}
                                 </button>
+
+                                <button
+                                    className="btn btn-lg"
+                                    style={{
+                                        width: "100%",
+                                        background: "linear-gradient(135deg, #1a1a2e, #16213e)",
+                                        color: "#fff",
+                                        border: "1px solid rgba(212,160,23,0.2)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "0.5rem",
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                    }}
+                                    onClick={async () => {
+                                        if (!user || !userProfile) {
+                                            toast.error("Please sign in to chat with the agent");
+                                            router.push("/auth/signin");
+                                            return;
+                                        }
+                                        try {
+                                            toast.loading("Starting conversation...", { id: "chat" });
+                                            const agentId = firestoreProp?.agentId || property.agentId || "";
+                                            const convoId = await getOrCreateConversation({
+                                                currentUserId: user.uid,
+                                                currentUserName: userProfile.displayName || "Buyer",
+                                                currentUserAvatar: userProfile.photoURL || "",
+                                                otherUserId: agentId,
+                                                otherUserName: property.agentName || "Agent",
+                                                otherUserAvatar: property.agentImage || "",
+                                                propertyId: id,
+                                                propertyTitle: property.title,
+                                            });
+                                            toast.success("Chat ready! 💬", { id: "chat" });
+                                            router.push(`/messages?c=${convoId}`);
+                                        } catch (err) {
+                                            console.error("Failed to create conversation:", err);
+                                            toast.error("Failed to start chat. Try again.", { id: "chat" });
+                                        }
+                                    }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                    </svg>
+                                    Chat with Agent
+                                </button>
+
+                                <Link
+                                    href={`/mortgage-calculator?price=${property.price}`}
+                                    className="btn btn-lg"
+                                    style={{
+                                        width: "100%",
+                                        background: "rgba(212,160,23,0.08)",
+                                        color: "var(--gold-600, #b8860b)",
+                                        border: "1px solid rgba(212,160,23,0.2)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "0.5rem",
+                                        fontWeight: 600,
+                                        textDecoration: "none",
+                                        borderRadius: "var(--radius-md)",
+                                        padding: "0.65rem 1rem",
+                                        fontSize: "0.9rem",
+                                    }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
+                                    Calculate Mortgage
+                                </Link>
 
                                 {showInquiry && (
                                     <form className={styles.inquiryForm} onSubmit={handleInquirySubmit}>

@@ -3,7 +3,10 @@ import { useState, useMemo, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { sampleProperties, Property } from "@/lib/data";
 import { getAllProperties, FirestoreProperty } from "@/lib/firestore";
+import { useAuth } from "@/context/AuthContext";
+import { createSavedSearch, SavedSearchFilters } from "@/lib/savedSearches";
 import PropertyCard from "@/components/property/PropertyCard";
+import toast from "react-hot-toast";
 import styles from "./page.module.css";
 
 const propertyTypes = ["All", "Apartment", "House", "Villa", "Townhouse", "Land", "Commercial"];
@@ -61,6 +64,7 @@ function formatSliderPrice(val: number): string {
 
 function PropertiesContent() {
     const searchParams = useSearchParams();
+    const { user } = useAuth();
     const [selectedType, setSelectedType] = useState("All");
     const [selectedBedrooms, setSelectedBedrooms] = useState("Any");
     const [selectedBathrooms, setSelectedBathrooms] = useState("Any");
@@ -74,6 +78,9 @@ function PropertiesContent() {
     const [firestoreProperties, setFirestoreProperties] = useState<Property[]>([]);
     const [loadingFirestore, setLoadingFirestore] = useState(true);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+    const [showSaveModal, setShowSaveModal] = useState(false);
+    const [saveSearchName, setSaveSearchName] = useState("");
+    const [savingSearch, setSavingSearch] = useState(false);
 
     // Price range slider
     const PRICE_MIN = 0;
@@ -276,6 +283,45 @@ function PropertiesContent() {
         setMaxArea("");
         setSearchQuery("");
     }, []);
+
+    // Current filters object for saving
+    const currentFilters: SavedSearchFilters = useMemo(() => ({
+        searchQuery: searchQuery.trim() || undefined,
+        propertyType: selectedType !== "All" ? selectedType : undefined,
+        listingType: selectedListing !== "all" ? selectedListing : undefined,
+        bedrooms: selectedBedrooms !== "Any" ? selectedBedrooms : undefined,
+        bathrooms: selectedBathrooms !== "Any" ? selectedBathrooms : undefined,
+        city: selectedCity !== "All" ? selectedCity : undefined,
+        neighborhood: selectedNeighborhood !== "All" ? selectedNeighborhood : undefined,
+        status: selectedStatus !== "all" ? selectedStatus : undefined,
+        priceMin: priceRange[0] > PRICE_MIN ? priceRange[0] : undefined,
+        priceMax: priceRange[1] < PRICE_MAX ? priceRange[1] : undefined,
+        areaMin: minArea ? parseInt(minArea) : undefined,
+        areaMax: maxArea ? parseInt(maxArea) : undefined,
+    }), [selectedType, selectedBedrooms, selectedBathrooms, selectedListing, selectedStatus, selectedCity, selectedNeighborhood, priceRange, minArea, maxArea, searchQuery]);
+
+    const handleSaveSearch = useCallback(async () => {
+        if (!user) {
+            toast.error("Please sign in to save searches");
+            return;
+        }
+        if (!saveSearchName.trim()) {
+            toast.error("Please enter a name for this search");
+            return;
+        }
+        setSavingSearch(true);
+        try {
+            await createSavedSearch(user.uid, saveSearchName.trim(), currentFilters);
+            toast.success("Search saved! You'll be notified of new matches.");
+            setShowSaveModal(false);
+            setSaveSearchName("");
+        } catch (err) {
+            console.error("Failed to save search:", err);
+            toast.error("Failed to save search");
+        } finally {
+            setSavingSearch(false);
+        }
+    }, [user, saveSearchName, currentFilters]);
 
     return (
         <div className={styles.page}>
@@ -565,6 +611,23 @@ function PropertiesContent() {
                         </span>
 
                         <div className={styles.toolbarRight}>
+                            {/* Save Search Button */}
+                            {activeFilterCount > 0 && (
+                                <button
+                                    className={styles.saveSearchBtn}
+                                    onClick={() => {
+                                        if (!user) {
+                                            toast.error("Please sign in to save searches");
+                                            return;
+                                        }
+                                        setShowSaveModal(true);
+                                    }}
+                                    title="Save this search"
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+                                    Save Search
+                                </button>
+                            )}
                             <select
                                 className={styles.sortSelect}
                                 value={sortBy}
@@ -615,6 +678,60 @@ function PropertiesContent() {
                     )}
                 </div>
             </div>
+
+            {/* Save Search Modal */}
+            {showSaveModal && (
+                <div className={styles.saveModalOverlay} onClick={() => setShowSaveModal(false)}>
+                    <div className={styles.saveModalCard} onClick={(e) => e.stopPropagation()}>
+                        <div className={styles.saveModalHeader}>
+                            <h3>🔔 Save This Search</h3>
+                            <button className={styles.saveModalClose} onClick={() => setShowSaveModal(false)}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                            </button>
+                        </div>
+                        <div className={styles.saveModalBody}>
+                            <p className={styles.saveModalDesc}>
+                                Get notified when new properties match your current filters:
+                            </p>
+                            <div className={styles.saveModalFilters}>
+                                {selectedType !== "All" && <span className={styles.saveModalTag}>{selectedType}</span>}
+                                {selectedListing !== "all" && <span className={styles.saveModalTag}>{selectedListing === "sale" ? "For Sale" : "For Rent"}</span>}
+                                {selectedBedrooms !== "Any" && <span className={styles.saveModalTag}>{selectedBedrooms} Beds</span>}
+                                {selectedBathrooms !== "Any" && <span className={styles.saveModalTag}>{selectedBathrooms} Baths</span>}
+                                {selectedCity !== "All" && <span className={styles.saveModalTag}>{selectedCity}</span>}
+                                {selectedNeighborhood !== "All" && <span className={styles.saveModalTag}>{selectedNeighborhood}</span>}
+                                {selectedStatus !== "all" && <span className={styles.saveModalTag}>{selectedStatus}</span>}
+                                {(priceRange[0] > PRICE_MIN || priceRange[1] < PRICE_MAX) && (
+                                    <span className={styles.saveModalTag}>
+                                        KES {formatSliderPrice(priceRange[0])} – {formatSliderPrice(priceRange[1])}
+                                    </span>
+                                )}
+                                {searchQuery.trim() && <span className={styles.saveModalTag}>&quot;{searchQuery}&quot;</span>}
+                            </div>
+                            <label className={styles.saveModalLabel}>Search Name</label>
+                            <input
+                                type="text"
+                                className={styles.saveModalInput}
+                                placeholder="e.g. 3BR Villa in Kilimani under 20M"
+                                value={saveSearchName}
+                                onChange={(e) => setSaveSearchName(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && handleSaveSearch()}
+                                autoFocus
+                            />
+                        </div>
+                        <div className={styles.saveModalFooter}>
+                            <button className={styles.saveModalCancel} onClick={() => setShowSaveModal(false)}>Cancel</button>
+                            <button
+                                className={styles.saveModalSave}
+                                onClick={handleSaveSearch}
+                                disabled={savingSearch || !saveSearchName.trim()}
+                            >
+                                {savingSearch ? "Saving..." : "Save Search"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

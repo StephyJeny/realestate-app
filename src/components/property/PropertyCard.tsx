@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
-import Image from "next/image";
+import OptimizedImage from "@/components/ui/OptimizedImage";
 import Link from "next/link";
 import { Property, formatPrice } from "@/lib/data";
 import { useAuth } from "@/context/AuthContext";
+import { useCompare } from "@/context/CompareContext";
 import { addToFavorites, removeFromFavorites } from "@/lib/firestore";
 import styles from "./PropertyCard.module.css";
 
@@ -13,9 +14,18 @@ interface PropertyCardProps {
 
 export default function PropertyCard({ property }: PropertyCardProps) {
     const { user, userProfile, refreshProfile } = useAuth();
+    const { isInCompare, toggleCompare, compareCount, maxCompare } = useCompare();
     const [isSaved, setIsSaved] = useState(false);
     const [saving, setSaving] = useState(false);
     const [showToast, setShowToast] = useState<string | null>(null);
+    const inCompare = isInCompare(property.id);
+
+    const handleCompareToggle = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!inCompare && compareCount >= maxCompare) return;
+        toggleCompare(property.id);
+    };
 
     useEffect(() => {
         if (userProfile?.savedProperties?.includes(property.id)) {
@@ -63,7 +73,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
     return (
         <Link href={`/properties/${property.id}`} className={styles.card}>
             <div className={styles.imageWrapper}>
-                <Image
+                <OptimizedImage
                     src={property.images[0]}
                     alt={property.title}
                     fill
@@ -99,6 +109,11 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                         <span className="badge badge-price-reduced">💰 Price Reduced</span>
                     </div>
                 )}
+                {property.virtualTourUrl && (
+                    <div className={styles.tourBadge}>
+                        <span>🎬 360°</span>
+                    </div>
+                )}
                 <button
                     className={`${styles.favButton} ${isSaved ? styles.favButtonActive : ""}`}
                     aria-label={isSaved ? "Remove from saved" : "Save property"}
@@ -106,6 +121,14 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                     disabled={saving}
                 >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill={isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
+                </button>
+                <button
+                    className={`${styles.compareButton} ${inCompare ? styles.compareButtonActive : ""}`}
+                    aria-label={inCompare ? "Remove from compare" : "Add to compare"}
+                    onClick={handleCompareToggle}
+                    title={inCompare ? "Remove from compare" : (!inCompare && compareCount >= maxCompare) ? `Max ${maxCompare} properties` : "Add to compare"}
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
                 </button>
                 <div className={styles.priceTag}>
                     {formatPrice(property.price, property.currency)}

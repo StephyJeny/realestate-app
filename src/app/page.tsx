@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import OptimizedImage from "@/components/ui/OptimizedImage";
 import Link from "next/link";
 import { sampleProperties, formatPrice } from "@/lib/data";
 import PropertyCard from "@/components/property/PropertyCard";
@@ -14,7 +15,7 @@ export default function Home() {
       {/* ========== HERO ========== */}
       <section className={styles.hero}>
         <div className={styles.heroBg}>
-          <Image
+          <OptimizedImage
             src="/images/hero-bg.png"
             alt="Luxury modern villa"
             fill

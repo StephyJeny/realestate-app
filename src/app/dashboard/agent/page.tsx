@@ -62,6 +62,7 @@ export default function AgentDashboard() {
         listingType: "sale" as FirestoreProperty["listingType"], price: 0, currency: "KES",
         bedrooms: 0, bathrooms: 0, area: 0, yearBuilt: 2024, address: "",
         city: "", neighborhood: "", amenities: "", latitude: 0, longitude: 0,
+        virtualTourUrl: "",
     });
 
     const [editProfile, setEditProfile] = useState({
@@ -164,7 +165,7 @@ export default function AgentDashboard() {
         setIsSubmitting(true);
         try {
             // First create property to get ID
-            const propId = await addProperty({
+            const propData: Record<string, unknown> = {
                 ...newProperty,
                 amenities: newProperty.amenities.split(",").map((a) => a.trim()).filter(Boolean),
                 images: [],
@@ -176,7 +177,11 @@ export default function AgentDashboard() {
                 isFeatured: false,
                 views: 0,
                 favorites: 0,
-            });
+            };
+            if (newProperty.virtualTourUrl.trim()) {
+                propData.virtualTourUrl = newProperty.virtualTourUrl.trim();
+            }
+            const propId = await addProperty(propData as Omit<FirestoreProperty, "id" | "createdAt" | "updatedAt">);
             // Upload images
             setUploadProgress(0);
             const urls = await uploadPropertyImages(imageFiles, user.uid, propId, (i, p) => {
@@ -190,7 +195,7 @@ export default function AgentDashboard() {
                 title: "", description: "", type: "apartment", listingType: "sale",
                 price: 0, currency: "KES", bedrooms: 0, bathrooms: 0, area: 0,
                 yearBuilt: 2024, address: "", city: "", neighborhood: "", amenities: "",
-                latitude: 0, longitude: 0,
+                latitude: 0, longitude: 0, virtualTourUrl: "",
             });
             setImageFiles([]);
             setImagePreviews([]);
@@ -250,6 +255,7 @@ export default function AgentDashboard() {
                 neighborhood: editingProperty.neighborhood,
                 amenities: editingProperty.amenities,
                 images: updatedImages,
+                virtualTourUrl: editingProperty.virtualTourUrl || "",
             });
             toast.success("Property updated! ✨");
             setEditingProperty(null);
@@ -386,6 +392,11 @@ export default function AgentDashboard() {
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
                                 Reviews
                                 {agentReviews.length > 0 && <span className={styles.sidebarBadge}>{agentReviews.length}</span>}
+                            </button>
+                            <button className={styles.sidebarLink}
+                                onClick={() => { router.push("/messages"); }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                                Messages
                             </button>
                         </div>
 
@@ -1119,6 +1130,17 @@ export default function AgentDashboard() {
                                         <input className={styles.formInput} value={newProperty.amenities}
                                             onChange={(e) => setNewProperty({ ...newProperty, amenities: e.target.value })} placeholder="Swimming Pool, Gym, Parking, Security" />
                                     </div>
+                                    <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                        <label className={styles.formLabel}>
+                                            🎬 Virtual Tour URL <span style={{ fontSize: "0.72rem", fontWeight: 400, color: "var(--text-tertiary)" }}>(optional — YouTube or Matterport)</span>
+                                        </label>
+                                        <input className={styles.formInput} value={newProperty.virtualTourUrl}
+                                            onChange={(e) => setNewProperty({ ...newProperty, virtualTourUrl: e.target.value })}
+                                            placeholder="https://www.youtube.com/watch?v=... or https://my.matterport.com/show/?m=..." />
+                                        <p style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginTop: "0.3rem" }}>
+                                            💡 Supported: YouTube links, Matterport 3D tours, or any embeddable video URL.
+                                        </p>
+                                    </div>
                                     {isSubmitting && uploadProgress > 0 && (
                                         <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                             <div style={{ background: "var(--gray-200)", borderRadius: "4px", height: "6px", overflow: "hidden" }}>
@@ -1272,6 +1294,14 @@ export default function AgentDashboard() {
                                         <label className={styles.formLabel}>Description</label>
                                         <textarea className={`${styles.formInput} ${styles.formTextarea}`} value={editingProperty.description}
                                             onChange={(e) => setEditingProperty({ ...editingProperty, description: e.target.value })} />
+                                    </div>
+                                    <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
+                                        <label className={styles.formLabel}>
+                                            🎬 Virtual Tour URL <span style={{ fontSize: "0.72rem", fontWeight: 400, color: "var(--text-tertiary)" }}>(optional)</span>
+                                        </label>
+                                        <input className={styles.formInput} value={editingProperty.virtualTourUrl || ""}
+                                            onChange={(e) => setEditingProperty({ ...editingProperty, virtualTourUrl: e.target.value })}
+                                            placeholder="https://www.youtube.com/watch?v=... or https://my.matterport.com/show/?m=..." />
                                     </div>
                                     {isSubmitting && uploadProgress > 0 && (
                                         <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
