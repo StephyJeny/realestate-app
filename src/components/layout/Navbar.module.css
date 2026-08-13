@@ -105,6 +105,43 @@
     z-index: 1001;
 }
 
+/* Install App Button */
+.installBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #000;
+    background: linear-gradient(135deg, var(--gold-400), var(--gold-600));
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.installBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(212, 160, 23, 0.35);
+}
+
+.installBtnText {
+    display: inline;
+}
+
+@media (max-width: 768px) {
+    .installBtnText {
+        display: none;
+    }
+
+    .installBtn {
+        padding: 0.4rem;
+        border-radius: var(--radius-full);
+    }
+}
+
 /* Theme Toggle */
 .themeBtn {
     display: flex;

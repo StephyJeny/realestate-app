@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { subscribeToConversations, Conversation } from "@/lib/chat";
+import { usePWA } from "@/components/pwa/PWAInstall";
 import styles from "./Navbar.module.css";
 
 export default function Navbar() {
@@ -12,6 +13,7 @@ export default function Navbar() {
     const { theme, toggleTheme } = useTheme();
     const { user, userProfile, logout, loading, getDashboardPath } = useAuth();
     const [unreadMessages, setUnreadMessages] = useState(0);
+    const { canInstall, isInstalled, triggerInstall } = usePWA();
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -67,6 +69,23 @@ export default function Navbar() {
                 </nav>
 
                 <div className={styles.actions}>
+                    {/* Install App Button */}
+                    {canInstall && !isInstalled && (
+                        <button
+                            className={styles.installBtn}
+                            onClick={triggerInstall}
+                            aria-label="Install App"
+                            title="Install EstateVue App"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            <span className={styles.installBtnText}>Install</span>
+                        </button>
+                    )}
+
                     {/* Dark Mode Toggle */}
                     <button
                         className={styles.themeBtn}

@@ -7,7 +7,7 @@ import ChatBot from "@/components/chat/ChatBot";
 import BackToTop from "@/components/ui/BackToTop";
 import ToastProvider from "@/components/ui/ToastProvider";
 import { Providers } from "./providers";
-import PWAInstall from "@/components/pwa/PWAInstall";
+import { PWAProvider } from "@/components/pwa/PWAInstall";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -119,13 +119,14 @@ export default function RootLayout({
       </head>
       <body>
         <Providers>
-          <ToastProvider />
-          <Navbar />
-          <main>{children}</main>
-          <Footer />
-          <ChatBot />
-          <BackToTop />
-          <PWAInstall />
+          <PWAProvider>
+            <ToastProvider />
+            <Navbar />
+            <main>{children}</main>
+            <Footer />
+            <ChatBot />
+            <BackToTop />
+          </PWAProvider>
         </Providers>
       </body>
     </html>
