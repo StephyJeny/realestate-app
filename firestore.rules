@@ -25,7 +25,8 @@ service cloud.firestore {
     // Admin can read/write all profiles
     // ========================
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      // Public read so the agents page works for unauthenticated visitors
+      allow read: if true;
       // Allow creation during sign-up even if they aren't fully registered in the db yet
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow update: if isAuthenticated() && 
