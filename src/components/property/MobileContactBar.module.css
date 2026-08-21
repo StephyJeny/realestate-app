@@ -1,0 +1,94 @@
+/* ========================================
+   MOBILE CONTACT BAR
+   Only visible on mobile screens (≤768px)
+   ======================================== */
+
+.bar {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .bar {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(10, 14, 26, 0.97);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(212, 160, 23, 0.15);
+        padding: 0.5rem 0.35rem;
+        padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+        gap: 0.25rem;
+        animation: slideUpBar 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .action {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.2rem;
+        padding: 0.55rem 0.25rem;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+    }
+
+    .action:active {
+        transform: scale(0.95);
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    .action span {
+        letter-spacing: 0.3px;
+    }
+
+    .whatsapp {
+        background: rgba(37, 211, 102, 0.12);
+        border-color: rgba(37, 211, 102, 0.2);
+        color: #25d366;
+    }
+
+    .whatsapp:active {
+        background: rgba(37, 211, 102, 0.25);
+    }
+
+    .inquiry {
+        background: linear-gradient(135deg, rgba(212, 160, 23, 0.15), rgba(212, 160, 23, 0.08));
+        border-color: rgba(212, 160, 23, 0.25);
+        color: var(--gold-400);
+    }
+
+    .inquiry:active {
+        background: rgba(212, 160, 23, 0.3);
+    }
+
+    @keyframes slideUpBar {
+        from {
+            opacity: 0;
+            transform: translateY(100%);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+}
+
+/* Print: hide */
+@media print {
+    .bar {
+        display: none !important;
+    }
+}

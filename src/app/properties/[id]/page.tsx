@@ -15,6 +15,7 @@ import { getRecentlyViewed, RecentlyViewedItem } from "@/lib/recentlyViewed";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { getOrCreateConversation } from "@/lib/chat";
+import MobileContactBar from "@/components/property/MobileContactBar";
 import styles from "./page.module.css";
 
 interface Props {
@@ -463,6 +464,40 @@ export default function PropertyDetailPage({ params }: Props) {
                                     </div>
                                 ))}
                             </div>
+
+                            {/* Affordability Indicator */}
+                            {property.listingType === "sale" && (() => {
+                                const price = property.price;
+                                const rate = 0.12 / 12;
+                                const months = 25 * 12;
+                                const monthly = rate > 0 ? (price * 0.8 * rate * Math.pow(1 + rate, months)) / (Math.pow(1 + rate, months) - 1) : (price * 0.8) / months;
+                                const score = monthly < 50000 ? 9 : monthly < 100000 ? 8 : monthly < 200000 ? 7 : monthly < 400000 ? 6 : monthly < 700000 ? 5 : monthly < 1000000 ? 4 : 3;
+                                const color = score >= 7 ? "var(--success, #10b981)" : score >= 5 ? "var(--gold-500)" : "var(--error, #ef4444)";
+                                const label = score >= 7 ? "Affordable" : score >= 5 ? "Moderate" : "Premium";
+
+                                return (
+                                    <div className={styles.affordabilityWrap}>
+                                        <div className={styles.affordabilityRing}>
+                                            <svg viewBox="0 0 36 36">
+                                                <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--gray-100)" strokeWidth="3" />
+                                                <circle cx="18" cy="18" r="15.9" fill="none" stroke={color} strokeWidth="3"
+                                                    strokeDasharray={`${score * 10} 100`}
+                                                    strokeLinecap="round" transform="rotate(-90 18 18)" />
+                                            </svg>
+                                            <span className={styles.affordabilityScore}>{score}</span>
+                                        </div>
+                                        <div className={styles.affordabilityInfo}>
+                                            <div className={styles.affordabilityLabel}>💰 Affordability — {label}</div>
+                                            <div className={styles.affordabilityEstimate}>
+                                                Est. KES {Math.round(monthly).toLocaleString()}/mo
+                                            </div>
+                                            <div className={styles.affordabilityNote}>
+                                                Based on 20% down, 25yr term @ 12% (indicative only)
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
 
                             {/* Description */}
                             <div className={styles.section}>
@@ -1172,6 +1207,17 @@ export default function PropertyDetailPage({ params }: Props) {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Print Button */}
+                            <button
+                                className={styles.printBtn}
+                                onClick={() => window.print()}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" />
+                                </svg>
+                                Print / Save as PDF
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1213,6 +1259,18 @@ export default function PropertyDetailPage({ params }: Props) {
                     </div>
                 </section>
             )}
+
+            {/* Mobile Contact Bar */}
+            <MobileContactBar
+                agentPhone={property.agentPhone}
+                agentEmail={property.agentEmail}
+                propertyTitle={property.title}
+                onInquiryClick={() => {
+                    setShowInquiry(true);
+                    // Scroll to the inquiry form
+                    document.querySelector(`.${styles.agentCard}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }}
+            />
         </div>
     );
 }

@@ -5,6 +5,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import ChatBot from "@/components/chat/ChatBot";
 import BackToTop from "@/components/ui/BackToTop";
+import CookieConsent from "@/components/ui/CookieConsent";
 import ToastProvider from "@/components/ui/ToastProvider";
 import { Providers } from "./providers";
 import { PWAProvider } from "@/components/pwa/PWAInstall";
@@ -125,6 +126,7 @@ export default function RootLayout({
             <main>{children}</main>
             <Footer />
             <ChatBot />
+            <CookieConsent />
             <BackToTop />
           </PWAProvider>
         </Providers>

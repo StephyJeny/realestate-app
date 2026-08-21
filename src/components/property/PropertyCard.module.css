@@ -369,3 +369,49 @@
         transform: translateX(0);
     }
 }
+
+/* Dark Mode — Compare, Price Tag */
+:global([data-theme="dark"]) .compareButton {
+    background: rgba(20, 27, 45, 0.85);
+    color: var(--text-tertiary);
+}
+
+:global([data-theme="dark"]) .compareButton:hover {
+    background: rgba(212, 160, 23, 0.2);
+    color: var(--gold-400);
+}
+
+:global([data-theme="dark"]) .priceTag {
+    background: rgba(20, 27, 45, 0.92);
+    border: 1px solid rgba(212, 160, 23, 0.15);
+}
+
+:global([data-theme="dark"]) .toast {
+    background: rgba(20, 27, 45, 0.95);
+    border: 1px solid rgba(212, 160, 23, 0.15);
+}
+
+/* Hover shine effect */
+.card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(212, 160, 23, 0.03),
+            transparent);
+    transition: left 0.6s ease;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.card:hover::after {
+    left: 100%;
+}
+
+.card {
+    position: relative;
+}

@@ -107,10 +107,10 @@
   --bg-elevated: #1a2340;
   --bg-input: #1a2340;
   --bg-overlay: rgba(0, 0, 0, 0.7);
-  --text-primary: #ffffff;
-  --text-secondary: #ffffff;
-  --text-tertiary: #ffffff;
-  --text-heading: #ffffff;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --text-heading: #f8fafc;
   --border-color: #243056;
   --border-light: #1a2340;
   --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -552,5 +552,68 @@ h6 {
 
   .section-subtitle {
     font-size: 1rem;
+  }
+}
+
+/* ========================================
+   FOCUS & SELECTION
+   ======================================== */
+
+::selection {
+  background: rgba(212, 160, 23, 0.25);
+  color: var(--navy-900);
+}
+
+[data-theme="dark"] ::selection {
+  background: rgba(212, 160, 23, 0.35);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ========================================
+   SMOOTH TRANSITIONS
+   ======================================== */
+
+main {
+  animation: pageIn 0.35s ease-out;
+}
+
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================
+   PRINT GLOBAL STYLES
+   ======================================== */
+
+@media print {
+
+  header,
+  footer,
+  .chatbot,
+  .back-to-top {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  main {
+    animation: none !important;
   }
 }

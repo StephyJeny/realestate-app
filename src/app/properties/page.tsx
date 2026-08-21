@@ -6,6 +6,7 @@ import { getAllProperties, FirestoreProperty } from "@/lib/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { createSavedSearch, SavedSearchFilters } from "@/lib/savedSearches";
 import PropertyCard from "@/components/property/PropertyCard";
+import PropertySkeleton from "@/components/ui/PropertySkeleton";
 import toast from "react-hot-toast";
 import styles from "./page.module.css";
 
@@ -658,7 +659,9 @@ function PropertiesContent() {
                         </div>
                     </div>
 
-                    {filtered.length > 0 ? (
+                    {loadingFirestore && filtered.length === 0 ? (
+                        <PropertySkeleton count={6} />
+                    ) : filtered.length > 0 ? (
                         <div className={`${styles.propertyGrid} ${viewMode === "list" ? styles.listView : ""}`}>
                             {filtered.map((property) => (
                                 <PropertyCard key={property.id} property={property} />

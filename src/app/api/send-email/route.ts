@@ -14,7 +14,16 @@ import { Resend } from "resend";
 // For production, verify your domain in Resend dashboard.
 // ============================================================
 
-const resend = new Resend(process.env.RESEND_API_KEY || "");
+// Resend is lazily initialized inside POST to avoid build-time crash
+// when RESEND_API_KEY is not available during `next build` page collection.
+let _resend: Resend | null = null;
+function getResend(): Resend | null {
+    if (!process.env.RESEND_API_KEY) return null;
+    if (!_resend) {
+        _resend = new Resend(process.env.RESEND_API_KEY);
+    }
+    return _resend;
+}
 
 interface EmailRequestBody {
     type: "approval" | "rejection" | "inquiry";
@@ -177,6 +186,14 @@ export async function POST(request: NextRequest) {
                     { success: false, message: `Unknown email type: ${body.type}` },
                     { status: 400 }
                 );
+        }
+
+        const resend = getResend();
+        if (!resend) {
+            return NextResponse.json(
+                { success: false, message: "Email service not configured" },
+                { status: 200 }
+            );
         }
 
         const { data, error } = await resend.emails.send({

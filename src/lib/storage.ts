@@ -132,3 +132,88 @@ export async function deletePropertyImage(imageUrl: string): Promise<void> {
         console.warn("Could not delete image:", error);
     }
 }
+
+/**
+ * Upload a user avatar to Firebase Storage.
+ * Compresses the image and stores it at avatars/{userId}/{timestamp}_{filename}.
+ * Returns the download URL.
+ */
+export async function uploadAvatar(
+    file: File,
+    userId: string,
+    onProgress?: (percent: number) => void
+): Promise<string> {
+    const compressed = await compressImage(file, 512, 0.85);
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `avatars/${userId}/${timestamp}_${safeName}`;
+    const storageRef = ref(storage, path);
+
+    return new Promise((resolve, reject) => {
+        const uploadTask = uploadBytesResumable(storageRef, compressed);
+        uploadTask.on(
+            "state_changed",
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                onProgress?.(Math.round(progress));
+            },
+            (error) => reject(error),
+            async () => {
+                try {
+                    const url = await getDownloadURL(uploadTask.snapshot.ref);
+                    resolve(url);
+                } catch (err) {
+                    reject(err);
+                }
+            }
+        );
+    });
+}
+
+/**
+ * Delete a user avatar from Firebase Storage by URL.
+ */
+export async function deleteAvatar(imageUrl: string): Promise<void> {
+    try {
+        const storageRef = ref(storage, imageUrl);
+        await deleteObject(storageRef);
+    } catch (error) {
+        console.warn("Could not delete avatar:", error);
+    }
+}
+
+/**
+ * Upload a document (license, certificate, PDF) to Firebase Storage.
+ * Returns the download URL.
+ */
+export async function uploadDocument(
+    file: File,
+    userId: string,
+    onProgress?: (percent: number) => void
+): Promise<string> {
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `documents/${userId}/${timestamp}_${safeName}`;
+    const storageRef = ref(storage, path);
+
+    return new Promise((resolve, reject) => {
+        const uploadTask = uploadBytesResumable(storageRef, file);
+        uploadTask.on(
+            "state_changed",
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                onProgress?.(Math.round(progress));
+            },
+            (error) => reject(error),
+            async () => {
+                try {
+                    const url = await getDownloadURL(uploadTask.snapshot.ref);
+                    resolve(url);
+                } catch (err) {
+                    reject(err);
+                }
+            }
+        );
+    });
+}
+

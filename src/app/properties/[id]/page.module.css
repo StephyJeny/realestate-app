@@ -1143,3 +1143,156 @@
         min-width: 60px;
     }
 }
+
+/* ========================================
+   AFFORDABILITY INDICATOR
+   ======================================== */
+
+.affordabilityWrap {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.04), rgba(212, 160, 23, 0.04));
+    border: 1px solid rgba(16, 185, 129, 0.12);
+    border-radius: var(--radius-lg);
+    margin-top: 0.75rem;
+}
+
+.affordabilityRing {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+}
+
+.affordabilityRing svg {
+    width: 100%;
+    height: 100%;
+}
+
+.affordabilityScore {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--navy-800);
+}
+
+.affordabilityInfo {
+    flex: 1;
+}
+
+.affordabilityLabel {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gray-500);
+    margin-bottom: 0.2rem;
+}
+
+.affordabilityEstimate {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--navy-800);
+}
+
+.affordabilityNote {
+    font-size: 0.72rem;
+    color: var(--gray-400);
+    margin-top: 0.15rem;
+}
+
+:global([data-theme="dark"]) .affordabilityWrap {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(212, 160, 23, 0.04));
+    border-color: rgba(16, 185, 129, 0.15);
+}
+
+:global([data-theme="dark"]) .affordabilityScore {
+    color: var(--text-heading);
+}
+
+:global([data-theme="dark"]) .affordabilityEstimate {
+    color: var(--gold-400);
+}
+
+/* ========================================
+   PRINT BUTTON
+   ======================================== */
+
+.printBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    background: var(--white);
+    color: var(--gray-600);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.printBtn:hover {
+    border-color: var(--navy-300);
+    color: var(--navy-700);
+    background: var(--gray-50);
+}
+
+:global([data-theme="dark"]) .printBtn {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+:global([data-theme="dark"]) .printBtn:hover {
+    border-color: var(--gold-500);
+    color: var(--gold-400);
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
+@media print {
+    .page {
+        padding-top: 0 !important;
+    }
+
+    .breadcrumbs,
+    .shareWrap,
+    .agentCard,
+    .statsCard,
+    .similar,
+    .printBtn {
+        display: none !important;
+    }
+
+    .contentGrid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .rightCol {
+        display: none !important;
+    }
+
+    .mainImage {
+        height: 350px !important;
+    }
+
+    .section {
+        break-inside: avoid;
+    }
+
+    .mortgageCalc {
+        break-inside: avoid;
+    }
+}
