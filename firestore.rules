@@ -137,6 +137,20 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid;
       allow update, delete: if isRegisteredUser() && 
         resource.data.userId == request.auth.uid;
+        
+    }
+    // ========================
+    // SAVED PROPERTIES
+    // Users can only access their own saved properties
+    // ========================
+    match /savedProperties/{propertyId} {
+      allow read: if isRegisteredUser() && 
+        resource.data.userId == request.auth.uid;
+      allow create: if isRegisteredUser() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isRegisteredUser() && 
+        resource.data.userId == request.auth.uid;
+      
     }
   }
 }
