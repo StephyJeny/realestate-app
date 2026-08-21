@@ -84,9 +84,13 @@ function PropertiesContent() {
     const [saveSearchName, setSaveSearchName] = useState("");
     const [savingSearch, setSavingSearch] = useState(false);
 
+    // Hydration guard — prevents SSR/client mismatch for URL-driven state
+    const [hasMounted, setHasMounted] = useState(false);
+    useEffect(() => { setHasMounted(true); }, []);
+
     // Agent filter
     const router = useRouter();
-    const [filterAgentId, setFilterAgentId] = useState<string | null>(() => searchParams.get("agentId"));
+    const [filterAgentId, setFilterAgentId] = useState<string | null>(null);
     const [filterAgentName, setFilterAgentName] = useState<string>("");
 
     // Price range slider
@@ -99,8 +103,9 @@ function PropertiesContent() {
     const [minArea, setMinArea] = useState("");
     const [maxArea, setMaxArea] = useState("");
 
-    // Read filters from URL params
+    // Read filters from URL params (only after mount to prevent hydration mismatch)
     useEffect(() => {
+        if (!hasMounted) return;
         const type = searchParams.get("type");
         if (type === "sale" || type === "rent") {
             setSelectedListing(type);
@@ -123,7 +128,7 @@ function PropertiesContent() {
             setFilterAgentId(null);
             setFilterAgentName("");
         }
-    }, [searchParams]);
+    }, [searchParams, hasMounted]);
 
     // Fetch agent display name whenever filterAgentId changes
     useEffect(() => {
@@ -363,7 +368,7 @@ function PropertiesContent() {
     return (
         <div className={styles.page}>
             {/* Agent Filter Banner */}
-            {filterAgentId && (
+            {hasMounted && filterAgentId && (
                 <div style={{
                     background: "linear-gradient(135deg, var(--navy-900), var(--navy-800))",
                     padding: "0.85rem 0",
