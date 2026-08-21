@@ -1,8 +1,9 @@
 "use client";
 import { useState, useMemo, useEffect, Suspense, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { sampleProperties, Property } from "@/lib/data";
-import { getAllProperties, FirestoreProperty } from "@/lib/firestore";
+import { getAllProperties, getPropertiesByAgent, getUserProfile, FirestoreProperty } from "@/lib/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { createSavedSearch, SavedSearchFilters } from "@/lib/savedSearches";
 import PropertyCard from "@/components/property/PropertyCard";
@@ -83,6 +84,11 @@ function PropertiesContent() {
     const [saveSearchName, setSaveSearchName] = useState("");
     const [savingSearch, setSavingSearch] = useState(false);
 
+    // Agent filter
+    const router = useRouter();
+    const [filterAgentId, setFilterAgentId] = useState<string | null>(() => searchParams.get("agentId"));
+    const [filterAgentName, setFilterAgentName] = useState<string>("");
+
     // Price range slider
     const PRICE_MIN = 0;
     const PRICE_MAX = 200000000;
@@ -108,13 +114,40 @@ function PropertiesContent() {
         }
         const q = searchParams.get("q");
         if (q) setSearchQuery(q);
+
+        // Agent filter
+        const agentId = searchParams.get("agentId");
+        if (agentId) {
+            setFilterAgentId(agentId);
+        } else {
+            setFilterAgentId(null);
+            setFilterAgentName("");
+        }
     }, [searchParams]);
 
-    // Fetch Firestore properties
+    // Fetch agent display name whenever filterAgentId changes
+    useEffect(() => {
+        if (filterAgentId) {
+            getUserProfile(filterAgentId).then((profile) => {
+                if (profile) setFilterAgentName(profile.displayName || "Agent");
+                else setFilterAgentName("Agent");
+            }).catch(() => {
+                setFilterAgentName("Agent");
+            });
+        }
+    }, [filterAgentId]);
+
+    // Fetch Firestore properties (filtered by agent if agentId is set)
     useEffect(() => {
         const fetchProperties = async () => {
+            setLoadingFirestore(true);
             try {
-                const data = await getAllProperties();
+                let data: FirestoreProperty[];
+                if (filterAgentId) {
+                    data = await getPropertiesByAgent(filterAgentId);
+                } else {
+                    data = await getAllProperties();
+                }
                 const converted = data
                     .filter((p) => p.status === "active" || p.status === "under_offer" || p.status === "price_reduced" || p.status === "sold" || p.status === "rented")
                     .map(firestoreToProperty);
@@ -126,9 +159,10 @@ function PropertiesContent() {
             }
         };
         fetchProperties();
-    }, []);
+    }, [filterAgentId]);
 
     // Merge sample + Firestore, deduplicating by ID
+    // When filtering by agent, only show their properties (no sample data)
     const allProperties = useMemo(() => {
         const seenIds = new Set<string>();
         const merged: Property[] = [];
@@ -140,15 +174,17 @@ function PropertiesContent() {
                 merged.push(p);
             }
         }
-        // Then sample data
-        for (const p of sampleProperties) {
-            if (!seenIds.has(p.id)) {
-                seenIds.add(p.id);
-                merged.push(p);
+        // Only add sample data if NOT filtering by agent
+        if (!filterAgentId) {
+            for (const p of sampleProperties) {
+                if (!seenIds.has(p.id)) {
+                    seenIds.add(p.id);
+                    merged.push(p);
+                }
             }
         }
         return merged;
-    }, [firestoreProperties]);
+    }, [firestoreProperties, filterAgentId]);
 
     // Extract unique cities and neighborhoods for dropdown filters
     const { cities, neighborhoods } = useMemo(() => {
@@ -326,12 +362,61 @@ function PropertiesContent() {
 
     return (
         <div className={styles.page}>
+            {/* Agent Filter Banner */}
+            {filterAgentId && (
+                <div style={{
+                    background: "linear-gradient(135deg, var(--navy-900), var(--navy-800))",
+                    padding: "0.85rem 0",
+                    borderBottom: "2px solid var(--gold-500)",
+                    position: "relative",
+                    zIndex: 10,
+                }}>
+                    <div className="container" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold-400)" strokeWidth="2">
+                            <circle cx="12" cy="8" r="4" /><path d="M5 20c0-4 3-7 7-7s7 3 7 7" />
+                        </svg>
+                        <span style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.9rem", fontWeight: 500 }}>
+                            Showing listings by <strong style={{ color: "var(--gold-400)" }}>{filterAgentName || "Agent"}</strong>
+                        </span>
+                        <Link
+                            href={`/agents/${filterAgentId}`}
+                            style={{
+                                padding: "0.3rem 0.85rem", borderRadius: "var(--radius-full)",
+                                background: "rgba(255,255,255,0.1)", color: "#fff",
+                                fontSize: "0.78rem", fontWeight: 600, textDecoration: "none",
+                                border: "1px solid rgba(255,255,255,0.15)",
+                                transition: "all 0.15s",
+                            }}
+                        >
+                            View Profile
+                        </Link>
+                        <button
+                            onClick={() => router.push("/properties")}
+                            style={{
+                                padding: "0.3rem 0.85rem", borderRadius: "var(--radius-full)",
+                                background: "rgba(239,68,68,0.15)", color: "#fca5a5",
+                                fontSize: "0.78rem", fontWeight: 600,
+                                border: "1px solid rgba(239,68,68,0.2)",
+                                cursor: "pointer", transition: "all 0.15s",
+                            }}
+                        >
+                            ✕ Clear Filter
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Page Header */}
             <div className={styles.pageHeader}>
                 <div className="container">
-                    <h1 className={styles.pageTitle}>Explore Properties</h1>
+                    <h1 className={styles.pageTitle}>
+                        {filterAgentId ? `${filterAgentName || "Agent"}'s Listings` : "Explore Properties"}
+                    </h1>
                     <p className={styles.pageSubtitle}>
-                        Discover your perfect property from our curated collection of premium listings
+                        {filterAgentId
+                            ? `Browse all properties listed by ${filterAgentName || "this agent"}`
+                            : "Discover your perfect property from our curated collection of premium listings"
+                        }
                     </p>
                     {/* Search Bar */}
                     <div className={styles.searchBar}>

@@ -304,10 +304,18 @@ export default function AgentsPage() {
                                         </div>
                                     )}
 
-                                    <Link href={agent.isReal ? `/properties?agentId=${agent.id}` : `/agents/${agent.id}`} className={styles.viewProfileBtn}>
-                                        {agent.isReal ? "View Listings" : "View Profile"}
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                                    </Link>
+                                    <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem" }}>
+                                        <Link href={`/agents/${agent.id}`} className={styles.viewProfileBtn} style={{ flex: 1 }}>
+                                            View Profile
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                                        </Link>
+                                        {agent.isReal && agentProperties[agent.id]?.length > 0 && (
+                                            <Link href={`/properties?agentId=${agent.id}`} className={styles.viewProfileBtn} style={{ flex: 1 }}>
+                                                View Listings
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                                            </Link>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))}
