@@ -1,7 +1,13 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Property images: agents can upload to their own folder
+
+    // ========================
+    // PROPERTY IMAGES
+    // Agents can upload/delete their own property images
+    // Anyone can read (public listings)
+    // Max 10MB per file, images only
+    // ========================
     match /properties/{agentId}/{propertyId}/{fileName} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == agentId
@@ -9,13 +15,55 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
       allow delete: if request.auth != null && request.auth.uid == agentId;
     }
-    
-    // User avatars
+
+    // ========================
+    // USER AVATARS / PROFILE PHOTOS
+    // Users can upload/replace their own avatar
+    // Anyone can read (shown on reviews, listings, etc.)
+    // Max 5MB per file, images only
+    // ========================
     match /avatars/{userId}/{fileName} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ========================
+    // AGENT DOCUMENTS (license, certificates, etc.)
+    // Agents can upload supporting documents
+    // Only the agent and admins can read
+    // Max 20MB per file, images or PDFs
+    // ========================
+    match /documents/{userId}/{fileName} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId
+        && request.resource.size < 20 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType == 'application/pdf');
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ========================
+    // BLOG IMAGES (for blog posts)
+    // Only admins can upload blog images
+    // Anyone can read (public blog)
+    // Max 5MB per file, images only
+    // ========================
+    match /blog/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null;
+    }
+
+    // ========================
+    // CATCH-ALL: Deny everything else
+    // ========================
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

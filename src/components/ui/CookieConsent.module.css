@@ -1,0 +1,122 @@
+/* ========================================
+   COOKIE CONSENT BANNER
+   ======================================== */
+
+.banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    padding: var(--space-md);
+    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.content {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.25rem 1.75rem;
+    background: rgba(10, 14, 26, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: var(--radius-xl);
+    border: 1px solid rgba(212, 160, 23, 0.15);
+    box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.3);
+}
+
+.icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.text {
+    flex: 1;
+}
+
+.title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 0.25rem;
+}
+
+.description {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.5;
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.btnDecline {
+    padding: 0.55rem 1.1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btnDecline:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+.btnAccept {
+    padding: 0.55rem 1.25rem;
+    border-radius: var(--radius-md);
+    border: none;
+    background: linear-gradient(135deg, var(--gold-500), var(--gold-600));
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: 0 2px 12px rgba(212, 160, 23, 0.3);
+}
+
+.btnAccept:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(212, 160, 23, 0.4);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .content {
+        flex-direction: column;
+        text-align: center;
+        padding: 1.25rem;
+        gap: 1rem;
+    }
+
+    .actions {
+        width: 100%;
+    }
+
+    .btnDecline,
+    .btnAccept {
+        flex: 1;
+    }
+}

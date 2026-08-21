@@ -133,6 +133,12 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                 <div className={styles.priceTag}>
                     {formatPrice(property.price, property.currency)}
                     {property.listingType === "rent" && <span className={styles.perMonth}>/mo</span>}
+                    {property.listingType === "sale" && (() => {
+                        const r = 0.12 / 12;
+                        const n = 25 * 12;
+                        const mo = (property.price * 0.8 * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+                        return <span className={styles.perMonth}> · ~{formatPrice(Math.round(mo), property.currency)}/mo</span>;
+                    })()}
                 </div>
             </div>
 

@@ -349,3 +349,18 @@ export const neighborhoods: NeighborhoodData[] = [
 export function getNeighborhoodById(id: string): NeighborhoodData | undefined {
     return neighborhoods.find((n) => n.id === id);
 }
+
+/**
+ * Look up a neighborhood by its display name (case-insensitive, partial match).
+ * Used on property detail pages to show nearby amenities.
+ */
+export function getNeighborhoodByName(name: string): NeighborhoodData | undefined {
+    if (!name) return undefined;
+    const lower = name.toLowerCase().trim();
+    return neighborhoods.find(
+        (n) =>
+            n.name.toLowerCase() === lower ||
+            lower.includes(n.name.toLowerCase()) ||
+            n.name.toLowerCase().includes(lower)
+    );
+}

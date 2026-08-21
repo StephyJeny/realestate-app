@@ -1,42 +1,49 @@
+// ============================================================
+// Email Service — Resend (primary) with EmailJS fallback
+// ============================================================
+//
+// How it works:
+//   1. Emails are sent server-side via /api/send-email (Resend).
+//   2. If Resend is not configured (no RESEND_API_KEY), the API
+//      route returns { success: false } gracefully.
+//   3. If the API call fails entirely, falls back to EmailJS
+//      (client-side) for backward compatibility.
+//
+// Environment variables for Resend (server-side, in .env.local):
+//   RESEND_API_KEY=re_xxxxxxxxx
+//   RESEND_FROM_EMAIL=EstateVue <onboarding@resend.dev>
+//
+// Legacy EmailJS env vars (still supported as fallback):
+//   NEXT_PUBLIC_EMAILJS_SERVICE_ID
+//   NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
+//   NEXT_PUBLIC_EMAILJS_APPROVAL_TEMPLATE_ID
+//   NEXT_PUBLIC_EMAILJS_INQUIRY_TEMPLATE_ID
+//   NEXT_PUBLIC_EMAILJS_REPLY_EMAIL
+// ============================================================
+
 import emailjs from "@emailjs/browser";
 
-// EmailJS Configuration (2-template setup)
-// ==========================================
-// Template 1 (APPROVAL_TEMPLATE_ID): Handles BOTH agent approval AND rejection emails
-// Template 2 (INQUIRY_TEMPLATE_ID):  Handles property inquiry emails from buyers
-//
-// Both templates should use these variables in the EmailJS template editor:
-//   {{from_name}}, {{to_name}}, {{to_email}}, {{subject}}, {{message}}, {{reply_to}}
-//
-// IMPORTANT - To avoid spam filters:
-//   - Do NOT use a reply_to domain you don't own (e.g., noreply@yourdomain.com)
-//   - Keep subject lines simple and professional
-//   - Use the same email address linked to your EmailJS service as reply_to
-//   - In the EmailJS template, ensure "To Email" is set to {{to_email}}
-//   - In your EmailJS Email Service settings, make sure the connected Gmail
-//     account has "Less secure app access" or is using an App Password
-//
-// Add these env vars to .env.local:
-//   NEXT_PUBLIC_EMAILJS_SERVICE_ID=your_service_id
-//   NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=your_public_key
-//   NEXT_PUBLIC_EMAILJS_APPROVAL_TEMPLATE_ID=your_template_for_approval_and_rejection
-//   NEXT_PUBLIC_EMAILJS_INQUIRY_TEMPLATE_ID=your_template_for_inquiries
-//   NEXT_PUBLIC_EMAILJS_REPLY_EMAIL=your_gmail_address (the one connected to EmailJS)
-
+// Legacy EmailJS configuration (fallback)
 const SERVICE_ID = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || "";
 const PUBLIC_KEY = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || "";
 const APPROVAL_TEMPLATE_ID = process.env.NEXT_PUBLIC_EMAILJS_APPROVAL_TEMPLATE_ID || "";
 const INQUIRY_TEMPLATE_ID = process.env.NEXT_PUBLIC_EMAILJS_INQUIRY_TEMPLATE_ID || "";
-// Use the actual Gmail address connected to your EmailJS service
-// This prevents spam — Gmail trusts emails where reply_to matches a real, verified address
 const REPLY_EMAIL = process.env.NEXT_PUBLIC_EMAILJS_REPLY_EMAIL || "";
 
-const isEmailConfigured = !!(SERVICE_ID && PUBLIC_KEY && APPROVAL_TEMPLATE_ID);
-const isInquiryEmailConfigured = !!(SERVICE_ID && PUBLIC_KEY && INQUIRY_TEMPLATE_ID);
+const isEmailJSConfigured = !!(SERVICE_ID && PUBLIC_KEY && APPROVAL_TEMPLATE_ID);
+const isInquiryEmailJSConfigured = !!(SERVICE_ID && PUBLIC_KEY && INQUIRY_TEMPLATE_ID);
+
+// Expose for backward compat
+const isEmailConfigured = true; // Always "configured" — Resend route handles gracefully
+const isInquiryEmailConfigured = true;
 
 if (PUBLIC_KEY) {
     emailjs.init(PUBLIC_KEY);
 }
+
+// ========================
+// DATA INTERFACES
+// ========================
 
 export interface ApprovalEmailData {
     agentName: string;
@@ -61,13 +68,41 @@ export interface InquiryEmailData {
     inquiryType: "inquiry" | "viewing" | "offer";
 }
 
-/**
- * Send an approval email to the agent with their verification code.
- * Uses the shared approval/rejection template (Template 1).
- */
-export async function sendApprovalEmail(data: ApprovalEmailData): Promise<boolean> {
-    if (!isEmailConfigured) {
-        console.warn("EmailJS not configured. Skipping approval email.");
+// ========================
+// RESEND API CALLER
+// ========================
+
+async function sendViaResend(payload: Record<string, unknown>): Promise<boolean> {
+    try {
+        const res = await fetch("/api/send-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            console.info(`✅ Email sent via Resend (type: ${payload.type})`);
+            return true;
+        }
+
+        // Resend not configured or failed — not a hard error
+        console.warn(`Resend returned: ${data.message || "not configured"}`);
+        return false;
+    } catch (err) {
+        console.warn("Resend API call failed:", err);
+        return false;
+    }
+}
+
+// ========================
+// EMAILJS FALLBACK
+// ========================
+
+async function sendApprovalViaEmailJS(data: ApprovalEmailData): Promise<boolean> {
+    if (!isEmailJSConfigured) {
+        console.warn("EmailJS not configured. Skipping approval email fallback.");
         console.info(`Would send approval email to ${data.agentEmail} with code: ${data.agentCode}`);
         return false;
     }
@@ -86,23 +121,17 @@ export async function sendApprovalEmail(data: ApprovalEmailData): Promise<boolea
             },
             PUBLIC_KEY
         );
-        console.info(`Approval email sent to ${data.agentEmail}`);
+        console.info(`Approval email sent via EmailJS to ${data.agentEmail}`);
         return true;
-    } catch (error: any) {
-        console.error("Failed to send approval email. Error status:", error?.status, "Text:", error?.text);
-        console.error("Full error:", error);
+    } catch (error: unknown) {
+        console.error("EmailJS approval email failed:", error);
         return false;
     }
 }
 
-/**
- * Send a rejection email to the agent.
- * Uses the SAME template as approval (Template 1) — only the message content differs.
- */
-export async function sendRejectionEmail(data: RejectionEmailData): Promise<boolean> {
-    if (!isEmailConfigured) {
-        console.warn("EmailJS not configured. Skipping rejection email.");
-        console.info(`Would send rejection email to ${data.agentEmail}`);
+async function sendRejectionViaEmailJS(data: RejectionEmailData): Promise<boolean> {
+    if (!isEmailJSConfigured) {
+        console.warn("EmailJS not configured. Skipping rejection email fallback.");
         return false;
     }
 
@@ -120,27 +149,17 @@ export async function sendRejectionEmail(data: RejectionEmailData): Promise<bool
             },
             PUBLIC_KEY
         );
-        console.info(`Rejection email sent to ${data.agentEmail}`);
+        console.info(`Rejection email sent via EmailJS to ${data.agentEmail}`);
         return true;
-    } catch (error: any) {
-        console.error("Failed to send rejection email. Error status:", error?.status, "Text:", error?.text);
-        console.error("Full error:", error);
+    } catch (error: unknown) {
+        console.error("EmailJS rejection email failed:", error);
         return false;
     }
 }
 
-/**
- * Send an inquiry notification email to the agent (Template 2).
- * Uses best practices to avoid spam filters:
- * - Personal reply_to address (the sender's email) so the agent can reply directly
- * - Professional, non-spammy subject line
- * - Clean plain-text message body
- * - Proper from_name identifying the platform
- */
-export async function sendInquiryEmail(data: InquiryEmailData): Promise<boolean> {
-    if (!isInquiryEmailConfigured) {
-        console.warn("EmailJS inquiry template not configured. Skipping inquiry email.");
-        console.info(`Would send inquiry email to ${data.agentEmail} from ${data.senderName}`);
+async function sendInquiryViaEmailJS(data: InquiryEmailData): Promise<boolean> {
+    if (!isInquiryEmailJSConfigured) {
+        console.warn("EmailJS inquiry template not configured. Skipping inquiry fallback.");
         return false;
     }
 
@@ -160,14 +179,74 @@ export async function sendInquiryEmail(data: InquiryEmailData): Promise<boolean>
             },
             PUBLIC_KEY
         );
-        console.info(`Inquiry email sent to ${data.agentEmail} from ${data.senderName}`);
+        console.info(`Inquiry email sent via EmailJS to ${data.agentEmail}`);
         return true;
-    } catch (error: any) {
-        console.error("Failed to send inquiry email. Error status:", error?.status, "Text:", error?.text);
-        console.error("Full error:", error);
+    } catch (error: unknown) {
+        console.error("EmailJS inquiry email failed:", error);
         return false;
     }
 }
 
-export { isEmailConfigured, isInquiryEmailConfigured };
+// ========================
+// PUBLIC API (Resend → EmailJS fallback)
+// ========================
 
+/**
+ * Send an approval email to the agent with their verification code.
+ * Tries Resend first, falls back to EmailJS.
+ */
+export async function sendApprovalEmail(data: ApprovalEmailData): Promise<boolean> {
+    // Try Resend first
+    const sent = await sendViaResend({
+        type: "approval",
+        toName: data.agentName,
+        toEmail: data.agentEmail,
+        agentCode: data.agentCode,
+    });
+
+    if (sent) return true;
+
+    // Fallback to EmailJS
+    return sendApprovalViaEmailJS(data);
+}
+
+/**
+ * Send a rejection email to the agent.
+ * Tries Resend first, falls back to EmailJS.
+ */
+export async function sendRejectionEmail(data: RejectionEmailData): Promise<boolean> {
+    const sent = await sendViaResend({
+        type: "rejection",
+        toName: data.agentName,
+        toEmail: data.agentEmail,
+        reason: data.reason,
+    });
+
+    if (sent) return true;
+
+    return sendRejectionViaEmailJS(data);
+}
+
+/**
+ * Send an inquiry notification email to the agent.
+ * Tries Resend first, falls back to EmailJS.
+ */
+export async function sendInquiryEmail(data: InquiryEmailData): Promise<boolean> {
+    const sent = await sendViaResend({
+        type: "inquiry",
+        toName: data.agentName,
+        toEmail: data.agentEmail,
+        senderName: data.senderName,
+        senderEmail: data.senderEmail,
+        senderPhone: data.senderPhone,
+        propertyTitle: data.propertyTitle,
+        message: data.message,
+        inquiryType: data.inquiryType,
+    });
+
+    if (sent) return true;
+
+    return sendInquiryViaEmailJS(data);
+}
+
+export { isEmailConfigured, isInquiryEmailConfigured };
