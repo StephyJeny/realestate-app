@@ -1,0 +1,396 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
+}
+
+.pipelineMetrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.85rem;
+}
+
+.metricCard {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-color, #e2e6ee);
+    border-radius: var(--radius-md, 10px);
+    padding: 0.9rem 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.metricInfo {
+    display: flex;
+    flex-direction: column;
+}
+
+.metricLabel {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.metricValue {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+    margin-top: 2px;
+}
+
+.metricIcon {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+/* Controls */
+.controlsBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.searchWrap {
+    position: relative;
+    flex: 1;
+    min-width: 240px;
+    max-width: 400px;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-tertiary, #94a3b8);
+    pointer-events: none;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 0.55rem 0.85rem 0.55rem 2.4rem;
+    border: 1px solid var(--border-color, #e2e6ee);
+    border-radius: var(--radius-md, 8px);
+    background: var(--bg-surface, #ffffff);
+    color: var(--text-primary, #0f172a);
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.searchInput:focus {
+    outline: none;
+    border-color: var(--navy-800, #0f1629);
+    box-shadow: 0 0 0 2px rgba(15, 22, 41, 0.08);
+}
+
+.viewToggle {
+    display: inline-flex;
+    background: var(--bg-tertiary, #f1f5f9);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+}
+
+.viewBtn {
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #64748b);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.15s ease;
+}
+
+.viewBtnActive {
+    background: #ffffff;
+    color: var(--text-primary, #0f172a);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Kanban Board Columns */
+.board {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(260px, 1fr));
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 1.5rem;
+    min-height: 520px;
+}
+
+.column {
+    background: var(--bg-tertiary, #f8f9fc);
+    border: 1px solid var(--border-color, #e2e6ee);
+    border-radius: var(--radius-lg, 12px);
+    display: flex;
+    flex-direction: column;
+    max-height: 720px;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.columnDragOver {
+    background: rgba(15, 22, 41, 0.04);
+    border: 2px dashed var(--navy-800, #0f1629);
+}
+
+.columnHeader {
+    padding: 0.85rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color, #e2e6ee);
+}
+
+.columnTitleWrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.columnIcon {
+    font-size: 1.05rem;
+}
+
+.columnTitle {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    margin: 0;
+}
+
+.columnBadge {
+    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: #ffffff;
+    border: 1px solid var(--border-color, #e2e6ee);
+    color: var(--text-secondary, #64748b);
+}
+
+.cardList {
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.emptyColumn {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--text-tertiary, #94a3b8);
+    font-size: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Kanban Card */
+.card {
+    background: #ffffff;
+    border: 1px solid var(--border-color, #e2e6ee);
+    border-radius: var(--radius-md, 10px);
+    padding: 0.9rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    cursor: grab;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    user-select: none;
+}
+
+.card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+    border-color: #cbd5e1;
+}
+
+.card:active {
+    cursor: grabbing;
+}
+
+.cardDragging {
+    opacity: 0.4;
+    transform: scale(0.97);
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+}
+
+.cardTypeBadge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.typeInquiry {
+    background: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
+}
+
+.typeViewing {
+    background: rgba(139, 92, 246, 0.12);
+    color: #7c3aed;
+}
+
+.typeOffer {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+}
+
+.cardDate {
+    font-size: 0.68rem;
+    color: var(--text-tertiary, #94a3b8);
+}
+
+.buyerInfo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.buyerAvatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--navy-800, #0f1629);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.buyerName {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.propertyTitle {
+    font-size: 0.78rem;
+    color: var(--text-secondary, #475569);
+    margin-bottom: 0.5rem;
+    display: block;
+    line-height: 1.3;
+    font-weight: 500;
+}
+
+.offerPriceTag {
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 6px;
+    padding: 0.35rem 0.55rem;
+    margin-bottom: 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #059669;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.messageSnippet {
+    font-size: 0.75rem;
+    color: var(--text-tertiary, #64748b);
+    line-height: 1.35;
+    background: var(--bg-tertiary, #f8f9fa);
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    margin-bottom: 0.7rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.cardFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color, #f1f5f9);
+    gap: 0.4rem;
+}
+
+.cardActions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.actionIconBtn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #e2e6ee);
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary, #64748b);
+    text-decoration: none;
+    font-size: 0.75rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.actionIconBtn:hover {
+    background: var(--bg-tertiary, #f1f5f9);
+    color: var(--text-primary, #0f172a);
+}
+
+.whatsappBtn {
+    color: #25d366;
+    border-color: rgba(37, 211, 102, 0.3);
+}
+
+.whatsappBtn:hover {
+    background: rgba(37, 211, 102, 0.1);
+}
+
+.stageSelector {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    border-radius: 4px;
+    border: 1px solid var(--border-color, #e2e6ee);
+    background: var(--bg-surface, #ffffff);
+    color: var(--text-secondary, #64748b);
+    cursor: pointer;
+}
+
+@media (max-width: 1024px) {
+    .board {
+        grid-template-columns: repeat(5, 260px);
+    }
+}

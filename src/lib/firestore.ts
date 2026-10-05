@@ -410,6 +410,7 @@ export interface Inquiry {
     message: string;
     type: "inquiry" | "viewing" | "offer";
     status: string;
+    stage?: "new" | "contacted" | "viewing_scheduled" | "offer_made" | "closed";
     offerDetails?: OfferDetails;
     agentReply?: string;
     repliedAt?: Timestamp;
@@ -643,6 +644,18 @@ export async function getAllInquiries(): Promise<Inquiry[]> {
 export async function updateInquiryStatus(inquiryId: string, status: string) {
     const ref = doc(db, "inquiries", inquiryId);
     await updateDoc(ref, { status, updatedAt: serverTimestamp() });
+}
+
+export async function updateInquiryStage(
+    inquiryId: string,
+    stage: "new" | "contacted" | "viewing_scheduled" | "offer_made" | "closed"
+) {
+    const ref = doc(db, "inquiries", inquiryId);
+    await updateDoc(ref, {
+        stage,
+        status: stage,
+        updatedAt: serverTimestamp(),
+    });
 }
 
 export async function replyToInquiry(inquiryId: string, agentId: string, agentName: string, reply: string) {

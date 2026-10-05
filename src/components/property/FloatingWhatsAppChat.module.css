@@ -1,0 +1,300 @@
+.container {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 998;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Floating Trigger Button */
+.triggerBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: #25d366;
+    color: #ffffff;
+    border: none;
+    border-radius: 9999px;
+    padding: 0.75rem 1.25rem 0.75rem 0.9rem;
+    box-shadow: 0 10px 25px -5px rgba(37, 211, 102, 0.45), 0 8px 10px -6px rgba(37, 211, 102, 0.2);
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.88rem;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.triggerBtn:hover {
+    background: #1ebc59;
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 14px 28px -5px rgba(37, 211, 102, 0.55);
+}
+
+.whatsappIconWrap {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+}
+
+.onlinePulse {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 10px;
+    height: 10px;
+    background: #4ade80;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    animation: pulseGlow 2s infinite;
+}
+
+@keyframes pulseGlow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(74, 222, 128, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+    }
+}
+
+/* Chat Card Window */
+.chatCard {
+    background: #ffffff;
+    width: 340px;
+    border-radius: 18px;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    margin-bottom: 0.85rem;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    animation: slideUpFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(15px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Card Header */
+.cardHeader {
+    background: #075e54;
+    color: #ffffff;
+    padding: 1rem 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.agentHeaderWrap {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.agentAvatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #128c7e;
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    position: relative;
+}
+
+.agentAvatarOnline {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 10px;
+    height: 10px;
+    background: #25d366;
+    border: 2px solid #075e54;
+    border-radius: 50%;
+}
+
+.agentInfo {
+    display: flex;
+    flex-direction: column;
+}
+
+.agentName {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.2;
+}
+
+.agentStatus {
+    font-size: 0.72rem;
+    color: #bbf7d0;
+    margin-top: 2px;
+}
+
+.closeChatBtn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: color 0.15s ease;
+}
+
+.closeChatBtn:hover {
+    color: #ffffff;
+}
+
+/* Card Body & Chat Bubble */
+.cardBody {
+    background: #efeae2;
+    background-image: radial-gradient(#d1d7db 0.75px, transparent 0.75px);
+    background-size: 12px 12px;
+    padding: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.chatBubble {
+    background: #ffffff;
+    border-radius: 10px 10px 10px 2px;
+    padding: 0.75rem 0.9rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.bubbleSender {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #075e54;
+    margin-bottom: 3px;
+}
+
+.bubbleText {
+    font-size: 0.82rem;
+    color: #111b21;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.bubbleTime {
+    font-size: 0.65rem;
+    color: #667781;
+    text-align: right;
+    margin-top: 4px;
+}
+
+/* Chips */
+.chipsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.chipsLabel {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #54656f;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.chipsList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.chip {
+    padding: 0.35rem 0.65rem;
+    background: #ffffff;
+    border: 1px solid #d1d7db;
+    border-radius: 9999px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #111b21;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.chip:hover {
+    border-color: #25d366;
+    color: #075e54;
+    background: #f0fdf4;
+}
+
+.chipActive {
+    background: #25d366;
+    color: #ffffff;
+    border-color: #25d366;
+}
+
+/* Card Footer */
+.cardFooter {
+    background: #f0f2f5;
+    padding: 0.85rem 1.1rem;
+    border-top: 1px solid #e9edef;
+}
+
+.startChatBtn {
+    width: 100%;
+    background: #25d366;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(37, 211, 102, 0.3);
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.startChatBtn:hover {
+    background: #1ebc59;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(37, 211, 102, 0.4);
+}
+
+@media (max-width: 640px) {
+    .container {
+        bottom: 5.5rem; /* Above mobile contact bar */
+        right: 1rem;
+    }
+
+    .chatCard {
+        width: calc(100vw - 2rem);
+        max-width: 340px;
+    }
+}

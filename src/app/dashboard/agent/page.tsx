@@ -13,6 +13,7 @@ import {
     updateUserProfile,
     replyToInquiry,
     updateInquiryStatus,
+    updateInquiryStage,
     respondToOffer,
     OfferDetails,
     FirestoreProperty,
@@ -25,6 +26,7 @@ import {
 import { uploadPropertyImages } from "@/lib/storage";
 import LOIModal from "@/components/property/LOIModal";
 import PaymentModal from "@/components/payment/PaymentModal";
+import LeadKanbanBoard, { PipelineStage } from "@/components/agent/LeadKanbanBoard";
 import { LOIData } from "@/lib/loiGenerator";
 import toast from "react-hot-toast";
 import styles from "../dashboard.module.css";
@@ -61,6 +63,7 @@ export default function AgentDashboard() {
     // Reply to inquiry state
     const [replyingInquiry, setReplyingInquiry] = useState<Inquiry | null>(null);
     const [replyText, setReplyText] = useState("");
+    const [inquiryViewMode, setInquiryViewMode] = useState<"kanban" | "table">("kanban");
 
     // Offer negotiation and LOI states
     const [viewingLOI, setViewingLOI] = useState<LOIData | null>(null);
@@ -339,6 +342,26 @@ export default function AgentDashboard() {
         }
     };
 
+    const handleStageChange = async (inquiryId: string, newStage: PipelineStage) => {
+        // Optimistic update
+        setInquiries((prev) =>
+            prev.map((inq) => (inq.id === inquiryId ? { ...inq, stage: newStage, status: newStage } : inq))
+        );
+        try {
+            await updateInquiryStage(inquiryId, newStage);
+            const stageLabel =
+                newStage === "new" ? "New Lead" :
+                newStage === "contacted" ? "Contacted" :
+                newStage === "viewing_scheduled" ? "Viewing Scheduled" :
+                newStage === "offer_made" ? "Offer Made" : "Closed / Won";
+            toast.success(`Lead moved to "${stageLabel}" ✨`);
+        } catch (err) {
+            console.error("Failed to update lead stage:", err);
+            toast.error("Failed to update lead stage");
+            loadData();
+        }
+    };
+
     const handleRejectOffer = async (inquiry: Inquiry) => {
         if (!inquiry.id || !user || !userProfile) return;
         const reason = prompt("Reason for declining offer (optional):", "Price consideration does not meet Vendor requirements.");
@@ -510,8 +533,8 @@ export default function AgentDashboard() {
                             </button>
                             <button className={`${styles.sidebarLink} ${activeTab === "inquiries" ? styles.sidebarLinkActive : ""}`}
                                 onClick={() => { setActiveTab("inquiries"); setSidebarOpen(false); }}>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                                Inquiries
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" /><rect x="14" y="3" width="7" height="5" /><rect x="14" y="12" width="7" height="9" /><rect x="3" y="16" width="7" height="5" /></svg>
+                                Leads & CRM
                                 {inquiries.length > 0 && <span className={styles.sidebarBadge}>{inquiries.length}</span>}
                             </button>
                             <button className={`${styles.sidebarLink} ${activeTab === "offers" ? styles.sidebarLinkActive : ""}`}
@@ -779,61 +802,126 @@ export default function AgentDashboard() {
 
                     {activeTab === "inquiries" && (
                         <div className={styles.contentCard}>
-                            <div className={styles.contentCardHeader}>
-                                <h3 className={styles.contentCardTitle}>Inquiries Received</h3>
+                            <div className={styles.contentCardHeader} style={{ flexWrap: "wrap", gap: "1rem", alignItems: "center" }}>
+                                <div>
+                                    <h3 className={styles.contentCardTitle}>Leads & CRM Pipeline</h3>
+                                    <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                        Drag & drop leads across stages: New Lead ➔ Contacted ➔ Viewing Scheduled ➔ Offer Made ➔ Closed
+                                    </p>
+                                </div>
+                                <div style={{ display: "flex", background: "var(--bg-tertiary, #f1f5f9)", borderRadius: "8px", padding: "3px", gap: "2px" }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setInquiryViewMode("kanban")}
+                                        style={{
+                                            padding: "0.35rem 0.75rem",
+                                            borderRadius: "6px",
+                                            fontSize: "0.8rem",
+                                            fontWeight: 600,
+                                            border: "none",
+                                            background: inquiryViewMode === "kanban" ? "#fff" : "transparent",
+                                            color: inquiryViewMode === "kanban" ? "var(--text-primary)" : "var(--text-secondary)",
+                                            boxShadow: inquiryViewMode === "kanban" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "0.35rem",
+                                        }}
+                                    >
+                                        <span>📊</span> Kanban Board
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setInquiryViewMode("table")}
+                                        style={{
+                                            padding: "0.35rem 0.75rem",
+                                            borderRadius: "6px",
+                                            fontSize: "0.8rem",
+                                            fontWeight: 600,
+                                            border: "none",
+                                            background: inquiryViewMode === "table" ? "#fff" : "transparent",
+                                            color: inquiryViewMode === "table" ? "var(--text-primary)" : "var(--text-secondary)",
+                                            boxShadow: inquiryViewMode === "table" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "0.35rem",
+                                        }}
+                                    >
+                                        <span>📋</span> Table View
+                                    </button>
+                                </div>
                             </div>
-                            {inquiries.length > 0 ? (
-                                <table className={styles.table}>
-                                    <thead>
-                                        <tr>
-                                            <th>From</th>
-                                            <th>Property</th>
-                                            <th>Type</th>
-                                            <th>Message</th>
-                                            <th>Status</th>
-                                            <th>Date</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {inquiries.map((inq) => (
-                                            <tr key={inq.id as string}>
-                                                <td>
-                                                    <div className={styles.tableUserCell}>
-                                                        <div className={styles.tableAvatar}>
-                                                            {inq.senderName?.charAt(0) || "U"}
-                                                        </div>
-                                                        <div className={styles.tableUserInfo}>
-                                                            <span className={styles.tableUserName}>{inq.senderName || "User"}</span>
-                                                            <span className={styles.tableUserEmail}>{inq.senderEmail || ""}</span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>{inq.propertyTitle || "Property"}</td>
-                                                <td><span className={`${styles.statusBadge} ${styles.statusActive}`}>{inq.type || "inquiry"}</span></td>
-                                                <td style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                                    {inq.message || ""}
-                                                </td>
-                                                <td>
-                                                    <span className={`${styles.statusBadge} ${inq.status === "replied" ? styles.statusApproved : inq.status === "closed" ? styles.statusPending : styles.statusActive}`}>
-                                                        {inq.status === "replied" ? "✅ Replied" : inq.status === "closed" ? "⬜ Closed" : "🆕 New"}
-                                                    </span>
-                                                </td>
-                                                <td>{inq.createdAt ? new Date(inq.createdAt.seconds * 1000).toLocaleDateString() : "N/A"}</td>
-                                                <td>
-                                                    <div style={{ display: "flex", gap: "0.35rem" }}>
-                                                        {inq.status !== "replied" && (
-                                                            <button onClick={() => { setReplyingInquiry(inq); setReplyText(""); }} style={{ fontSize: "0.72rem", padding: "0.25rem 0.5rem", borderRadius: "4px", background: "var(--navy-800)", color: "#fff", border: "none", cursor: "pointer" }}>Reply</button>
-                                                        )}
-                                                        {inq.status !== "closed" && (
-                                                            <button onClick={() => updateInquiryStatus(inq.id!, "closed").then(() => { toast.success("Inquiry closed"); loadData(); })} style={{ fontSize: "0.72rem", padding: "0.25rem 0.5rem", borderRadius: "4px", background: "rgba(107,114,128,0.1)", color: "var(--gray-600)", border: "1px solid var(--gray-200)", cursor: "pointer" }}>Close</button>
-                                                        )}
-                                                    </div>
-                                                </td>
+
+                            {inquiryViewMode === "kanban" ? (
+                                <LeadKanbanBoard
+                                    inquiries={inquiries}
+                                    onStageChange={handleStageChange}
+                                    onReplyClick={(inq) => { setReplyingInquiry(inq); setReplyText(""); }}
+                                    onViewOfferClick={handleViewOfferLOI}
+                                />
+                            ) : inquiries.length > 0 ? (
+                                <div style={{ overflowX: "auto" }}>
+                                    <table className={styles.table}>
+                                        <thead>
+                                            <tr>
+                                                <th>From</th>
+                                                <th>Property</th>
+                                                <th>Type</th>
+                                                <th>Message</th>
+                                                <th>Pipeline Stage</th>
+                                                <th>Date</th>
+                                                <th>Actions</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {inquiries.map((inq) => (
+                                                <tr key={inq.id as string}>
+                                                    <td>
+                                                        <div className={styles.tableUserCell}>
+                                                            <div className={styles.tableAvatar}>
+                                                                {inq.senderName?.charAt(0) || "U"}
+                                                            </div>
+                                                            <div className={styles.tableUserInfo}>
+                                                                <span className={styles.tableUserName}>{inq.senderName || "User"}</span>
+                                                                <span className={styles.tableUserEmail}>{inq.senderEmail || ""}</span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td>{inq.propertyTitle || "Property"}</td>
+                                                    <td><span className={`${styles.statusBadge} ${styles.statusActive}`}>{inq.type || "inquiry"}</span></td>
+                                                    <td style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                        {inq.message || ""}
+                                                    </td>
+                                                    <td>
+                                                        <select
+                                                            value={inq.stage || (inq.status === "closed" ? "closed" : inq.status === "replied" ? "contacted" : inq.type === "offer" ? "offer_made" : inq.type === "viewing" ? "viewing_scheduled" : "new")}
+                                                            onChange={(e) => handleStageChange(inq.id!, e.target.value as any)}
+                                                            style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem", borderRadius: "4px", border: "1px solid var(--border-color)", background: "var(--bg-surface)" }}
+                                                        >
+                                                            <option value="new">🆕 New Lead</option>
+                                                            <option value="contacted">📞 Contacted</option>
+                                                            <option value="viewing_scheduled">📅 Viewing Scheduled</option>
+                                                            <option value="offer_made">💼 Offer Made</option>
+                                                            <option value="closed">🎉 Closed / Won</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>{inq.createdAt ? new Date(inq.createdAt.seconds * 1000).toLocaleDateString() : "N/A"}</td>
+                                                    <td>
+                                                        <div style={{ display: "flex", gap: "0.35rem" }}>
+                                                            {inq.status !== "replied" && (
+                                                                <button onClick={() => { setReplyingInquiry(inq); setReplyText(""); }} style={{ fontSize: "0.72rem", padding: "0.25rem 0.5rem", borderRadius: "4px", background: "var(--navy-800)", color: "#fff", border: "none", cursor: "pointer" }}>Reply</button>
+                                                            )}
+                                                            {inq.status !== "closed" && (
+                                                                <button onClick={() => updateInquiryStatus(inq.id!, "closed").then(() => { toast.success("Inquiry closed"); loadData(); })} style={{ fontSize: "0.72rem", padding: "0.25rem 0.5rem", borderRadius: "4px", background: "rgba(107,114,128,0.1)", color: "var(--gray-600)", border: "1px solid var(--gray-200)", cursor: "pointer" }}>Close</button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             ) : (
                                 <div className={styles.emptyState}>
                                     <div className={styles.emptyIcon}>💬</div>
