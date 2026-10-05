@@ -1,0 +1,385 @@
+.page {
+    min-height: 100vh;
+    padding-top: calc(var(--navbar-height) + 2rem);
+    padding-bottom: 5rem;
+    background: var(--bg-primary, #ffffff);
+}
+
+.hero {
+    text-align: center;
+    max-width: 680px;
+    margin: 0 auto 2.5rem;
+}
+
+.heroBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.9rem;
+    background: rgba(212, 160, 23, 0.12);
+    border: 1px solid rgba(212, 160, 23, 0.25);
+    border-radius: 50px;
+    color: var(--gold-600, #b8860b);
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.heroTitle {
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-weight: 800;
+    color: var(--text-heading, #0f1629);
+    line-height: 1.2;
+    margin-bottom: 0.75rem;
+}
+
+.heroSub {
+    font-size: 1rem;
+    color: var(--text-secondary, #475569);
+    line-height: 1.6;
+}
+
+/* Quiz Card Container */
+.quizCard {
+    max-width: 760px;
+    margin: 0 auto;
+    background: var(--bg-secondary, #f8f9fb);
+    border: 1px solid var(--border-color, #e2e6ee);
+    border-radius: var(--radius-xl, 20px);
+    padding: 2rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+}
+
+@media (max-width: 640px) {
+    .quizCard {
+        padding: 1.25rem;
+    }
+}
+
+/* Progress Bar */
+.progressWrap {
+    margin-bottom: 2rem;
+}
+
+.progressMeta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-tertiary, #64748b);
+    margin-bottom: 0.5rem;
+}
+
+.progressBarBg {
+    width: 100%;
+    height: 8px;
+    background: var(--gray-200, #e2e8f0);
+    border-radius: 50px;
+    overflow: hidden;
+}
+
+.progressBarFill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold-400, #f59e0b), var(--gold-500, #d4a017));
+    border-radius: 50px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Step Header */
+.stepHeader {
+    margin-bottom: 1.5rem;
+}
+
+.stepTitle {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--text-heading, #0f1629);
+    margin-bottom: 0.35rem;
+}
+
+.stepSubtitle {
+    font-size: 0.88rem;
+    color: var(--text-secondary, #475569);
+}
+
+/* Options Grid */
+.optionsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.optionCard {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.15rem;
+    background: var(--bg-primary, #ffffff);
+    border: 2px solid var(--border-color, #e2e6ee);
+    border-radius: var(--radius-lg, 14px);
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.optionCard:hover {
+    border-color: var(--gold-400, #f59e0b);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.optionCardSelected {
+    border-color: var(--gold-500, #d4a017) !important;
+    background: rgba(212, 160, 23, 0.05) !important;
+    box-shadow: 0 0 0 1px var(--gold-500, #d4a017) !important;
+}
+
+.optionIcon {
+    font-size: 1.8rem;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.optionContent h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-heading, #0f1629);
+    margin: 0 0 0.25rem;
+}
+
+.optionContent p {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #64748b);
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Multi-select Pills Grid */
+.amenitiesGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+}
+
+.amenityPill {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-primary, #ffffff);
+    border: 1.5px solid var(--border-color, #e2e6ee);
+    border-radius: 12px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-secondary, #475569);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+}
+
+.amenityPill:hover {
+    border-color: var(--gold-400);
+}
+
+.amenityPillSelected {
+    border-color: var(--gold-500);
+    background: rgba(212, 160, 23, 0.1);
+    color: var(--gold-600, #b8860b);
+}
+
+/* Quiz Controls */
+.quizControls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border-light, #eef2f6);
+    padding-top: 1.5rem;
+}
+
+.backBtn {
+    padding: 0.65rem 1.25rem;
+    background: none;
+    border: 1px solid var(--border-color, #e2e6ee);
+    border-radius: 10px;
+    color: var(--text-secondary, #475569);
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.backBtn:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.nextBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.75rem;
+    background: linear-gradient(135deg, var(--gold-500, #d4a017), var(--gold-600, #b8860b));
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 14px rgba(212, 160, 23, 0.3);
+}
+
+.nextBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(212, 160, 23, 0.4);
+}
+
+.nextBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Result Screen */
+.resultHeader {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.resultBadge {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 50px;
+    color: var(--success, #10b981);
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+}
+
+.resultTitle {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--text-heading, #0f1629);
+    margin-bottom: 0.5rem;
+}
+
+.resultSubtitle {
+    font-size: 0.92rem;
+    color: var(--text-secondary, #475569);
+}
+
+.matchesGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.matchCard {
+    background: var(--bg-primary, #ffffff);
+    border: 1px solid var(--border-color, #e2e6ee);
+    border-radius: var(--radius-lg, 16px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease;
+}
+
+.matchCard:hover {
+    transform: translateY(-3px);
+}
+
+.matchImageWrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/10;
+}
+
+.matchScoreBadge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: var(--gold-500, #d4a017);
+    color: #ffffff;
+    padding: 0.25rem 0.65rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.matchBody {
+    padding: 1.25rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.matchPrice {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--gold-600, #b8860b);
+    margin-bottom: 0.35rem;
+}
+
+.matchTitle {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-heading, #0f1629);
+    margin-bottom: 0.35rem;
+    line-height: 1.35;
+}
+
+.matchLocation {
+    font-size: 0.8rem;
+    color: var(--text-tertiary, #64748b);
+    margin-bottom: 0.75rem;
+}
+
+.matchWhyBox {
+    background: rgba(212, 160, 23, 0.06);
+    border-left: 3px solid var(--gold-500, #d4a017);
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: var(--text-secondary, #475569);
+    margin-bottom: 1rem;
+    margin-top: auto;
+}
+
+.matchActions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.viewBtn {
+    flex: 1;
+    text-align: center;
+    padding: 0.65rem 0.75rem;
+    background: var(--navy-800, #0f1629);
+    color: #ffffff;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+
+.viewBtn:hover {
+    background: var(--navy-900, #0a0e1c);
+}
+
+.retakeWrap {
+    text-align: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-light, #eef2f6);
+}

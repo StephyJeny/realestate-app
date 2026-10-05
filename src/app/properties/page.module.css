@@ -553,6 +553,50 @@
     box-shadow: var(--shadow-sm);
 }
 
+/* Active Filter Pills */
+.filterPills {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: var(--space-md);
+    padding: 0.6rem 0.85rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.filterPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--navy-700);
+    background: var(--navy-50);
+    border: 1px solid var(--navy-200);
+    border-radius: var(--radius-full);
+}
+
+.filterPill button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--navy-500);
+    font-size: 0.75rem;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.15s;
+}
+
+.filterPill button:hover {
+    color: var(--error);
+}
+
 /* Property Grid */
 .propertyGrid {
     display: grid;

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
+import { useCurrency, CurrencyCode } from "@/context/CurrencyContext";
 import { subscribeToConversations, Conversation } from "@/lib/chat";
 import { usePWA } from "@/components/pwa/PWAInstall";
 import styles from "./Navbar.module.css";
@@ -11,6 +12,7 @@ export default function Navbar() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const { theme, toggleTheme } = useTheme();
+    const { currency, setCurrency } = useCurrency();
     const { user, userProfile, logout, loading, getDashboardPath } = useAuth();
     const [unreadMessages, setUnreadMessages] = useState(0);
     const { canInstall, isInstalled, triggerInstall } = usePWA();
@@ -63,6 +65,8 @@ export default function Navbar() {
                     <Link href="/properties?type=sale" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Buy</Link>
                     <Link href="/properties?type=rent" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Rent</Link>
                     <Link href="/properties" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Properties</Link>
+                    <Link href="/estimate" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>🤖 AI Valuer</Link>
+                    <Link href="/quiz" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>✨ Matchmaker</Link>
                     <Link href="/agents" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Agents</Link>
                     <Link href="/neighborhoods" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Neighborhoods</Link>
                     <Link href="/about" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>About</Link>
@@ -85,6 +89,22 @@ export default function Navbar() {
                             <span className={styles.installBtnText}>Install</span>
                         </button>
                     )}
+
+                    {/* Currency Selector */}
+                    <div className={styles.currencyWrap}>
+                        <select
+                            value={currency}
+                            onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
+                            className={styles.currencySelect}
+                            aria-label="Select display currency"
+                            title="Switch Currency"
+                        >
+                            <option value="KES">🇰🇪 KES</option>
+                            <option value="USD">🇺🇸 USD ($)</option>
+                            <option value="EUR">🇪🇺 EUR (€)</option>
+                            <option value="GBP">🇬🇧 GBP (£)</option>
+                        </select>
+                    </div>
 
                     {/* Dark Mode Toggle */}
                     <button

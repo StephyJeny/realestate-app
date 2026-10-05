@@ -1,14 +1,46 @@
 "use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import OptimizedImage from "@/components/ui/OptimizedImage";
 import Link from "next/link";
 import { sampleProperties, formatPrice } from "@/lib/data";
 import PropertyCard from "@/components/property/PropertyCard";
 import ScrollReveal from "@/components/ui/ScrollReveal";
+import SmartSearchBar from "@/components/property/SmartSearchBar";
 import styles from "./page.module.css";
 
 export default function Home() {
+  const router = useRouter();
+  const [heroLocation, setHeroLocation] = useState("");
+  const [heroType, setHeroType] = useState("");
+  const [heroPriceRange, setHeroPriceRange] = useState("");
+  const [searchMode, setSearchMode] = useState<"smart" | "filter">("smart");
+
   const featuredProperties = sampleProperties.filter((p) => p.isFeatured);
+
+  const handleHeroSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (heroLocation) params.set("city", heroLocation);
+    if (heroType) params.set("propertyType", heroType.toLowerCase());
+    if (heroPriceRange === "under-10m") {
+      params.set("maxPrice", "10000000");
+    } else if (heroPriceRange === "10m-30m") {
+      params.set("minPrice", "10000000");
+      params.set("maxPrice", "30000000");
+    } else if (heroPriceRange === "30m-60m") {
+      params.set("minPrice", "30000000");
+      params.set("maxPrice", "60000000");
+    } else if (heroPriceRange === "60m-100m") {
+      params.set("minPrice", "60000000");
+      params.set("maxPrice", "100000000");
+    } else if (heroPriceRange === "over-100m") {
+      params.set("minPrice", "100000000");
+    }
+    const query = params.toString();
+    router.push(query ? `/properties?${query}` : "/properties");
+  };
 
   return (
     <>
@@ -37,45 +69,148 @@ export default function Home() {
             Your perfect home awaits.
           </p>
 
-          {/* Search Bar */}
-          <div className={styles.searchBar}>
-            <div className={styles.searchField}>
-              <label>Location</label>
-              <select defaultValue="">
-                <option value="" disabled>Select location</option>
-                <option>Nairobi</option>
-                <option>Mombasa</option>
-                <option>Kisumu</option>
-                <option>Nakuru</option>
-              </select>
+          {/* Search Mode Switcher Tabs */}
+          <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", marginBottom: "1.25rem" }}>
+            <button
+              type="button"
+              onClick={() => setSearchMode("smart")}
+              style={{
+                padding: "0.5rem 1.25rem",
+                borderRadius: "var(--radius-full)",
+                border: searchMode === "smart" ? "1px solid var(--gold-500)" : "1px solid rgba(255,255,255,0.2)",
+                background: searchMode === "smart" ? "linear-gradient(135deg, var(--gold-500), #e8b930)" : "rgba(15, 22, 41, 0.65)",
+                color: searchMode === "smart" ? "#0a0e1a" : "rgba(255,255,255,0.85)",
+                fontWeight: 700,
+                fontSize: "0.9rem",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.45rem",
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              <span>✨ AI Smart Search</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSearchMode("filter")}
+              style={{
+                padding: "0.5rem 1.25rem",
+                borderRadius: "var(--radius-full)",
+                border: searchMode === "filter" ? "1px solid var(--gold-500)" : "1px solid rgba(255,255,255,0.2)",
+                background: searchMode === "filter" ? "linear-gradient(135deg, var(--gold-500), #e8b930)" : "rgba(15, 22, 41, 0.65)",
+                color: searchMode === "filter" ? "#0a0e1a" : "rgba(255,255,255,0.85)",
+                fontWeight: 700,
+                fontSize: "0.9rem",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.45rem",
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              <span>⚙️ Classic Filters</span>
+            </button>
+          </div>
+
+          {/* Search Bar: Smart vs Classic */}
+          {searchMode === "smart" ? (
+            <div style={{ maxWidth: "800px", margin: "0 auto 2rem", width: "100%" }}>
+              <SmartSearchBar
+                autoNavigateOnSubmit={true}
+                placeholder="Ask in plain English: '3BR villa in Karen with pool under 50M'..."
+                showSuggestions={true}
+              />
             </div>
-            <div className={styles.searchDivider} />
-            <div className={styles.searchField}>
-              <label>Property Type</label>
-              <select defaultValue="">
-                <option value="" disabled>All types</option>
-                <option>Apartment</option>
-                <option>House</option>
-                <option>Villa</option>
-                <option>Townhouse</option>
-                <option>Land</option>
-              </select>
-            </div>
-            <div className={styles.searchDivider} />
-            <div className={styles.searchField}>
-              <label>Price Range</label>
-              <select defaultValue="">
-                <option value="" disabled>Any price</option>
-                <option>Under KES 10M</option>
-                <option>KES 10M - 30M</option>
-                <option>KES 30M - 60M</option>
-                <option>KES 60M - 100M</option>
-                <option>Over KES 100M</option>
-              </select>
-            </div>
-            <Link href="/properties" className={styles.searchButton}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
-              Search
+          ) : (
+            <form onSubmit={handleHeroSearch} className={styles.searchBar}>
+              <div className={styles.searchField}>
+                <label>Location</label>
+                <select value={heroLocation} onChange={(e) => setHeroLocation(e.target.value)}>
+                  <option value="">All Locations</option>
+                  <option value="Nairobi">Nairobi</option>
+                  <option value="Mombasa">Mombasa</option>
+                  <option value="Kisumu">Kisumu</option>
+                  <option value="Nakuru">Nakuru</option>
+                </select>
+              </div>
+              <div className={styles.searchDivider} />
+              <div className={styles.searchField}>
+                <label>Property Type</label>
+                <select value={heroType} onChange={(e) => setHeroType(e.target.value)}>
+                  <option value="">All Types</option>
+                  <option value="Apartment">Apartment</option>
+                  <option value="House">House</option>
+                  <option value="Villa">Villa</option>
+                  <option value="Townhouse">Townhouse</option>
+                  <option value="Land">Land</option>
+                </select>
+              </div>
+              <div className={styles.searchDivider} />
+              <div className={styles.searchField}>
+                <label>Price Range</label>
+                <select value={heroPriceRange} onChange={(e) => setHeroPriceRange(e.target.value)}>
+                  <option value="">Any price</option>
+                  <option value="under-10m">Under KES 10M</option>
+                  <option value="10m-30m">KES 10M - 30M</option>
+                  <option value="30m-60m">KES 30M - 60M</option>
+                  <option value="60m-100m">KES 60M - 100M</option>
+                  <option value="over-100m">Over KES 100M</option>
+                </select>
+              </div>
+              <button type="submit" className={styles.searchButton}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+                Search
+              </button>
+            </form>
+          )}
+
+          {/* Quick AI Callout Pills */}
+          <div style={{ marginTop: "-0.5rem", marginBottom: "2rem", display: "flex", justifyContent: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+            <Link
+              href="/estimate"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.5rem 1.1rem",
+                borderRadius: "var(--radius-full)",
+                background: "rgba(212, 160, 23, 0.18)",
+                border: "1px solid rgba(212, 160, 23, 0.4)",
+                color: "#f5dd8a",
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                textDecoration: "none",
+                backdropFilter: "blur(8px)",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <span>🤖 Property Valuation:</span>
+              <strong style={{ color: "#fff" }}>Calculate Value (EstateEstimate™) →</strong>
+            </Link>
+
+            <Link
+              href="/quiz"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.5rem 1.1rem",
+                borderRadius: "var(--radius-full)",
+                background: "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                color: "#ffffff",
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                textDecoration: "none",
+                backdropFilter: "blur(8px)",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <span>✨ Dream Home:</span>
+              <strong style={{ color: "#f5dd8a" }}>60-Sec Matchmaker Quiz →</strong>
             </Link>
           </div>
 

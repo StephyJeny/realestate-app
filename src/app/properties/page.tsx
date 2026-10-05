@@ -1,12 +1,16 @@
 "use client";
 import { useState, useMemo, useEffect, Suspense, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { sampleProperties, Property } from "@/lib/data";
-import { getAllProperties, FirestoreProperty } from "@/lib/firestore";
+import { getAllProperties, getPropertiesByAgent, getUserProfile, FirestoreProperty } from "@/lib/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { createSavedSearch, SavedSearchFilters } from "@/lib/savedSearches";
 import PropertyCard from "@/components/property/PropertyCard";
+import CatalogMap from "@/components/property/CatalogMap";
 import PropertySkeleton from "@/components/ui/PropertySkeleton";
+import SmartSearchBar from "@/components/property/SmartSearchBar";
+import { filterPropertiesWithSmartQuery, ParsedSmartQuery } from "@/lib/smartSearch";
 import toast from "react-hot-toast";
 import styles from "./page.module.css";
 
@@ -74,14 +78,26 @@ function PropertiesContent() {
     const [selectedCity, setSelectedCity] = useState("All");
     const [selectedNeighborhood, setSelectedNeighborhood] = useState("All");
     const [sortBy, setSortBy] = useState("newest");
-    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [viewMode, setViewMode] = useState<"grid" | "list" | "map">("grid");
     const [searchQuery, setSearchQuery] = useState("");
+    const [smartQuery, setSmartQuery] = useState("");
+    const [smartParsed, setSmartParsed] = useState<ParsedSmartQuery | null>(null);
+    const [searchMode, setSearchMode] = useState<"smart" | "standard">("smart");
     const [firestoreProperties, setFirestoreProperties] = useState<Property[]>([]);
     const [loadingFirestore, setLoadingFirestore] = useState(true);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [saveSearchName, setSaveSearchName] = useState("");
     const [savingSearch, setSavingSearch] = useState(false);
+
+    // Hydration guard — prevents SSR/client mismatch for URL-driven state
+    const [hasMounted, setHasMounted] = useState(false);
+    useEffect(() => { setHasMounted(true); }, []);
+
+    // Agent filter
+    const router = useRouter();
+    const [filterAgentId, setFilterAgentId] = useState<string | null>(null);
+    const [filterAgentName, setFilterAgentName] = useState<string>("");
 
     // Price range slider
     const PRICE_MIN = 0;
@@ -93,8 +109,9 @@ function PropertiesContent() {
     const [minArea, setMinArea] = useState("");
     const [maxArea, setMaxArea] = useState("");
 
-    // Read filters from URL params
+    // Read filters from URL params (only after mount to prevent hydration mismatch)
     useEffect(() => {
+        if (!hasMounted) return;
         const type = searchParams.get("type");
         if (type === "sale" || type === "rent") {
             setSelectedListing(type);
@@ -108,13 +125,74 @@ function PropertiesContent() {
         }
         const q = searchParams.get("q");
         if (q) setSearchQuery(q);
-    }, [searchParams]);
 
-    // Fetch Firestore properties
+        const smartParam = searchParams.get("smart");
+        if (smartParam) {
+            setSmartQuery(smartParam);
+            setSearchMode("smart");
+        }
+
+        const cityParam = searchParams.get("city");
+        if (cityParam) {
+            setSelectedCity(cityParam);
+        }
+        const neighborhoodParam = searchParams.get("neighborhood");
+        if (neighborhoodParam) {
+            setSelectedNeighborhood(neighborhoodParam);
+        }
+        const minPriceParam = searchParams.get("minPrice");
+        const maxPriceParam = searchParams.get("maxPrice");
+        if (minPriceParam || maxPriceParam) {
+            const minP = minPriceParam ? Math.max(PRICE_MIN, Number(minPriceParam)) : PRICE_MIN;
+            const maxP = maxPriceParam ? Math.min(PRICE_MAX, Number(maxPriceParam)) : PRICE_MAX;
+            setPriceRange([minP, maxP]);
+        }
+        const bedroomsParam = searchParams.get("bedrooms");
+        if (bedroomsParam && bedroomOptions.includes(bedroomsParam)) {
+            setSelectedBedrooms(bedroomsParam);
+        }
+        const bathroomsParam = searchParams.get("bathrooms");
+        if (bathroomsParam && bathroomOptions.includes(bathroomsParam)) {
+            setSelectedBathrooms(bathroomsParam);
+        }
+        const statusParam = searchParams.get("status");
+        if (statusParam && statusOptions.some(s => s.value === statusParam)) {
+            setSelectedStatus(statusParam);
+        }
+
+        // Agent filter
+        const agentId = searchParams.get("agentId");
+        if (agentId) {
+            setFilterAgentId(agentId);
+        } else {
+            setFilterAgentId(null);
+            setFilterAgentName("");
+        }
+    }, [searchParams, hasMounted]);
+
+    // Fetch agent display name whenever filterAgentId changes
+    useEffect(() => {
+        if (filterAgentId) {
+            getUserProfile(filterAgentId).then((profile) => {
+                if (profile) setFilterAgentName(profile.displayName || "Agent");
+                else setFilterAgentName("Agent");
+            }).catch(() => {
+                setFilterAgentName("Agent");
+            });
+        }
+    }, [filterAgentId]);
+
+    // Fetch Firestore properties (filtered by agent if agentId is set)
     useEffect(() => {
         const fetchProperties = async () => {
+            setLoadingFirestore(true);
             try {
-                const data = await getAllProperties();
+                let data: FirestoreProperty[];
+                if (filterAgentId) {
+                    data = await getPropertiesByAgent(filterAgentId);
+                } else {
+                    data = await getAllProperties();
+                }
                 const converted = data
                     .filter((p) => p.status === "active" || p.status === "under_offer" || p.status === "price_reduced" || p.status === "sold" || p.status === "rented")
                     .map(firestoreToProperty);
@@ -126,9 +204,10 @@ function PropertiesContent() {
             }
         };
         fetchProperties();
-    }, []);
+    }, [filterAgentId]);
 
     // Merge sample + Firestore, deduplicating by ID
+    // When filtering by agent, only show their properties (no sample data)
     const allProperties = useMemo(() => {
         const seenIds = new Set<string>();
         const merged: Property[] = [];
@@ -140,15 +219,17 @@ function PropertiesContent() {
                 merged.push(p);
             }
         }
-        // Then sample data
-        for (const p of sampleProperties) {
-            if (!seenIds.has(p.id)) {
-                seenIds.add(p.id);
-                merged.push(p);
+        // Only add sample data if NOT filtering by agent
+        if (!filterAgentId) {
+            for (const p of sampleProperties) {
+                if (!seenIds.has(p.id)) {
+                    seenIds.add(p.id);
+                    merged.push(p);
+                }
             }
         }
         return merged;
-    }, [firestoreProperties]);
+    }, [firestoreProperties, filterAgentId]);
 
     // Extract unique cities and neighborhoods for dropdown filters
     const { cities, neighborhoods } = useMemo(() => {
@@ -184,8 +265,13 @@ function PropertiesContent() {
     const filtered = useMemo(() => {
         let result = [...allProperties];
 
-        // Search query
-        if (searchQuery.trim()) {
+        // Natural language AI smart search query filter
+        if (searchMode === "smart" && smartParsed && (smartParsed.chips.length > 0 || smartParsed.rawQuery)) {
+            result = filterPropertiesWithSmartQuery(result, smartParsed);
+        }
+
+        // Standard Search query
+        if (searchMode === "standard" && searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
             result = result.filter(
                 (p) =>
@@ -253,11 +339,12 @@ function PropertiesContent() {
         }
 
         return result;
-    }, [allProperties, selectedType, selectedBedrooms, selectedBathrooms, selectedListing, selectedStatus, selectedCity, selectedNeighborhood, sortBy, priceRange, minArea, maxArea, searchQuery]);
+    }, [allProperties, selectedType, selectedBedrooms, selectedBathrooms, selectedListing, selectedStatus, selectedCity, selectedNeighborhood, sortBy, priceRange, minArea, maxArea, searchQuery, searchMode, smartParsed]);
 
     // Count active filters
     const activeFilterCount = useMemo(() => {
         let count = 0;
+        if (searchMode === "smart" && smartParsed?.chips?.length) count += smartParsed.chips.length;
         if (selectedType !== "All") count++;
         if (selectedBedrooms !== "Any") count++;
         if (selectedBathrooms !== "Any") count++;
@@ -267,9 +354,9 @@ function PropertiesContent() {
         if (selectedNeighborhood !== "All") count++;
         if (priceRange[0] > PRICE_MIN || priceRange[1] < PRICE_MAX) count++;
         if (minArea || maxArea) count++;
-        if (searchQuery.trim()) count++;
+        if (searchMode === "standard" && searchQuery.trim()) count++;
         return count;
-    }, [selectedType, selectedBedrooms, selectedBathrooms, selectedListing, selectedStatus, selectedCity, selectedNeighborhood, priceRange, minArea, maxArea, searchQuery]);
+    }, [selectedType, selectedBedrooms, selectedBathrooms, selectedListing, selectedStatus, selectedCity, selectedNeighborhood, priceRange, minArea, maxArea, searchQuery, searchMode, smartParsed]);
 
     const resetAll = useCallback(() => {
         setSelectedType("All");
@@ -326,33 +413,136 @@ function PropertiesContent() {
 
     return (
         <div className={styles.page}>
+            {/* Agent Filter Banner */}
+            {hasMounted && filterAgentId && (
+                <div style={{
+                    background: "linear-gradient(135deg, var(--navy-900), var(--navy-800))",
+                    padding: "0.85rem 0",
+                    borderBottom: "2px solid var(--gold-500)",
+                    position: "relative",
+                    zIndex: 10,
+                }}>
+                    <div className="container" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold-400)" strokeWidth="2">
+                            <circle cx="12" cy="8" r="4" /><path d="M5 20c0-4 3-7 7-7s7 3 7 7" />
+                        </svg>
+                        <span style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.9rem", fontWeight: 500 }}>
+                            Showing listings by <strong style={{ color: "var(--gold-400)" }}>{filterAgentName || "Agent"}</strong>
+                        </span>
+                        <Link
+                            href={`/agents/${filterAgentId}`}
+                            style={{
+                                padding: "0.3rem 0.85rem", borderRadius: "var(--radius-full)",
+                                background: "rgba(255,255,255,0.1)", color: "#fff",
+                                fontSize: "0.78rem", fontWeight: 600, textDecoration: "none",
+                                border: "1px solid rgba(255,255,255,0.15)",
+                                transition: "all 0.15s",
+                            }}
+                        >
+                            View Profile
+                        </Link>
+                        <button
+                            onClick={() => router.push("/properties")}
+                            style={{
+                                padding: "0.3rem 0.85rem", borderRadius: "var(--radius-full)",
+                                background: "rgba(239,68,68,0.15)", color: "#fca5a5",
+                                fontSize: "0.78rem", fontWeight: 600,
+                                border: "1px solid rgba(239,68,68,0.2)",
+                                cursor: "pointer", transition: "all 0.15s",
+                            }}
+                        >
+                            ✕ Clear Filter
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Page Header */}
             <div className={styles.pageHeader}>
                 <div className="container">
-                    <h1 className={styles.pageTitle}>Explore Properties</h1>
+                    <h1 className={styles.pageTitle}>
+                        {filterAgentId ? `${filterAgentName || "Agent"}'s Listings` : "Explore Properties"}
+                    </h1>
                     <p className={styles.pageSubtitle}>
-                        Discover your perfect property from our curated collection of premium listings
+                        {filterAgentId
+                            ? `Browse all properties listed by ${filterAgentName || "this agent"}`
+                            : "Discover your perfect property from our curated collection of premium listings"
+                        }
                     </p>
-                    {/* Search Bar */}
-                    <div className={styles.searchBar}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                        <input
-                            type="text"
-                            placeholder="Search by location, name, or type..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className={styles.searchInput}
-                        />
-                        {searchQuery && (
-                            <button className={styles.searchClear} onClick={() => setSearchQuery("")}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
-                            </button>
-                        )}
+                    {/* Search Mode Switcher Tabs */}
+                    <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                        <button
+                            type="button"
+                            onClick={() => setSearchMode("smart")}
+                            style={{
+                                padding: "0.45rem 1.1rem",
+                                borderRadius: "var(--radius-full)",
+                                border: searchMode === "smart" ? "1px solid var(--gold-500)" : "1px solid var(--border-color)",
+                                background: searchMode === "smart" ? "linear-gradient(135deg, var(--gold-500), #e8b930)" : "rgba(255,255,255,0.06)",
+                                color: searchMode === "smart" ? "#0a0e1a" : "var(--text-secondary)",
+                                fontWeight: 700,
+                                fontSize: "0.85rem",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.4rem",
+                            }}
+                        >
+                            <span>✨ AI Smart Search</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setSearchMode("standard")}
+                            style={{
+                                padding: "0.45rem 1.1rem",
+                                borderRadius: "var(--radius-full)",
+                                border: searchMode === "standard" ? "1px solid var(--gold-500)" : "1px solid var(--border-color)",
+                                background: searchMode === "standard" ? "linear-gradient(135deg, var(--gold-500), #e8b930)" : "rgba(255,255,255,0.06)",
+                                color: searchMode === "standard" ? "#0a0e1a" : "var(--text-secondary)",
+                                fontWeight: 700,
+                                fontSize: "0.85rem",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.4rem",
+                            }}
+                        >
+                            <span>🔍 Keyword Search</span>
+                        </button>
                     </div>
+
+                    {searchMode === "smart" ? (
+                        <div style={{ maxWidth: "780px", margin: "0 auto" }}>
+                            <SmartSearchBar
+                                initialQuery={smartQuery}
+                                onParsedQueryChange={setSmartParsed}
+                                placeholder="Describe what you want (e.g. '3BR villa in Karen with pool under 50M')..."
+                                showSuggestions={true}
+                            />
+                        </div>
+                    ) : (
+                        <div className={styles.searchBar}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input
+                                type="text"
+                                placeholder="Search by location, name, or type..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className={styles.searchInput}
+                            />
+                            {searchQuery && (
+                                <button className={styles.searchClear} onClick={() => setSearchQuery("")}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -652,21 +842,122 @@ function PropertiesContent() {
                                     className={`${styles.viewBtn} ${viewMode === "list" ? styles.viewActive : ""}`}
                                     onClick={() => setViewMode("list")}
                                     aria-label="List view"
+                                    title="List view"
                                 >
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="4" rx="1" /><rect x="3" y="10" width="18" height="4" rx="1" /><rect x="3" y="16" width="18" height="4" rx="1" /></svg>
+                                </button>
+                                <button
+                                    className={`${styles.viewBtn} ${viewMode === "map" ? styles.viewActive : ""}`}
+                                    onClick={() => setViewMode("map")}
+                                    aria-label="Map view"
+                                    title="Interactive Map view"
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" /><line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" /></svg>
                                 </button>
                             </div>
                         </div>
                     </div>
 
+                    {/* Active Filter Dismissable Pills */}
+                    {activeFilterCount > 0 && (
+                        <div className={styles.filterPills}>
+                            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Active:</span>
+                            {selectedListing !== "all" && (
+                                <span className={styles.filterPill}>
+                                    {selectedListing === "sale" ? "For Sale" : "For Rent"}
+                                    <button onClick={() => setSelectedListing("all")} aria-label="Clear listing filter">✕</button>
+                                </span>
+                            )}
+                            {selectedType !== "All" && (
+                                <span className={styles.filterPill}>
+                                    {selectedType}
+                                    <button onClick={() => setSelectedType("All")} aria-label="Clear type filter">✕</button>
+                                </span>
+                            )}
+                            {selectedCity !== "All" && (
+                                <span className={styles.filterPill}>
+                                    📍 {selectedCity}
+                                    <button onClick={() => setSelectedCity("All")} aria-label="Clear city filter">✕</button>
+                                </span>
+                            )}
+                            {selectedNeighborhood !== "All" && (
+                                <span className={styles.filterPill}>
+                                    🏘️ {selectedNeighborhood}
+                                    <button onClick={() => setSelectedNeighborhood("All")} aria-label="Clear neighborhood filter">✕</button>
+                                </span>
+                            )}
+                            {(priceRange[0] > PRICE_MIN || priceRange[1] < PRICE_MAX) && (
+                                <span className={styles.filterPill}>
+                                    KES {formatSliderPrice(priceRange[0])} – {formatSliderPrice(priceRange[1])}
+                                    <button onClick={() => setPriceRange([PRICE_MIN, PRICE_MAX])} aria-label="Clear price filter">✕</button>
+                                </span>
+                            )}
+                            {selectedBedrooms !== "Any" && (
+                                <span className={styles.filterPill}>
+                                    🛏️ {selectedBedrooms} Beds
+                                    <button onClick={() => setSelectedBedrooms("Any")} aria-label="Clear bedrooms filter">✕</button>
+                                </span>
+                            )}
+                            {selectedBathrooms !== "Any" && (
+                                <span className={styles.filterPill}>
+                                    🚿 {selectedBathrooms} Baths
+                                    <button onClick={() => setSelectedBathrooms("Any")} aria-label="Clear bathrooms filter">✕</button>
+                                </span>
+                            )}
+                            {selectedStatus !== "all" && (
+                                <span className={styles.filterPill}>
+                                    {selectedStatus.replace("_", " ")}
+                                    <button onClick={() => setSelectedStatus("all")} aria-label="Clear status filter">✕</button>
+                                </span>
+                            )}
+                            {searchQuery.trim() && (
+                                <span className={styles.filterPill}>
+                                    🔍 &ldquo;{searchQuery}&rdquo;
+                                    <button onClick={() => setSearchQuery("")} aria-label="Clear search text">✕</button>
+                                </span>
+                            )}
+                            <button
+                                onClick={resetAll}
+                                style={{
+                                    fontSize: "0.74rem",
+                                    color: "var(--error)",
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    marginLeft: "auto",
+                                    padding: "0.2rem 0.4rem",
+                                }}
+                            >
+                                Reset All
+                            </button>
+                        </div>
+                    )}
+
                     {loadingFirestore && filtered.length === 0 ? (
                         <PropertySkeleton count={6} />
                     ) : filtered.length > 0 ? (
-                        <div className={`${styles.propertyGrid} ${viewMode === "list" ? styles.listView : ""}`}>
-                            {filtered.map((property) => (
-                                <PropertyCard key={property.id} property={property} />
-                            ))}
-                        </div>
+                        viewMode === "map" ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                                <CatalogMap properties={filtered} height="520px" />
+                                <div>
+                                    <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--text-heading)", marginBottom: "1rem" }}>
+                                        Matching Listings ({filtered.length})
+                                    </h3>
+                                    <div className={styles.propertyGrid}>
+                                        {filtered.map((property) => (
+                                            <PropertyCard key={property.id} property={property} />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className={`${styles.propertyGrid} ${viewMode === "list" ? styles.listView : ""}`}>
+                                {filtered.map((property) => (
+                                    <PropertyCard key={property.id} property={property} />
+                                ))}
+                            </div>
+                        )
                     ) : (
                         <div className={styles.emptyState}>
                             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
