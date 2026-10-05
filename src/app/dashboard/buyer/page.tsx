@@ -6,6 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { getInquiriesByUser, Inquiry, getPropertyById, FirestoreProperty, removeFromFavorites } from "@/lib/firestore";
 import { sampleProperties, Property, formatPrice } from "@/lib/data";
 import { getSavedSearches, deleteSavedSearch, toggleSavedSearchActive, describeFilters, SavedSearch } from "@/lib/savedSearches";
+import LOIModal from "@/components/property/LOIModal";
+import { LOIData } from "@/lib/loiGenerator";
 import toast from "react-hot-toast";
 import styles from "../dashboard.module.css";
 
@@ -15,6 +17,7 @@ function BuyerDashboardContent() {
     const { user, userProfile, loading, logout, refreshProfile } = useAuth();
     const [activeTab, setActiveTab] = useState("overview");
     const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+    const [viewingLOI, setViewingLOI] = useState<LOIData | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [savedPropertyDetails, setSavedPropertyDetails] = useState<(Property | FirestoreProperty)[]>([]);
     const [loadingSaved, setLoadingSaved] = useState(false);
@@ -24,7 +27,7 @@ function BuyerDashboardContent() {
     // Read tab from URL query params
     useEffect(() => {
         const tab = searchParams.get("tab");
-        if (tab === "saved" || tab === "inquiries" || tab === "overview" || tab === "searches") {
+        if (tab === "saved" || tab === "inquiries" || tab === "overview" || tab === "searches" || tab === "offers") {
             setActiveTab(tab);
         }
     }, [searchParams]);
@@ -59,6 +62,42 @@ function BuyerDashboardContent() {
         } catch (err) {
             console.error("Failed to load inquiries:", err);
         }
+    };
+
+    const handleViewOfferLOI = (inquiry: Inquiry) => {
+        const details = inquiry.offerDetails;
+        if (!details) {
+            toast.error("Offer details not available");
+            return;
+        }
+        const loi: LOIData = {
+            loiNumber: details.loiNumber || `EV-LOI-${new Date().getFullYear()}-0000`,
+            date: inquiry.createdAt ? new Date((inquiry.createdAt as any).seconds * 1000).toLocaleDateString() : new Date().toLocaleDateString(),
+            propertyTitle: inquiry.propertyTitle,
+            lrNumber: `LR No. 209/${Math.floor(10000 + Math.random() * 89000)}`,
+            city: "Nairobi",
+            neighborhood: "Kenya",
+            buyerName: inquiry.senderName,
+            buyerEmail: inquiry.senderEmail,
+            buyerPhone: inquiry.senderPhone,
+            agentName: "Listing Agent",
+            agentEmail: "",
+            agentPhone: "",
+            offeredPrice: details.offeredPrice,
+            askingPrice: details.askingPrice || details.offeredPrice,
+            currency: "KES",
+            downPaymentPercent: details.downPaymentPercent || 10,
+            downPaymentAmount: details.downPaymentAmount || Math.round(details.offeredPrice * 0.1),
+            financingType: details.financingType || "cash",
+            moveInDate: details.moveInDate || "To be agreed",
+            validityDays: 14,
+            contingencies: details.contingencies || [],
+            specialConditions: details.specialConditions,
+            status: details.offerStatus || "pending",
+            counterPrice: details.counterPrice,
+            counterTerms: details.counterTerms,
+        };
+        setViewingLOI(loi);
     };
 
     const loadSavedProperties = async () => {
@@ -198,6 +237,7 @@ function BuyerDashboardContent() {
 
     const savedCount = userProfile?.savedProperties?.length || 0;
     const searchCount = savedSearches.length;
+    const myOffers = inquiries.filter((inq) => inq.type === "offer" || !!inq.offerDetails);
 
     return (
         <div className={styles.dashboardPage}>
@@ -229,6 +269,14 @@ function BuyerDashboardContent() {
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
                             Overview
+                        </button>
+                        <button
+                            className={`${styles.sidebarLink} ${activeTab === "offers" ? styles.sidebarLinkActive : ""}`}
+                            onClick={() => { setActiveTab("offers"); setSidebarOpen(false); }}
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+                            My Offers & LOI
+                            {myOffers.length > 0 && <span className={styles.sidebarBadge} style={{ background: "var(--gold-500)", color: "#000" }}>{myOffers.length}</span>}
                         </button>
                         <button
                             className={`${styles.sidebarLink} ${activeTab === "inquiries" ? styles.sidebarLinkActive : ""}`}
@@ -312,6 +360,15 @@ function BuyerDashboardContent() {
                                 </div>
                                 <div className={styles.statValue}>{savedCount}</div>
                                 <div className={styles.statLabel}>Saved Properties</div>
+                            </div>
+                            <div className={styles.statCard} onClick={() => setActiveTab("offers")} style={{ cursor: "pointer" }}>
+                                <div className={styles.statCardHeader}>
+                                    <div className={`${styles.statIcon} ${styles.statIconPurple}`}>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+                                    </div>
+                                </div>
+                                <div className={styles.statValue}>{myOffers.length}</div>
+                                <div className={styles.statLabel}>Active Offers & LOIs</div>
                             </div>
                             <div className={styles.statCard} onClick={() => setActiveTab("inquiries")} style={{ cursor: "pointer" }}>
                                 <div className={styles.statCardHeader}>
@@ -460,6 +517,161 @@ function BuyerDashboardContent() {
                             </div>
                         </div>
                     </>
+                )}
+
+                {activeTab === "offers" && (
+                    <div className={styles.contentCard}>
+                        <div className={styles.contentCardHeader}>
+                            <div>
+                                <h3 className={styles.contentCardTitle}>My Purchase Offers & Letters of Intent</h3>
+                                <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                    Track your submitted formal conveyancing offers, counter-offer proposals, and download official LOIs.
+                                </p>
+                            </div>
+                            <Link href="/properties?type=sale" style={{ textDecoration: "none", fontSize: "0.8rem", padding: "0.45rem 0.85rem", background: "var(--navy-800)", color: "#fff", borderRadius: "6px", fontWeight: 600 }}>
+                                + Browse Listings
+                            </Link>
+                        </div>
+                        {myOffers.length > 0 ? (
+                            <div style={{ overflowX: "auto" }}>
+                                <table className={styles.table}>
+                                    <thead>
+                                        <tr>
+                                            <th>Property</th>
+                                            <th>Offered Amount</th>
+                                            <th>Financing / Deposit</th>
+                                            <th>Move-In / Completion</th>
+                                            <th>Status & Response</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {myOffers.map((inq) => {
+                                            const details = inq.offerDetails;
+                                            const status = details?.offerStatus || "pending";
+                                            return (
+                                                <tr key={inq.id as string}>
+                                                    <td>
+                                                        <Link
+                                                            href={`/properties/${inq.propertyId}`}
+                                                            style={{ fontWeight: 600, color: "var(--text-heading)", textDecoration: "none" }}
+                                                        >
+                                                            {inq.propertyTitle}
+                                                        </Link>
+                                                        {details?.loiNumber && (
+                                                            <div style={{ fontSize: "0.7rem", fontFamily: "monospace", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                                                                {details.loiNumber}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--text-primary)" }}>
+                                                            KES {(details?.offeredPrice || 0).toLocaleString()}
+                                                        </div>
+                                                        {details?.askingPrice && details.askingPrice > 0 && (
+                                                            <span style={{ fontSize: "0.72rem", color: "var(--text-tertiary)" }}>
+                                                                Asking: KES {details.askingPrice.toLocaleString()}
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <span style={{
+                                                            fontSize: "0.72rem",
+                                                            padding: "0.2rem 0.5rem",
+                                                            borderRadius: "4px",
+                                                            background: details?.financingType === "cash" ? "rgba(16,185,129,0.12)" : "rgba(59,130,246,0.12)",
+                                                            color: details?.financingType === "cash" ? "#059669" : "#2563eb",
+                                                            fontWeight: 600,
+                                                            textTransform: "capitalize",
+                                                            display: "inline-block",
+                                                            marginBottom: "3px"
+                                                        }}>
+                                                            {details?.financingType || "Cash"}
+                                                        </span>
+                                                        <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                                                            Deposit: {details?.downPaymentPercent || 10}% (KES {(details?.downPaymentAmount || 0).toLocaleString()})
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>
+                                                            {details?.moveInDate || "30-60 days conveyancing"}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span className={`${styles.statusBadge} ${
+                                                            status === "accepted" ? styles.statusApproved :
+                                                            status === "countered" ? styles.statusPending :
+                                                            status === "rejected" ? styles.statusRejected :
+                                                            styles.statusActive
+                                                        }`}>
+                                                            {status === "accepted" ? "✅ Accepted" :
+                                                             status === "countered" ? "⚖️ Counter-Offer Received" :
+                                                             status === "rejected" ? "❌ Declined" : "⏳ Under Review"}
+                                                        </span>
+                                                        {status === "countered" && details?.counterPrice && (
+                                                            <div style={{
+                                                                marginTop: "0.4rem",
+                                                                padding: "0.4rem 0.6rem",
+                                                                background: "rgba(245, 158, 11, 0.08)",
+                                                                border: "1px solid rgba(245, 158, 11, 0.25)",
+                                                                borderRadius: "6px",
+                                                                fontSize: "0.75rem",
+                                                                color: "#d97706"
+                                                            }}>
+                                                                <strong>Vendor asks: KES {details.counterPrice.toLocaleString()}</strong>
+                                                                {details.counterTerms && (
+                                                                    <div style={{ fontSize: "0.7rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                                                        &quot;{details.counterTerms}&quot;
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {status === "accepted" && (
+                                                            <div style={{ fontSize: "0.72rem", color: "#059669", fontWeight: 600, marginTop: "2px" }}>
+                                                                🎉 Under Contract! Vendor has accepted your terms.
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <button
+                                                            onClick={() => handleViewOfferLOI(inq)}
+                                                            style={{
+                                                                fontSize: "0.74rem",
+                                                                padding: "0.3rem 0.6rem",
+                                                                borderRadius: "6px",
+                                                                background: "var(--navy-800)",
+                                                                color: "#fff",
+                                                                border: "none",
+                                                                cursor: "pointer",
+                                                                fontWeight: 600,
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                                gap: "0.25rem"
+                                                            }}
+                                                        >
+                                                            📜 View / Print LOI
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className={styles.emptyState}>
+                                <div className={styles.emptyIcon}>💼</div>
+                                <h3 className={styles.emptyTitle}>No Offers Submitted Yet</h3>
+                                <p className={styles.emptyText}>
+                                    Find a property you love and use the &quot;Make an Offer&quot; tool to generate a legally-aligned Kenyan Letter of Intent.
+                                </p>
+                                <Link href="/properties?type=sale" className={styles.emptyAction}>
+                                    Explore Properties for Sale
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                                </Link>
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {activeTab === "inquiries" && (
@@ -768,6 +980,11 @@ function BuyerDashboardContent() {
                             </div>
                         )}
                     </div>
+                )}
+
+                {/* LOI Modal */}
+                {viewingLOI && (
+                    <LOIModal loiData={viewingLOI} onClose={() => setViewingLOI(null)} />
                 )}
             </main>
 

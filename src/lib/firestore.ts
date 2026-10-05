@@ -373,6 +373,31 @@ export async function getPropertyById(propertyId: string): Promise<FirestoreProp
 // INQUIRY OPERATIONS
 // ========================
 
+export interface OfferDetails {
+    offeredPrice: number;
+    askingPrice: number;
+    downPaymentPercent: number;
+    downPaymentAmount: number;
+    financingType: "cash" | "mortgage" | "installments";
+    moveInDate: string;
+    contingencies: string[];
+    specialConditions?: string;
+    loiNumber: string;
+    offerStatus: "pending" | "accepted" | "countered" | "rejected";
+    counterPrice?: number;
+    counterTerms?: string;
+    counteredAt?: Timestamp;
+    respondedAt?: Timestamp;
+    history?: {
+        action: "submitted" | "countered" | "accepted" | "rejected";
+        actor: string;
+        actorName: string;
+        price?: number;
+        note?: string;
+        timestamp: string;
+    }[];
+}
+
 export interface Inquiry {
     id?: string;
     propertyId: string;
@@ -385,6 +410,7 @@ export interface Inquiry {
     message: string;
     type: "inquiry" | "viewing" | "offer";
     status: string;
+    offerDetails?: OfferDetails;
     agentReply?: string;
     repliedAt?: Timestamp;
     createdAt?: Timestamp;
@@ -402,22 +428,27 @@ export async function sendInquiry(data: {
     agentName?: string;
     message: string;
     type: "inquiry" | "viewing" | "offer";
+    offerDetails?: OfferDetails;
 }) {
     const ref = collection(db, "inquiries");
     const inquiryRef = await addDoc(ref, {
         ...data,
-        status: "new",
+        status: data.type === "offer" ? "pending" : "new",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     });
 
     // Create a dashboard notification for the agent
-    const typeLabel = data.type === "viewing" ? "Viewing Request" : data.type === "offer" ? "Offer" : "Inquiry";
+    const typeLabel = data.type === "viewing" ? "Viewing Request" : data.type === "offer" ? "Digital Offer" : "Inquiry";
+    const titleText = data.type === "offer"
+        ? `New Formal Offer: KES ${data.offerDetails?.offeredPrice?.toLocaleString() || ""} 📝`
+        : `New ${typeLabel} 📩`;
+
     await addDoc(collection(db, "notifications"), {
         userId: data.agentId,
-        type: "new_inquiry",
-        title: `New ${typeLabel} 📩`,
-        message: `${data.senderName} sent a ${typeLabel.toLowerCase()} for "${data.propertyTitle}": "${data.message.length > 100 ? data.message.slice(0, 100) + "..." : data.message}"`,
+        type: data.type === "offer" ? "new_offer" : "new_inquiry",
+        title: titleText,
+        message: `${data.senderName} submitted a ${typeLabel.toLowerCase()} for "${data.propertyTitle}": "${data.message.length > 100 ? data.message.slice(0, 100) + "..." : data.message}"`,
         propertyId: data.propertyId,
         inquiryId: inquiryRef.id,
         read: false,
@@ -425,6 +456,162 @@ export async function sendInquiry(data: {
     });
 
     return inquiryRef;
+}
+
+export async function submitOffer(data: {
+    propertyId: string;
+    propertyTitle: string;
+    senderId: string;
+    senderName: string;
+    senderEmail: string;
+    senderPhone: string;
+    agentId: string;
+    agentName?: string;
+    offerDetails: OfferDetails;
+}) {
+    const message = `Formal Letter of Intent to purchase for KES ${data.offerDetails.offeredPrice.toLocaleString()} with ${data.offerDetails.financingType.toUpperCase()} financing (${data.offerDetails.downPaymentPercent}% down payment). Target move-in: ${data.offerDetails.moveInDate}.`;
+    return sendInquiry({
+        ...data,
+        message,
+        type: "offer",
+        offerDetails: data.offerDetails,
+    });
+}
+
+export async function respondToOffer(params: {
+    inquiryId: string;
+    action: "accept" | "counter" | "reject";
+    actorId: string;
+    actorName: string;
+    counterPrice?: number;
+    counterTerms?: string;
+    note?: string;
+}) {
+    const ref = doc(db, "inquiries", params.inquiryId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error("Offer not found");
+
+    const inq = snap.data() as Inquiry;
+    const currentOffer = inq.offerDetails || {
+        offeredPrice: 0,
+        askingPrice: 0,
+        downPaymentPercent: 10,
+        downPaymentAmount: 0,
+        financingType: "cash",
+        moveInDate: "",
+        contingencies: [],
+        loiNumber: `EV-LOI-${new Date().getFullYear()}-0000`,
+        offerStatus: "pending",
+    };
+
+    const newStatus = params.action === "accept"
+        ? "accepted"
+        : params.action === "counter"
+        ? "countered"
+        : "rejected";
+
+    const historyEntry = {
+        action: newStatus as any,
+        actor: params.actorId,
+        actorName: params.actorName,
+        price: params.counterPrice || currentOffer.offeredPrice,
+        note: params.note || params.counterTerms || "",
+        timestamp: new Date().toISOString(),
+    };
+
+    const updatedOffer: OfferDetails = {
+        ...currentOffer,
+        offerStatus: newStatus,
+        counterPrice: params.counterPrice,
+        counterTerms: params.counterTerms,
+        respondedAt: serverTimestamp() as any,
+        history: [...(currentOffer.history || []), historyEntry],
+    };
+
+    await updateDoc(ref, {
+        offerDetails: updatedOffer,
+        status: newStatus,
+        updatedAt: serverTimestamp(),
+    });
+
+    // If accepted, update the property listing to 'under_offer'
+    if (params.action === "accept" && inq.propertyId) {
+        try {
+            const propRef = doc(db, "properties", inq.propertyId);
+            await updateDoc(propRef, {
+                status: "under_offer",
+                updatedAt: serverTimestamp(),
+            });
+        } catch (e) {
+            console.warn("Could not update property status to under_offer:", e);
+        }
+    }
+
+    // Notify the buyer of the response
+    const actionLabel = params.action === "accept"
+        ? "Accepted 🎉"
+        : params.action === "counter"
+        ? `Counter-Offered with KES ${params.counterPrice?.toLocaleString()} ⚖️`
+        : "Declined ❌";
+
+    await addDoc(collection(db, "notifications"), {
+        userId: inq.senderId,
+        type: `offer_${params.action}`,
+        title: `Offer ${actionLabel}`,
+        message: `${params.actorName} has ${params.action === "accept" ? "accepted your offer" : params.action === "counter" ? `sent a counter-offer of KES ${params.counterPrice?.toLocaleString()}` : "declined your offer"} for "${inq.propertyTitle}".`,
+        propertyId: inq.propertyId,
+        inquiryId: params.inquiryId,
+        read: false,
+        createdAt: serverTimestamp(),
+    });
+
+    return updatedOffer;
+}
+
+// Payment Recording (M-Pesa STK Push / Card / Listing Promotion)
+export interface PaymentRecord {
+    id?: string;
+    userId: string;
+    propertyId?: string;
+    propertyTitle?: string;
+    amount: number;
+    currency: string;
+    purpose: "reservation" | "viewing_fee" | "listing_promotion";
+    mpesaReceiptNumber: string;
+    phoneNumber: string;
+    status: "completed" | "failed";
+    paymentMethod: "mpesa" | "card";
+    promotionTier?: "featured_7" | "featured_14" | "featured_30";
+    createdAt?: Timestamp;
+}
+
+export async function recordPayment(payment: PaymentRecord) {
+    const colRef = collection(db, "payments");
+    const docRef = await addDoc(colRef, {
+        ...payment,
+        createdAt: serverTimestamp(),
+    });
+
+    // If listing promotion, activate promotion on property
+    if (payment.purpose === "listing_promotion" && payment.propertyId) {
+        try {
+            const propRef = doc(db, "properties", payment.propertyId);
+            const days = payment.promotionTier === "featured_30" ? 30 : payment.promotionTier === "featured_14" ? 14 : 7;
+            const expiry = new Date();
+            expiry.setDate(expiry.getDate() + days);
+
+            await updateDoc(propRef, {
+                isFeatured: true,
+                promotedUntil: expiry.toISOString(),
+                promotionTier: payment.promotionTier || "featured_7",
+                updatedAt: serverTimestamp(),
+            });
+        } catch (err) {
+            console.error("Failed to boost property status after payment:", err);
+        }
+    }
+
+    return docRef;
 }
 
 export async function getInquiriesByAgent(agentId: string): Promise<Inquiry[]> {

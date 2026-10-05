@@ -23,6 +23,11 @@ import CommuteRadar from "@/components/property/CommuteRadar";
 import InvestmentCalculator from "@/components/property/InvestmentCalculator";
 import EstateEstimateWidget from "@/components/property/EstateEstimateWidget";
 import PanoramaViewer from "@/components/property/PanoramaViewer";
+import MakeAnOfferModal from "@/components/property/MakeAnOfferModal";
+import LOIModal from "@/components/property/LOIModal";
+import TitleVerificationBadge from "@/components/property/TitleVerificationBadge";
+import PaymentModal from "@/components/payment/PaymentModal";
+import { LOIData } from "@/lib/loiGenerator";
 import styles from "./page.module.css";
 
 interface Props {
@@ -46,6 +51,13 @@ export default function PropertyDetailPage({ params }: Props) {
     const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>([]);
     const [preferredDate, setPreferredDate] = useState("");
     const [preferredTime, setPreferredTime] = useState("10:00");
+    const [showOfferModal, setShowOfferModal] = useState(false);
+    const [activeLOIData, setActiveLOIData] = useState<LOIData | null>(null);
+    const [paymentModalConfig, setPaymentModalConfig] = useState<{
+        isOpen: boolean;
+        purpose: "reservation" | "viewing_fee" | "listing_promotion";
+        amount: number;
+    } | null>(null);
 
     // Mortgage calculator state
     const [mortgagePrice, setMortgagePrice] = useState(0);
@@ -520,6 +532,16 @@ export default function PropertyDetailPage({ params }: Props) {
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                                         {property.address}, {property.location.neighborhood}, {property.location.city}
                                     </p>
+                                    <div style={{ marginTop: "0.65rem", display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                                        <TitleVerificationBadge
+                                            propertyTitle={property.title}
+                                            city={typeof property.location === "object" ? property.location.city : (property as any).city}
+                                            neighborhood={typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood}
+                                            onViewDossier={() => {
+                                                document.getElementById("legal-diligence-section")?.scrollIntoView({ behavior: "smooth" });
+                                            }}
+                                        />
+                                    </div>
                                     {/* Property Status Badge */}
                                     {property.status && property.status !== "active" && property.status !== "pending" && (
                                         <div style={{ marginTop: "0.75rem" }}>
@@ -1156,6 +1178,94 @@ export default function PropertyDetailPage({ params }: Props) {
                                     </a>
                                 </div>
 
+                                {/* Digital Make an Offer primary CTA */}
+                                {property.listingType === "sale" && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-lg"
+                                        style={{
+                                            width: "100%",
+                                            background: "linear-gradient(135deg, var(--gold-500, #d4a017), #e8b930)",
+                                            color: "#0a0e1a",
+                                            border: "none",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.5rem",
+                                            fontWeight: 800,
+                                            fontSize: "0.95rem",
+                                            boxShadow: "0 4px 15px rgba(212, 160, 23, 0.35)",
+                                            cursor: "pointer",
+                                            borderRadius: "var(--radius-md)",
+                                            padding: "0.75rem 1rem",
+                                            transition: "all 0.2s ease",
+                                        }}
+                                        onClick={() => setShowOfferModal(true)}
+                                    >
+                                        <span>💼</span> Make a Formal Offer (LOI)
+                                    </button>
+                                )}
+
+                                {/* Reserve & Viewing FinTech M-Pesa Buttons */}
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                                    <button
+                                        type="button"
+                                        style={{
+                                            padding: "0.6rem 0.6rem",
+                                            borderRadius: "var(--radius-md)",
+                                            background: "rgba(0, 168, 89, 0.08)",
+                                            border: "1px solid rgba(0, 168, 89, 0.35)",
+                                            color: "#00a859",
+                                            fontWeight: 700,
+                                            fontSize: "0.76rem",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.35rem",
+                                            transition: "all 0.15s ease",
+                                        }}
+                                        onClick={() => {
+                                            setPaymentModalConfig({
+                                                isOpen: true,
+                                                purpose: "reservation",
+                                                amount: 50000,
+                                            });
+                                        }}
+                                        title="Lock this property for 48 hours via M-Pesa earnest deposit"
+                                    >
+                                        <span>🔐</span> Reserve (M-Pesa)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        style={{
+                                            padding: "0.6rem 0.6rem",
+                                            borderRadius: "var(--radius-md)",
+                                            background: "rgba(59, 130, 246, 0.08)",
+                                            border: "1px solid rgba(59, 130, 246, 0.35)",
+                                            color: "#2563eb",
+                                            fontWeight: 700,
+                                            fontSize: "0.76rem",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.35rem",
+                                            transition: "all 0.15s ease",
+                                        }}
+                                        onClick={() => {
+                                            setPaymentModalConfig({
+                                                isOpen: true,
+                                                purpose: "viewing_fee",
+                                                amount: 1000,
+                                            });
+                                        }}
+                                        title="Book VIP viewing with keys & escort for KES 1,000"
+                                    >
+                                        <span>🎟️</span> Viewing (1K)
+                                    </button>
+                                </div>
+
                                 <button className="btn btn-primary btn-lg" style={{ width: "100%" }} onClick={() => setShowInquiry(!showInquiry)}>
                                     {showInquiry ? "Close Inquiry Form" : "Send Inquiry"}
                                 </button>
@@ -1263,8 +1373,23 @@ export default function PropertyDetailPage({ params }: Props) {
                                         >
                                             <option value="inquiry">General Inquiry</option>
                                             <option value="viewing">Request a Viewing</option>
-                                            <option value="offer">Make an Offer</option>
+                                            <option value="offer">Make a Formal Offer (LOI)</option>
                                         </select>
+                                        {inquiryForm.type === "offer" && (
+                                            <div style={{ background: "rgba(212, 160, 23, 0.08)", border: "1px solid var(--gold-500)", borderRadius: "var(--radius-md)", padding: "0.85rem", textAlign: "center" }}>
+                                                <p style={{ fontSize: "0.82rem", color: "var(--text-heading)", fontWeight: 600, margin: "0 0 0.5rem" }}>
+                                                    Want to structure price, financing, and contingencies?
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-primary"
+                                                    style={{ fontSize: "0.82rem", padding: "0.45rem 1rem", width: "100%", background: "linear-gradient(135deg, var(--gold-500), #e8b930)", color: "#0a0e1a", fontWeight: 700 }}
+                                                    onClick={() => setShowOfferModal(true)}
+                                                >
+                                                    Open Guided Offer Submission Tool →
+                                                </button>
+                                            </div>
+                                        )}
                                         {inquiryForm.type === "viewing" && (
                                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
                                                 <div>
@@ -1427,6 +1552,49 @@ export default function PropertyDetailPage({ params }: Props) {
                     document.querySelector(`.${styles.agentCard}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
                 }}
             />
+
+            {/* Make an Offer Modal */}
+            {showOfferModal && property && (
+                <MakeAnOfferModal
+                    property={{
+                        id: property.id,
+                        title: property.title,
+                        price: property.price,
+                        currency: property.currency || "KES",
+                        city: typeof property.location === "object" ? property.location.city : (property as any).city,
+                        neighborhood: typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood,
+                        agentId: firestoreProp?.agentId || (property as any).agentId || "agent",
+                        agentName: property.agentName,
+                        agentEmail: property.agentEmail,
+                        agentPhone: property.agentPhone,
+                    }}
+                    onClose={() => setShowOfferModal(false)}
+                    onOfferCreated={(loi) => {
+                        setActiveLOIData(loi);
+                    }}
+                />
+            )}
+
+            {/* View LOI Document Modal */}
+            {activeLOIData && (
+                <LOIModal
+                    loiData={activeLOIData}
+                    onClose={() => setActiveLOIData(null)}
+                />
+            )}
+
+            {/* M-Pesa & Card Payment Modal */}
+            {paymentModalConfig && paymentModalConfig.isOpen && (
+                <PaymentModal
+                    isOpen={paymentModalConfig.isOpen}
+                    onClose={() => setPaymentModalConfig(null)}
+                    purpose={paymentModalConfig.purpose}
+                    amount={paymentModalConfig.amount}
+                    currency={property.currency || "KES"}
+                    propertyId={property.id}
+                    propertyTitle={property.title}
+                />
+            )}
         </div>
     );
 }
