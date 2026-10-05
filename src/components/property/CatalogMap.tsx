@@ -1,19 +1,31 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Property } from "@/lib/data";
 import { useCurrency } from "@/context/CurrencyContext";
 
+export interface MapBounds {
+    minLat: number;
+    maxLat: number;
+    minLng: number;
+    maxLng: number;
+}
+
 interface CatalogMapProps {
     properties: Property[];
     selectedPropertyId?: string | null;
+    hoveredPropertyId?: string | null;
     onSelectProperty?: (id: string) => void;
+    onHoverProperty?: (id: string | null) => void;
+    onBoundsChange?: (bounds: MapBounds) => void;
+    onPolygonFilter?: (polygon: [number, number][] | null) => void;
     height?: string;
+    showSearchAsMoveToggle?: boolean;
 }
 
 // Coordinate database for Kenyan cities & neighborhoods
-const NEIGHBORHOOD_COORDS: Record<string, [number, number]> = {
+export const NEIGHBORHOOD_COORDS: Record<string, [number, number]> = {
     // Nairobi
     karen: [-1.3197, 36.7065],
     westlands: [-1.2673, 36.811],
@@ -44,7 +56,7 @@ const NEIGHBORHOOD_COORDS: Record<string, [number, number]> = {
     eldoret: [0.5143, 35.2698],
 };
 
-function getDeterministicCoords(p: Property, index: number): [number, number] {
+export function getDeterministicCoords(p: Property, index: number = 0): [number, number] {
     const rawNeighborhood = (
         typeof p.location === "object" ? p.location.neighborhood : (p as any).neighborhood || ""
     ).toLowerCase().replace(/[^a-z]/g, "");
@@ -58,25 +70,53 @@ function getDeterministicCoords(p: Property, index: number): [number, number] {
         NEIGHBORHOOD_COORDS[rawCity] ||
         NEIGHBORHOOD_COORDS.nairobi;
 
-    // Apply slight deterministic spread using ID or index so cards in same area don't overlap completely
     const hash = (p.id || "").split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) + index * 17;
-    const latOffset = ((hash % 100) - 50) * 0.00018;
-    const lngOffset = (((hash * 13) % 100) - 50) * 0.00018;
+    const latOffset = ((hash % 100) - 50) * 0.00022;
+    const lngOffset = (((hash * 13) % 100) - 50) * 0.00022;
 
     return [base[0] + latOffset, base[1] + lngOffset];
+}
+
+// Ray-casting algorithm to test if a point is within a polygon
+export function isPointInPolygon(point: [number, number], vs: [number, number][]): boolean {
+    const x = point[0], y = point[1];
+    let inside = false;
+    for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        const xi = vs[i][0], yi = vs[i][1];
+        const xj = vs[j][0], yj = vs[j][1];
+        const intersect = ((yi > y) !== (yj > y)) && (x < ((xj - x) * (y - yi)) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
 }
 
 export default function CatalogMap({
     properties,
     selectedPropertyId,
+    hoveredPropertyId,
     onSelectProperty,
+    onHoverProperty,
+    onBoundsChange,
+    onPolygonFilter,
     height = "100%",
+    showSearchAsMoveToggle = true,
 }: CatalogMapProps) {
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<any>(null);
+    const tileLayerRef = useRef<any>(null);
     const markersRef = useRef<Record<string, any>>({});
+    const activePolygonLayerRef = useRef<any>(null);
+
     const [activeProperty, setActiveProperty] = useState<Property | null>(null);
     const [isLeafletReady, setIsLeafletReady] = useState(false);
+    const [searchAsMove, setSearchAsMove] = useState(false);
+    const [mapStyle, setMapStyle] = useState<"standard" | "satellite">("standard");
+
+    // Draw on Map state
+    const [isDrawMode, setIsDrawMode] = useState(false);
+    const [isDrawing, setIsDrawing] = useState(false);
+    const [drawnPolygon, setDrawnPolygon] = useState<[number, number][] | null>(null);
+
     const { formatCurrency } = useCurrency();
 
     // Load Leaflet CSS & JS
@@ -107,22 +147,21 @@ export default function CatalogMap({
         const L = window.L;
         if (!L) return;
 
-        const defaultCenter: [number, number] = [-1.2921, 36.8219]; // Nairobi center
+        const defaultCenter: [number, number] = [-1.2921, 36.8219];
         const map = L.map(mapContainerRef.current, {
             center: defaultCenter,
             zoom: 12,
             zoomControl: false,
         });
 
-        // Add Zoom control at bottom-right
         L.control.zoom({ position: "bottomright" }).addTo(map);
 
-        // OpenStreetMap Carto tiles
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        const standardLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
             maxZoom: 19,
         }).addTo(map);
 
+        tileLayerRef.current = standardLayer;
         mapInstanceRef.current = map;
 
         return () => {
@@ -131,7 +170,154 @@ export default function CatalogMap({
         };
     }, [isLeafletReady]);
 
-    // Update Markers when properties, currency, or selection changes
+    // Handle Map Tile Switching (Standard vs Satellite)
+    useEffect(() => {
+        const map = mapInstanceRef.current;
+        // @ts-expect-error: Leaflet on window
+        const L = window.L;
+        if (!map || !L) return;
+
+        if (tileLayerRef.current) {
+            map.removeLayer(tileLayerRef.current);
+        }
+
+        if (mapStyle === "satellite") {
+            tileLayerRef.current = L.tileLayer(
+                "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                {
+                    attribution: '&copy; Esri &mdash; Earthstar Geographics',
+                    maxZoom: 18,
+                }
+            ).addTo(map);
+        } else {
+            tileLayerRef.current = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+                {
+                    attribution: '&copy; CARTO',
+                    maxZoom: 19,
+                }
+            ).addTo(map);
+        }
+    }, [mapStyle]);
+
+    // Handle "Search as I move the map" viewport bounding listener
+    useEffect(() => {
+        const map = mapInstanceRef.current;
+        if (!map) return;
+
+        const handleMoveEnd = () => {
+            if (!searchAsMove || isDrawMode) return;
+            const b = map.getBounds();
+            if (onBoundsChange) {
+                onBoundsChange({
+                    minLat: b.getSouth(),
+                    maxLat: b.getNorth(),
+                    minLng: b.getWest(),
+                    maxLng: b.getEast(),
+                });
+            }
+        };
+
+        map.on("moveend", handleMoveEnd);
+        return () => {
+            map.off("moveend", handleMoveEnd);
+        };
+    }, [searchAsMove, isDrawMode, onBoundsChange]);
+
+    // Draw on Map (Polygon / Lasso Drawing)
+    useEffect(() => {
+        const map = mapInstanceRef.current;
+        // @ts-expect-error: Leaflet on window
+        const L = window.L;
+        if (!map || !L) return;
+
+        if (isDrawMode) {
+            map.dragging.disable();
+            mapContainerRef.current?.style.setProperty("cursor", "crosshair");
+        } else {
+            map.dragging.enable();
+            mapContainerRef.current?.style.removeProperty("cursor");
+        }
+    }, [isDrawMode]);
+
+    const handleMapMouseDown = useCallback((e: any) => {
+        if (!isDrawMode) return;
+        const map = mapInstanceRef.current;
+        // @ts-expect-error: Leaflet on window
+        const L = window.L;
+        if (!map || !L) return;
+
+        setIsDrawing(true);
+        const startPoint: [number, number] = [e.latlng.lat, e.latlng.lng];
+        const points: [number, number][] = [startPoint];
+
+        if (activePolygonLayerRef.current) {
+            map.removeLayer(activePolygonLayerRef.current);
+        }
+
+        const polyline = L.polyline(points, {
+            color: "#d4a017",
+            weight: 3,
+            dashArray: "4, 6",
+        }).addTo(map);
+
+        const handleMouseMove = (moveEvent: any) => {
+            points.push([moveEvent.latlng.lat, moveEvent.latlng.lng]);
+            polyline.setLatLngs(points);
+        };
+
+        const handleMouseUp = () => {
+            map.off("mousemove", handleMouseMove);
+            map.off("mouseup", handleMouseUp);
+            setIsDrawing(false);
+
+            if (points.length > 2) {
+                map.removeLayer(polyline);
+                const finalPolygon = L.polygon(points, {
+                    color: "#d4a017",
+                    weight: 3,
+                    fillColor: "rgba(212, 160, 23, 0.22)",
+                    fillOpacity: 1,
+                }).addTo(map);
+
+                activePolygonLayerRef.current = finalPolygon;
+                setDrawnPolygon(points);
+                setIsDrawMode(false);
+                if (onPolygonFilter) {
+                    onPolygonFilter(points);
+                }
+            } else {
+                map.removeLayer(polyline);
+            }
+        };
+
+        map.on("mousemove", handleMouseMove);
+        map.on("mouseup", handleMouseUp);
+    }, [isDrawMode, onPolygonFilter]);
+
+    useEffect(() => {
+        const map = mapInstanceRef.current;
+        if (!map) return;
+
+        map.on("mousedown", handleMapMouseDown);
+        return () => {
+            map.off("mousedown", handleMapMouseDown);
+        };
+    }, [handleMapMouseDown]);
+
+    const handleClearPolygon = () => {
+        const map = mapInstanceRef.current;
+        if (map && activePolygonLayerRef.current) {
+            map.removeLayer(activePolygonLayerRef.current);
+            activePolygonLayerRef.current = null;
+        }
+        setDrawnPolygon(null);
+        if (onPolygonFilter) {
+            onPolygonFilter(null);
+        }
+    };
+
+    // Update Markers when properties, selection, or hover changes
     useEffect(() => {
         const map = mapInstanceRef.current;
         // @ts-expect-error: Leaflet on window
@@ -146,28 +332,40 @@ export default function CatalogMap({
 
         const bounds = L.latLngBounds([]);
 
-        properties.forEach((prop, idx) => {
-            const coords = getDeterministicCoords(prop, idx);
+        properties.forEach((prop) => {
+            const coords = getDeterministicCoords(prop);
             bounds.extend(coords);
 
             const isSelected = prop.id === (selectedPropertyId || activeProperty?.id);
+            const isHovered = prop.id === hoveredPropertyId;
             const priceLabel = formatCurrency(prop.price, true);
 
+            const bg = isSelected
+                ? "var(--gold-500, #d4a017)"
+                : isHovered
+                ? "#e8b930"
+                : "var(--navy-950, #0a0e1a)";
+
+            const textColor = isSelected || isHovered ? "#000000" : "#ffffff";
+            const scale = isHovered || isSelected ? "scale(1.15)" : "scale(1)";
+            const zOffset = isSelected ? 1200 : isHovered ? 1000 : 0;
+
             const html = `
-                <div class="estatevue-price-pin ${isSelected ? "selected" : ""}" style="
-                    background: ${isSelected ? "var(--gold-500, #d4a017)" : "var(--navy-900, #0a0e1a)"};
-                    color: ${isSelected ? "#000" : "#fff"};
-                    padding: 4px 9px;
+                <div class="estatevue-price-pin" style="
+                    background: ${bg};
+                    color: ${textColor};
+                    padding: 5px 10px;
                     border-radius: 9999px;
                     font-size: 11px;
                     font-weight: 700;
-                    box-shadow: 0 3px 12px rgba(0,0,0,0.35);
-                    border: 2px solid ${isSelected ? "#fff" : "rgba(212,160,23,0.7)"};
+                    box-shadow: 0 4px 14px rgba(0,0,0,0.38);
+                    border: 2px solid ${isSelected || isHovered ? "#ffffff" : "rgba(212,160,23,0.7)"};
                     white-space: nowrap;
                     cursor: pointer;
                     display: inline-flex;
                     align-items: center;
-                    gap: 3px;
+                    gap: 4px;
+                    transform: ${scale};
                     transition: transform 0.15s ease, background 0.15s ease;
                 ">
                     <span>${prop.type === "villa" ? "🏛️" : prop.type === "apartment" ? "🏢" : "🏠"}</span>
@@ -178,25 +376,45 @@ export default function CatalogMap({
             const icon = L.divIcon({
                 className: "custom-catalog-pin",
                 html,
-                iconSize: [80, 28],
-                iconAnchor: [40, 14],
+                iconSize: [85, 28],
+                iconAnchor: [42, 14],
             });
 
-            const marker = L.marker(coords, { icon }).addTo(map);
+            const marker = L.marker(coords, { icon, zIndexOffset: zOffset }).addTo(map);
 
             marker.on("click", () => {
                 setActiveProperty(prop);
                 if (onSelectProperty) onSelectProperty(prop.id);
-                map.panTo(coords, { animate: true, duration: 0.5 });
+                map.panTo(coords, { animate: true, duration: 0.4 });
+            });
+
+            marker.on("mouseover", () => {
+                if (onHoverProperty) onHoverProperty(prop.id);
+            });
+
+            marker.on("mouseout", () => {
+                if (onHoverProperty) onHoverProperty(null);
             });
 
             markersRef.current[prop.id] = marker;
         });
 
-        if (bounds.isValid() && bounds.getNorthEast().lat !== bounds.getSouthWest().lat) {
-            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+        // Only auto-fit bounds on initial load if not in search-as-move or draw mode
+        if (!searchAsMove && !drawnPolygon && bounds.isValid() && bounds.getNorthEast().lat !== bounds.getSouthWest().lat) {
+            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
         }
-    }, [properties, isLeafletReady, formatCurrency, selectedPropertyId, activeProperty?.id, onSelectProperty]);
+    }, [
+        properties,
+        isLeafletReady,
+        formatCurrency,
+        selectedPropertyId,
+        hoveredPropertyId,
+        activeProperty?.id,
+        onSelectProperty,
+        onHoverProperty,
+        searchAsMove,
+        drawnPolygon,
+    ]);
 
     return (
         <div style={{ position: "relative", width: "100%", height, minHeight: "450px" }}>
@@ -211,30 +429,158 @@ export default function CatalogMap({
                 }}
             />
 
-            {/* Map Legend & Count Badge */}
+            {/* Top Floating Controls Bar */}
             <div
                 style={{
                     position: "absolute",
                     top: "14px",
                     left: "14px",
+                    right: "14px",
                     zIndex: 1000,
-                    background: "rgba(10, 14, 26, 0.85)",
-                    backdropFilter: "blur(8px)",
-                    color: "#fff",
-                    padding: "0.45rem 0.85rem",
-                    borderRadius: "var(--radius-full)",
-                    fontSize: "0.8rem",
-                    fontWeight: 600,
                     display: "flex",
+                    justifyContent: "space-between",
                     alignItems: "center",
+                    flexWrap: "wrap",
                     gap: "0.5rem",
-                    boxShadow: "0 4px 14px rgba(0,0,0,0.25)",
-                    border: "1px solid rgba(255,255,255,0.15)",
+                    pointerEvents: "none",
                 }}
             >
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--gold-500)" }} />
-                <span>{properties.length} Properties on Map</span>
+                {/* Left badges: Count & Draw on Map */}
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", pointerEvents: "auto" }}>
+                    <div
+                        style={{
+                            background: "rgba(10, 14, 26, 0.88)",
+                            backdropFilter: "blur(10px)",
+                            color: "#fff",
+                            padding: "0.45rem 0.85rem",
+                            borderRadius: "var(--radius-full)",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.45rem",
+                            boxShadow: "0 4px 14px rgba(0,0,0,0.3)",
+                            border: "1px solid rgba(255,255,255,0.18)",
+                        }}
+                    >
+                        <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--gold-500)" }} />
+                        <span>{properties.length} Properties</span>
+                    </div>
+
+                    {/* Draw on Map button */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (drawnPolygon) {
+                                handleClearPolygon();
+                            } else {
+                                setIsDrawMode(!isDrawMode);
+                            }
+                        }}
+                        style={{
+                            background: isDrawMode
+                                ? "linear-gradient(135deg, var(--gold-500), #e8b930)"
+                                : drawnPolygon
+                                ? "rgba(239, 68, 68, 0.9)"
+                                : "rgba(10, 14, 26, 0.88)",
+                            backdropFilter: "blur(10px)",
+                            color: isDrawMode ? "#0a0e1a" : "#ffffff",
+                            padding: "0.45rem 0.85rem",
+                            borderRadius: "var(--radius-full)",
+                            fontSize: "0.8rem",
+                            fontWeight: 700,
+                            border: "1px solid rgba(255,255,255,0.2)",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                            boxShadow: "0 4px 14px rgba(0,0,0,0.3)",
+                            transition: "all 0.15s ease",
+                        }}
+                    >
+                        {drawnPolygon ? (
+                            <span>✕ Clear Boundary</span>
+                        ) : isDrawMode ? (
+                            <span>✏️ Click & Drag to Draw</span>
+                        ) : (
+                            <span>✏️ Draw on Map</span>
+                        )}
+                    </button>
+                </div>
+
+                {/* Right controls: Search as Move & Tile switch */}
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", pointerEvents: "auto" }}>
+                    {showSearchAsMoveToggle && (
+                        <label
+                            style={{
+                                background: "rgba(10, 14, 26, 0.88)",
+                                backdropFilter: "blur(10px)",
+                                color: "#fff",
+                                padding: "0.42rem 0.85rem",
+                                borderRadius: "var(--radius-full)",
+                                fontSize: "0.78rem",
+                                fontWeight: 600,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.45rem",
+                                cursor: "pointer",
+                                boxShadow: "0 4px 14px rgba(0,0,0,0.3)",
+                                border: "1px solid rgba(255,255,255,0.18)",
+                            }}
+                        >
+                            <input
+                                type="checkbox"
+                                checked={searchAsMove}
+                                onChange={(e) => setSearchAsMove(e.target.checked)}
+                                style={{ accentColor: "var(--gold-500)" }}
+                            />
+                            <span>Search as map moves</span>
+                        </label>
+                    )}
+
+                    {/* Satellite switch */}
+                    <button
+                        type="button"
+                        onClick={() => setMapStyle(mapStyle === "standard" ? "satellite" : "standard")}
+                        style={{
+                            background: "rgba(10, 14, 26, 0.88)",
+                            backdropFilter: "blur(10px)",
+                            color: "#fff",
+                            padding: "0.42rem 0.75rem",
+                            borderRadius: "var(--radius-full)",
+                            fontSize: "0.78rem",
+                            fontWeight: 600,
+                            border: "1px solid rgba(255,255,255,0.18)",
+                            cursor: "pointer",
+                        }}
+                    >
+                        {mapStyle === "standard" ? "🛰️ Satellite" : "🗺️ Map"}
+                    </button>
+                </div>
             </div>
+
+            {/* Drawing instructions banner */}
+            {isDrawMode && (
+                <div
+                    style={{
+                        position: "absolute",
+                        top: "62px",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        zIndex: 1000,
+                        background: "rgba(212, 160, 23, 0.95)",
+                        color: "#0a0e1a",
+                        padding: "0.5rem 1.25rem",
+                        borderRadius: "var(--radius-full)",
+                        fontSize: "0.85rem",
+                        fontWeight: 700,
+                        boxShadow: "0 6px 20px rgba(0,0,0,0.35)",
+                        pointerEvents: "none",
+                    }}
+                >
+                    Press & drag your mouse to outline your desired area
+                </div>
+            )}
 
             {/* Selected Property Quick Preview Card */}
             {activeProperty && (
@@ -248,111 +594,74 @@ export default function CatalogMap({
                         zIndex: 1000,
                         background: "var(--bg-card, #ffffff)",
                         borderRadius: "var(--radius-lg, 16px)",
-                        boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
-                        border: "1px solid var(--border-color, #e2e6ee)",
+                        boxShadow: "0 8px 30px rgba(0,0,0,0.25)",
+                        border: "1px solid var(--border-color)",
                         overflow: "hidden",
-                        display: "flex",
-                        gap: "0.75rem",
-                        padding: "0.75rem",
-                        animation: "slideUpCard 0.2s ease-out",
                     }}
                 >
-                    <div style={{ position: "relative", width: "95px", height: "95px", borderRadius: "var(--radius-md)", overflow: "hidden", flexShrink: 0 }}>
+                    <div style={{ position: "relative", height: "130px", width: "100%" }}>
                         <Image
                             src={activeProperty.images?.[0] || "/images/property-1.png"}
                             alt={activeProperty.title}
                             fill
                             style={{ objectFit: "cover" }}
-                            sizes="95px"
                         />
-                        <span
+                        <button
+                            onClick={() => setActiveProperty(null)}
                             style={{
                                 position: "absolute",
-                                top: "4px",
-                                left: "4px",
-                                fontSize: "0.65rem",
-                                fontWeight: 700,
-                                background: "rgba(0,0,0,0.65)",
+                                top: "8px",
+                                right: "8px",
+                                background: "rgba(0,0,0,0.6)",
+                                border: "none",
                                 color: "#fff",
-                                padding: "2px 5px",
-                                borderRadius: "4px",
+                                width: "24px",
+                                height: "24px",
+                                borderRadius: "50%",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                                fontSize: "12px",
                             }}
                         >
-                            {activeProperty.listingType === "sale" ? "Sale" : "Rent"}
-                        </span>
+                            ✕
+                        </button>
                     </div>
 
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.25rem" }}>
-                            <h4
-                                style={{
-                                    fontSize: "0.88rem",
-                                    fontWeight: 700,
-                                    color: "var(--text-heading, #0f1629)",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    margin: 0,
-                                }}
-                            >
-                                {activeProperty.title}
-                            </h4>
-                            <button
-                                onClick={() => setActiveProperty(null)}
-                                style={{
-                                    background: "none",
-                                    border: "none",
-                                    color: "var(--text-tertiary)",
-                                    cursor: "pointer",
-                                    padding: "2px",
-                                    fontSize: "0.9rem",
-                                    lineHeight: 1,
-                                }}
-                                aria-label="Close preview"
-                            >
-                                ✕
-                            </button>
+                    <div style={{ padding: "0.85rem 1rem" }}>
+                        <div style={{ fontSize: "0.78rem", color: "var(--text-tertiary)", textTransform: "capitalize" }}>
+                            {activeProperty.type} • {typeof activeProperty.location === "object" ? activeProperty.location.neighborhood : ""}
                         </div>
-
-                        <p style={{ fontSize: "0.76rem", color: "var(--text-tertiary)", margin: "2px 0 4px" }}>
-                            📍 {activeProperty.location?.neighborhood || activeProperty.location?.city || "Kenya"}
-                        </p>
-
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <strong style={{ fontSize: "0.92rem", color: "var(--gold-600, #b8860b)" }}>
-                                {formatCurrency(activeProperty.price, true)}
-                                {activeProperty.listingType === "rent" && <span style={{ fontSize: "0.72rem", fontWeight: 400 }}>/mo</span>}
-                            </strong>
+                        <h4
+                            style={{
+                                fontSize: "0.95rem",
+                                fontWeight: 700,
+                                margin: "2px 0 6px",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                color: "var(--text-heading)",
+                            }}
+                        >
+                            {activeProperty.title}
+                        </h4>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--gold-500)" }}>
+                                {formatCurrency(activeProperty.price)}
+                                {activeProperty.listingType === "rent" && <span style={{ fontSize: "0.75rem" }}>/mo</span>}
+                            </span>
                             <Link
                                 href={`/properties/${activeProperty.id}`}
-                                style={{
-                                    fontSize: "0.75rem",
-                                    fontWeight: 600,
-                                    color: "#fff",
-                                    background: "var(--navy-800, #0a0e1a)",
-                                    padding: "0.3rem 0.65rem",
-                                    borderRadius: "var(--radius-sm)",
-                                    textDecoration: "none",
-                                }}
+                                className="btn btn-primary"
+                                style={{ padding: "0.35rem 0.85rem", fontSize: "0.8rem", borderRadius: "var(--radius-full)" }}
                             >
-                                View →
+                                View Details →
                             </Link>
                         </div>
                     </div>
                 </div>
             )}
-
-            <style jsx global>{`
-                .custom-catalog-pin:hover .estatevue-price-pin {
-                    transform: scale(1.12);
-                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-                    z-index: 1000;
-                }
-                @keyframes slideUpCard {
-                    from { transform: translateY(12px); opacity: 0; }
-                    to { transform: translateY(0); opacity: 1; }
-                }
-            `}</style>
         </div>
     );
 }

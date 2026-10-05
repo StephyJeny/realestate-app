@@ -1087,3 +1087,128 @@
         transform: translateY(0);
     }
 }
+
+/* ========================================
+   SPLIT-SCREEN MAP & CARD VIEW (Zillow/Airbnb Style)
+   ======================================== */
+
+.layoutSplit {
+    max-width: 1720px;
+    grid-template-columns: 290px 1fr;
+    gap: var(--space-xl);
+}
+
+.splitViewContainer {
+    display: grid;
+    grid-template-columns: minmax(360px, 1.1fr) minmax(400px, 1.15fr);
+    gap: 1.5rem;
+    align-items: start;
+    min-height: 700px;
+}
+
+.splitCardsCol {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    min-width: 0;
+}
+
+.splitCardsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+}
+
+.splitMapCol {
+    position: sticky;
+    top: calc(var(--navbar-height) + 16px);
+    height: calc(100vh - var(--navbar-height) - 36px);
+    min-height: 560px;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(10, 14, 26, 0.12);
+    border: 1px solid var(--border-color);
+}
+
+.cardWrapper {
+    height: 100%;
+    border-radius: var(--radius-lg);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, outline 0.2s ease;
+}
+
+.cardHovered {
+    transform: translateY(-4px);
+    outline: 2px solid var(--gold-500);
+    outline-offset: 3px;
+    box-shadow: 0 12px 28px rgba(212, 160, 23, 0.25);
+    border-radius: var(--radius-lg);
+}
+
+.mobileSplitSegmented {
+    display: none;
+    background: var(--bg-tertiary);
+    padding: 4px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-color);
+    margin-bottom: 1rem;
+}
+
+.mobileSplitSegmentBtn {
+    flex: 1;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-full);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.mobileSplitSegmentBtnActive {
+    background: var(--navy-900);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="dark"] .mobileSplitSegmentBtnActive {
+    background: var(--gold-500);
+    color: var(--navy-950);
+}
+
+@media (max-width: 1200px) {
+    .layoutSplit {
+        max-width: 100%;
+        grid-template-columns: 260px 1fr;
+        gap: var(--space-md);
+    }
+
+    .splitViewContainer {
+        grid-template-columns: 1fr;
+    }
+
+    .splitMapCol {
+        position: relative;
+        top: 0;
+        height: 500px;
+        order: -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .layoutSplit {
+        grid-template-columns: 1fr;
+    }
+
+    .mobileSplitSegmented {
+        display: flex;
+    }
+
+    .hideOnMobileCards {
+        display: none !important;
+    }
+
+    .hideOnMobileMap {
+        display: none !important;
+    }
+}

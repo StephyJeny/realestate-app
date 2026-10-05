@@ -22,6 +22,7 @@ import FloorPlanViewer from "@/components/property/FloorPlanViewer";
 import CommuteRadar from "@/components/property/CommuteRadar";
 import InvestmentCalculator from "@/components/property/InvestmentCalculator";
 import EstateEstimateWidget from "@/components/property/EstateEstimateWidget";
+import PanoramaViewer from "@/components/property/PanoramaViewer";
 import styles from "./page.module.css";
 
 interface Props {
@@ -655,56 +656,30 @@ export default function PropertyDetailPage({ params }: Props) {
                                 />
                             </div>
 
-                            {/* Virtual Tour */}
-                            {virtualTourUrl && (
-                                <div className={styles.section} id="virtual-tour-section">
-                                    <h2 className={styles.sectionTitle}>🎬 Virtual Tour</h2>
-                                    <div className={styles.virtualTourWrap}>
-                                        <div className={styles.virtualTourHeader}>
-                                            <div className={styles.virtualTourBadge}>
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" /></svg>
-                                                <span>360° Immersive Tour</span>
-                                            </div>
-                                            <a
-                                                href={virtualTourUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className={styles.virtualTourExternal}
-                                            >
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-                                                Open Full Screen
-                                            </a>
-                                        </div>
-                                        {embedUrl ? (
-                                            <div className={styles.virtualTourEmbed}>
-                                                <iframe
-                                                    src={embedUrl}
-                                                    title="Virtual Tour"
-                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; xr-spatial-tracking"
-                                                    allowFullScreen
-                                                    className={styles.virtualTourIframe}
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className={styles.virtualTourFallback}>
-                                                <div className={styles.virtualTourFallbackIcon}>🎬</div>
-                                                <p>This property has a virtual tour available.</p>
-                                                <a
-                                                    href={virtualTourUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="btn btn-primary"
-                                                >
-                                                    Open Virtual Tour →
-                                                </a>
-                                            </div>
-                                        )}
-                                        <p className={styles.virtualTourNote}>
-                                            💡 Use your mouse or touch to look around. Click the fullscreen button for the best experience.
-                                        </p>
+                            {/* 360° Interactive Virtual Tour (In-Browser WebGL) */}
+                            <div className={styles.section} id="virtual-tour-section">
+                                <h2 className={styles.sectionTitle}>🎬 Interactive 360° Virtual Tour</h2>
+                                <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginBottom: "1.25rem" }}>
+                                    Experience the property in full 360° panoramic view. Click & drag or swipe to look around rooms, zoom with your mouse wheel, or switch between spaces below.
+                                </p>
+                                <PanoramaViewer propertyTitle={property.title} />
+
+                                {virtualTourUrl && (
+                                    <div style={{ marginTop: "1rem", display: "flex", justifyContent: "flex-end" }}>
+                                        <a
+                                            href={virtualTourUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="btn btn-outline btn-sm"
+                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", fontSize: "0.82rem" }}
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                                            <span>Watch Video Tour (External)</span>
+                                            <span>↗</span>
+                                        </a>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
 
                             {/* Mortgage Calculator */}
                             {property.listingType === "sale" && (
