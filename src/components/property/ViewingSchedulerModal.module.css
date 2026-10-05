@@ -1,0 +1,420 @@
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal {
+    background: #ffffff;
+    border-radius: var(--radius-xl, 16px);
+    max-width: 560px;
+    width: 100%;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    animation: slideUp 0.25s ease-out;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(16px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.header {
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-tertiary, #f8fafc);
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.closeBtn {
+    background: transparent;
+    border: none;
+    font-size: 1.35rem;
+    line-height: 1;
+    color: var(--text-secondary, #64748b);
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 0.25rem;
+}
+
+.closeBtn:hover {
+    color: #0f172a;
+    background: #e2e8f0;
+}
+
+.body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* Property Banner */
+.propBanner {
+    display: flex;
+    gap: 0.85rem;
+    align-items: center;
+    padding: 0.75rem 0.9rem;
+    background: var(--bg-tertiary, #f8fafc);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 10px;
+}
+
+.propThumb {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.propDetails {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.propTitle {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.propLoc {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #64748b);
+}
+
+.propPrice {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--gold-600, #b8860b);
+}
+
+/* Open House Announcement Pill */
+.openHouseNotice {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #f59e0b;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.openHouseNoticeText {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #92400e;
+    margin: 0;
+}
+
+.rsvpBtn {
+    background: #b45309;
+    color: #ffffff;
+    border: none;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* Mode Tabs */
+.modeTabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+}
+
+.modeTab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: #ffffff;
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-secondary, #64748b);
+    transition: all 0.15s ease;
+}
+
+.modeTabActive {
+    border-color: var(--navy-800, #0f1629);
+    background: #0f1629;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(15, 22, 41, 0.15);
+}
+
+/* Form Sections */
+.formSection {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sectionLabel {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* Quick Dates */
+.quickDates {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.4rem;
+}
+
+.quickDateBtn {
+    padding: 0.5rem 0.3rem;
+    text-align: center;
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 8px;
+    background: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary, #0f172a);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.quickDateBtnActive {
+    border-color: var(--gold-600, #d97706);
+    background: #fffbeb;
+    color: #b45309;
+    font-weight: 800;
+}
+
+/* Time Slots Grid */
+.slotsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.slotBtn {
+    padding: 0.5rem;
+    text-align: center;
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 8px;
+    background: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary, #0f172a);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.slotBtn:hover {
+    border-color: var(--navy-800, #0f1629);
+}
+
+.slotBtnActive {
+    border-color: var(--navy-800, #0f1629);
+    background: var(--navy-800, #0f1629);
+    color: #ffffff;
+    font-weight: 700;
+}
+
+/* Inputs */
+.inputGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.inputField {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.inputLabel {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary, #475569);
+}
+
+.input {
+    width: 100%;
+    padding: 0.55rem 0.8rem;
+    border: 1px solid var(--border-color, #cbd5e1);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    box-sizing: border-box;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--navy-800, #0f1629);
+}
+
+.submitBtn {
+    background: var(--gold-600, #d97706);
+    color: #ffffff;
+    border: none;
+    padding: 0.8rem 1rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+    transition: all 0.15s ease;
+}
+
+.submitBtn:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+}
+
+/* Success View */
+.successWrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 1.5rem 0.5rem;
+    gap: 1.25rem;
+}
+
+.successIconBadge {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #dcfce7;
+    color: #16a34a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+}
+
+.bookedDetailsCard {
+    background: #f8fafc;
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.calendarActions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    width: 100%;
+}
+
+.googleCalBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    color: #1e293b;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.googleCalBtn:hover {
+    background: #f1f5f9;
+}
+
+.icsBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    background: var(--navy-800, #0f1629);
+    border: none;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.icsBtn:hover {
+    opacity: 0.9;
+}
+
+.whatsappDirectBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    background: #25d366;
+    border: none;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.whatsappDirectBtn:hover {
+    background: #1ebc59;
+}

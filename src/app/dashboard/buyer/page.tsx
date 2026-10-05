@@ -3,10 +3,11 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { getInquiriesByUser, Inquiry, getPropertyById, FirestoreProperty, removeFromFavorites } from "@/lib/firestore";
+import { getInquiriesByUser, Inquiry, getPropertyById, FirestoreProperty, removeFromFavorites, getSharedCollectionsByUser, SharedCollection } from "@/lib/firestore";
 import { sampleProperties, Property, formatPrice } from "@/lib/data";
 import { getSavedSearches, deleteSavedSearch, toggleSavedSearchActive, describeFilters, SavedSearch } from "@/lib/savedSearches";
 import LOIModal from "@/components/property/LOIModal";
+import CollaborativeBoard from "@/components/collections/CollaborativeBoard";
 import { LOIData } from "@/lib/loiGenerator";
 import toast from "react-hot-toast";
 import styles from "../dashboard.module.css";
@@ -23,11 +24,14 @@ function BuyerDashboardContent() {
     const [loadingSaved, setLoadingSaved] = useState(false);
     const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
     const [loadingSavedSearches, setLoadingSavedSearches] = useState(false);
+    const [sharedCollections, setSharedCollections] = useState<SharedCollection[]>([]);
+    const [loadingCollections, setLoadingCollections] = useState(false);
+    const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
 
     // Read tab from URL query params
     useEffect(() => {
         const tab = searchParams.get("tab");
-        if (tab === "saved" || tab === "inquiries" || tab === "overview" || tab === "searches" || tab === "offers") {
+        if (tab === "saved" || tab === "inquiries" || tab === "overview" || tab === "searches" || tab === "offers" || tab === "collections") {
             setActiveTab(tab);
         }
     }, [searchParams]);
@@ -41,8 +45,25 @@ function BuyerDashboardContent() {
     useEffect(() => {
         if (user) {
             loadInquiries();
+            loadSharedCollections();
         }
     }, [user]);
+
+    const loadSharedCollections = async () => {
+        if (!user) return;
+        setLoadingCollections(true);
+        try {
+            const list = await getSharedCollectionsByUser(user.uid, user.email || undefined);
+            setSharedCollections(list);
+            if (list.length > 0 && !selectedCollectionId) {
+                setSelectedCollectionId(list[0].id || null);
+            }
+        } catch (err) {
+            console.error("Failed to load shared collections:", err);
+        } finally {
+            setLoadingCollections(false);
+        }
+    };
 
     // Load saved property details when the tab or savedProperties change
     useEffect(() => {
@@ -295,6 +316,14 @@ function BuyerDashboardContent() {
                             {savedCount > 0 && <span className={styles.sidebarBadge}>{savedCount}</span>}
                         </button>
                         <button
+                            className={`${styles.sidebarLink} ${activeTab === "collections" ? styles.sidebarLinkActive : ""}`}
+                            onClick={() => { setActiveTab("collections"); setSidebarOpen(false); }}
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            Shared Collections
+                            {sharedCollections.length > 0 && <span className={styles.sidebarBadge} style={{ background: "var(--navy-800, #0f1629)", color: "#fff" }}>{sharedCollections.length}</span>}
+                        </button>
+                        <button
                             className={`${styles.sidebarLink} ${activeTab === "searches" ? styles.sidebarLinkActive : ""}`}
                             onClick={() => { setActiveTab("searches"); setSidebarOpen(false); }}
                         >
@@ -379,14 +408,14 @@ function BuyerDashboardContent() {
                                 <div className={styles.statValue}>{inquiries.length}</div>
                                 <div className={styles.statLabel}>Inquiries Sent</div>
                             </div>
-                            <div className={styles.statCard}>
+                            <div className={styles.statCard} onClick={() => setActiveTab("collections")} style={{ cursor: "pointer" }}>
                                 <div className={styles.statCardHeader}>
-                                    <div className={`${styles.statIcon} ${styles.statIconGold}`}>
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                                    <div className={`${styles.statIcon} ${styles.statIconGold}`} style={{ background: "rgba(15, 22, 41, 0.08)", color: "var(--navy-800, #0f1629)" }}>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                                     </div>
                                 </div>
-                                <div className={styles.statValue}>2,500+</div>
-                                <div className={styles.statLabel}>Available Properties</div>
+                                <div className={styles.statValue}>{sharedCollections.length}</div>
+                                <div className={styles.statLabel}>Co-Buying Boards</div>
                             </div>
                         </div>
 
@@ -972,6 +1001,93 @@ function BuyerDashboardContent() {
                                 <h3 className={styles.emptyTitle}>No Saved Searches</h3>
                                 <p className={styles.emptyText}>
                                     Save your search filters on the Properties page to get notified about new matching listings.
+                                </p>
+                                <Link href="/properties" className={styles.emptyAction}>
+                                    Browse Properties
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === "collections" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                        <div style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            background: "#ffffff",
+                            padding: "1.25rem 1.5rem",
+                            borderRadius: "var(--radius-lg, 12px)",
+                            border: "1px solid var(--border-color, #e2e8f0)",
+                            flexWrap: "wrap",
+                            gap: "1rem",
+                        }}>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 800, color: "var(--text-heading, #0f1629)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                    👥 Collaborative Wishlists & Co-Buying Boards
+                                </h3>
+                                <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.85rem", color: "var(--text-secondary, #64748b)" }}>
+                                    Collaborate with your partner, family, or chama investment group to upvote, downvote, and comment on properties together.
+                                </p>
+                            </div>
+
+                            {/* Collection selector dropdown if multiple */}
+                            {sharedCollections.length > 1 && (
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                    <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "#475569" }}>Select Board:</span>
+                                    <select
+                                        value={selectedCollectionId || ""}
+                                        onChange={(e) => setSelectedCollectionId(e.target.value)}
+                                        style={{
+                                            padding: "0.45rem 0.85rem",
+                                            borderRadius: "8px",
+                                            border: "1px solid #cbd5e1",
+                                            fontSize: "0.85rem",
+                                            fontWeight: 600,
+                                            background: "#f8fafc",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        {sharedCollections.map((col) => (
+                                            <option key={col.id} value={col.id}>
+                                                {col.title} ({col.items?.length || 0} listings)
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
+                        {loadingCollections ? (
+                            <div style={{ textAlign: "center", padding: "4rem" }}>
+                                <div className={styles.loadingSpinner} />
+                                <p style={{ marginTop: "1rem", fontSize: "0.9rem", color: "var(--text-secondary)" }}>
+                                    Loading your collaborative boards...
+                                </p>
+                            </div>
+                        ) : sharedCollections.length > 0 ? (
+                            (() => {
+                                const currentCol = sharedCollections.find((c) => c.id === selectedCollectionId) || sharedCollections[0];
+                                return (
+                                    <CollaborativeBoard
+                                        collection={currentCol}
+                                        currentUserId={user.uid}
+                                        currentUserName={userProfile?.displayName || user.displayName || "Buyer"}
+                                        currentUserEmail={user.email || undefined}
+                                        onUpdate={loadSharedCollections}
+                                    />
+                                );
+                            })()
+                        ) : (
+                            <div className={styles.emptyState}>
+                                <div className={styles.emptyIcon} style={{ fontSize: "2.5rem" }}>
+                                    👥
+                                </div>
+                                <h3 className={styles.emptyTitle}>No Shared Boards Yet</h3>
+                                <p className={styles.emptyText}>
+                                    Invite a co-buyer or chama partner to view shortlisted houses together. To start, browse any property and click <strong>&quot;Save to Board&quot;</strong>.
                                 </p>
                                 <Link href="/properties" className={styles.emptyAction}>
                                     Browse Properties

@@ -897,3 +897,329 @@ async function recalculateAgentRating(agentId: string) {
         updatedAt: serverTimestamp(),
     });
 }
+
+// ========================
+// SHARED COLLECTIONS (CO-BUYING / FAMILY BOARD)
+// ========================
+
+export interface CollectionComment {
+    id: string;
+    userId: string;
+    userName: string;
+    text: string;
+    createdAt: string;
+}
+
+export interface CollectionItem {
+    propertyId: string;
+    propertyTitle: string;
+    propertyPrice: number;
+    propertyCurrency?: string;
+    propertyImage: string;
+    city: string;
+    neighborhood?: string;
+    addedBy: string;
+    addedByName: string;
+    addedAt: string;
+    votes: Record<string, "up" | "down">; // userId -> vote
+    comments: CollectionComment[];
+}
+
+export interface SharedCollection {
+    id?: string;
+    title: string;
+    description?: string;
+    createdBy: string;
+    createdByName: string;
+    createdByEmail: string;
+    members: string[]; // user IDs or email addresses
+    memberNames?: Record<string, string>; // userId/email -> display name
+    items: CollectionItem[];
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
+}
+
+const LOCAL_COLLECTIONS_KEY = "ev_shared_collections";
+
+function getLocalCollections(): SharedCollection[] {
+    if (typeof window === "undefined") return [];
+    try {
+        const raw = localStorage.getItem(LOCAL_COLLECTIONS_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveLocalCollections(cols: SharedCollection[]) {
+    if (typeof window === "undefined") return;
+    try {
+        localStorage.setItem(LOCAL_COLLECTIONS_KEY, JSON.stringify(cols));
+    } catch (e) {
+        console.error("Local storage error:", e);
+    }
+}
+
+export async function createSharedCollection(
+    data: Omit<SharedCollection, "id" | "createdAt" | "updatedAt">
+): Promise<string> {
+    try {
+        const colRef = collection(db, "shared_collections");
+        const docRef = await addDoc(colRef, {
+            ...data,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+        return docRef.id;
+    } catch (err) {
+        console.warn("Firestore collection create fallback to local:", err);
+        const id = `col-${Date.now()}`;
+        const newCol: SharedCollection = {
+            ...data,
+            id,
+        };
+        const list = getLocalCollections();
+        list.unshift(newCol);
+        saveLocalCollections(list);
+        return id;
+    }
+}
+
+export async function getSharedCollectionsByUser(userId: string, email?: string): Promise<SharedCollection[]> {
+    const list: SharedCollection[] = [];
+    try {
+        // Query by createdBy
+        const q1 = query(collection(db, "shared_collections"), where("createdBy", "==", userId));
+        const snap1 = await getDocs(q1);
+        snap1.forEach((d) => list.push({ id: d.id, ...d.data() } as SharedCollection));
+
+        // Query by members
+        if (email) {
+            const q2 = query(collection(db, "shared_collections"), where("members", "array-contains", email.toLowerCase()));
+            const snap2 = await getDocs(q2);
+            snap2.forEach((d) => {
+                if (!list.some((existing) => existing.id === d.id)) {
+                    list.push({ id: d.id, ...d.data() } as SharedCollection);
+                }
+            });
+        }
+    } catch (err) {
+        console.warn("Firestore get collections error, using local fallback:", err);
+    }
+
+    // Merge with local fallback
+    const local = getLocalCollections().filter(
+        (c) => c.createdBy === userId || (email && c.members?.includes(email.toLowerCase()))
+    );
+    for (const l of local) {
+        if (!list.some((existing) => existing.id === l.id)) {
+            list.push(l);
+        }
+    }
+
+    return list;
+}
+
+export async function getSharedCollectionById(collectionId: string): Promise<SharedCollection | null> {
+    try {
+        const ref = doc(db, "shared_collections", collectionId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            return { id: snap.id, ...snap.data() } as SharedCollection;
+        }
+    } catch (err) {
+        console.warn("Firestore get collection by ID error:", err);
+    }
+
+    const local = getLocalCollections().find((c) => c.id === collectionId);
+    return local || null;
+}
+
+export async function addPropertyToSharedCollection(
+    collectionId: string,
+    item: Omit<CollectionItem, "votes" | "comments">
+) {
+    const fullItem: CollectionItem = {
+        ...item,
+        votes: {},
+        comments: [],
+    };
+
+    try {
+        const ref = doc(db, "shared_collections", collectionId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            const current = (snap.data().items || []) as CollectionItem[];
+            if (!current.some((i) => i.propertyId === item.propertyId)) {
+                await updateDoc(ref, {
+                    items: [...current, fullItem],
+                    updatedAt: serverTimestamp(),
+                });
+            }
+            return;
+        }
+    } catch (err) {
+        console.warn("Firestore add property fallback:", err);
+    }
+
+    const local = getLocalCollections();
+    const target = local.find((c) => c.id === collectionId);
+    if (target) {
+        if (!target.items.some((i) => i.propertyId === item.propertyId)) {
+            target.items.push(fullItem);
+            saveLocalCollections(local);
+        }
+    }
+}
+
+export async function removePropertyFromSharedCollection(collectionId: string, propertyId: string) {
+    try {
+        const ref = doc(db, "shared_collections", collectionId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            const current = (snap.data().items || []) as CollectionItem[];
+            await updateDoc(ref, {
+                items: current.filter((i) => i.propertyId !== propertyId),
+                updatedAt: serverTimestamp(),
+            });
+            return;
+        }
+    } catch (err) {
+        console.warn("Firestore remove property fallback:", err);
+    }
+
+    const local = getLocalCollections();
+    const target = local.find((c) => c.id === collectionId);
+    if (target) {
+        target.items = target.items.filter((i) => i.propertyId !== propertyId);
+        saveLocalCollections(local);
+    }
+}
+
+export async function voteOnCollectionProperty(
+    collectionId: string,
+    propertyId: string,
+    userId: string,
+    vote: "up" | "down" | "remove"
+) {
+    try {
+        const ref = doc(db, "shared_collections", collectionId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            const current = (snap.data().items || []) as CollectionItem[];
+            const updated = current.map((i) => {
+                if (i.propertyId !== propertyId) return i;
+                const newVotes = { ...(i.votes || {}) };
+                if (vote === "remove") {
+                    delete newVotes[userId];
+                } else {
+                    newVotes[userId] = vote;
+                }
+                return { ...i, votes: newVotes };
+            });
+            await updateDoc(ref, { items: updated, updatedAt: serverTimestamp() });
+            return;
+        }
+    } catch (err) {
+        console.warn("Firestore vote fallback:", err);
+    }
+
+    const local = getLocalCollections();
+    const target = local.find((c) => c.id === collectionId);
+    if (target) {
+        target.items = target.items.map((i) => {
+            if (i.propertyId !== propertyId) return i;
+            const newVotes = { ...(i.votes || {}) };
+            if (vote === "remove") {
+                delete newVotes[userId];
+            } else {
+                newVotes[userId] = vote;
+            }
+            return { ...i, votes: newVotes };
+        });
+        saveLocalCollections(local);
+    }
+}
+
+export async function addCommentToCollectionProperty(
+    collectionId: string,
+    propertyId: string,
+    comment: Omit<CollectionComment, "id" | "createdAt">
+) {
+    const fullComment: CollectionComment = {
+        ...comment,
+        id: `cmt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        createdAt: new Date().toISOString(),
+    };
+
+    try {
+        const ref = doc(db, "shared_collections", collectionId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            const current = (snap.data().items || []) as CollectionItem[];
+            const updated = current.map((i) => {
+                if (i.propertyId !== propertyId) return i;
+                return {
+                    ...i,
+                    comments: [...(i.comments || []), fullComment],
+                };
+            });
+            await updateDoc(ref, { items: updated, updatedAt: serverTimestamp() });
+            return fullComment;
+        }
+    } catch (err) {
+        console.warn("Firestore comment fallback:", err);
+    }
+
+    const local = getLocalCollections();
+    const target = local.find((c) => c.id === collectionId);
+    if (target) {
+        target.items = target.items.map((i) => {
+            if (i.propertyId !== propertyId) return i;
+            return {
+                ...i,
+                comments: [...(i.comments || []), fullComment],
+            };
+        });
+        saveLocalCollections(local);
+    }
+    return fullComment;
+}
+
+export async function inviteMemberToSharedCollection(
+    collectionId: string,
+    email: string,
+    name?: string
+) {
+    const cleanEmail = email.toLowerCase().trim();
+    try {
+        const ref = doc(db, "shared_collections", collectionId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            const currentMembers = (snap.data().members || []) as string[];
+            if (!currentMembers.includes(cleanEmail)) {
+                await updateDoc(ref, {
+                    members: arrayUnion(cleanEmail),
+                    ...(name ? { [`memberNames.${cleanEmail}`]: name } : {}),
+                    updatedAt: serverTimestamp(),
+                });
+            }
+            return;
+        }
+    } catch (err) {
+        console.warn("Firestore invite member fallback:", err);
+    }
+
+    const local = getLocalCollections();
+    const target = local.find((c) => c.id === collectionId);
+    if (target) {
+        if (!target.members.includes(cleanEmail)) {
+            target.members.push(cleanEmail);
+            if (name) {
+                target.memberNames = target.memberNames || {};
+                target.memberNames[cleanEmail] = name;
+            }
+            saveLocalCollections(local);
+        }
+    }
+}

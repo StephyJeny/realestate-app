@@ -29,6 +29,8 @@ import TitleVerificationBadge from "@/components/property/TitleVerificationBadge
 import PaymentModal from "@/components/payment/PaymentModal";
 import LuxuryBrochureModal from "@/components/property/LuxuryBrochureModal";
 import FloatingWhatsAppChat from "@/components/property/FloatingWhatsAppChat";
+import ViewingSchedulerModal from "@/components/property/ViewingSchedulerModal";
+import AddToCollectionModal from "@/components/collections/AddToCollectionModal";
 import { LOIData } from "@/lib/loiGenerator";
 import styles from "./page.module.css";
 
@@ -56,6 +58,8 @@ export default function PropertyDetailPage({ params }: Props) {
     const [showOfferModal, setShowOfferModal] = useState(false);
     const [activeLOIData, setActiveLOIData] = useState<LOIData | null>(null);
     const [showBrochureModal, setShowBrochureModal] = useState(false);
+    const [showSchedulerModal, setShowSchedulerModal] = useState(false);
+    const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
     const [paymentModalConfig, setPaymentModalConfig] = useState<{
         isOpen: boolean;
         purpose: "reservation" | "viewing_fee" | "listing_promotion";
@@ -437,12 +441,28 @@ export default function PropertyDetailPage({ params }: Props) {
                         <div className={styles.mediaActions}>
                             <button
                                 type="button"
+                                className={styles.actionTourBtn}
+                                onClick={() => setShowSchedulerModal(true)}
+                                title="Schedule an In-Person Site Visit or Live Virtual Tour"
+                            >
+                                <span>📅 Schedule Tour</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.actionCollectionBtn}
+                                onClick={() => setShowAddToCollectionModal(true)}
+                                title="Save to collaborative co-buying wishlist"
+                            >
+                                <span>👥 Save to Board</span>
+                            </button>
+                            <button
+                                type="button"
                                 className={styles.actionBrochureBtn}
                                 onClick={() => setShowBrochureModal(true)}
                                 title="Export Luxury Branded PDF Brochure with QR Code"
                             >
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></svg>
-                                <span>📄 Luxury PDF Flyer</span>
+                                <span>📄 PDF Flyer</span>
                             </button>
                         </div>
                     </div>
@@ -1275,6 +1295,54 @@ export default function PropertyDetailPage({ params }: Props) {
                                     </button>
                                 </div>
 
+                                {/* Viewing Scheduler & Collaborative Board Buttons */}
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                                    <button
+                                        type="button"
+                                        style={{
+                                            padding: "0.65rem 0.6rem",
+                                            borderRadius: "var(--radius-md)",
+                                            background: "var(--navy-800, #0f1629)",
+                                            border: "none",
+                                            color: "#ffffff",
+                                            fontWeight: 700,
+                                            fontSize: "0.76rem",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.35rem",
+                                            transition: "all 0.15s ease",
+                                        }}
+                                        onClick={() => setShowSchedulerModal(true)}
+                                        title="Book In-Person Site Visit or Virtual Tour with Calendar Sync"
+                                    >
+                                        <span>📅</span> Schedule Tour
+                                    </button>
+                                    <button
+                                        type="button"
+                                        style={{
+                                            padding: "0.65rem 0.6rem",
+                                            borderRadius: "var(--radius-md)",
+                                            background: "#ffffff",
+                                            border: "1px solid var(--border-color, #cbd5e1)",
+                                            color: "var(--text-primary, #0f172a)",
+                                            fontWeight: 700,
+                                            fontSize: "0.76rem",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.35rem",
+                                            transition: "all 0.15s ease",
+                                        }}
+                                        onClick={() => setShowAddToCollectionModal(true)}
+                                        title="Add to shared co-buying or family wishlist"
+                                    >
+                                        <span>👥</span> Shared Board
+                                    </button>
+                                </div>
+
                                 <button className="btn btn-primary btn-lg" style={{ width: "100%" }} onClick={() => setShowInquiry(!showInquiry)}>
                                     {showInquiry ? "Close Inquiry Form" : "Send Inquiry"}
                                 </button>
@@ -1653,6 +1721,43 @@ export default function PropertyDetailPage({ params }: Props) {
                         agentPhone: property.agentPhone,
                     }}
                     onClose={() => setShowBrochureModal(false)}
+                />
+            )}
+
+            {/* Viewing & Open House Scheduler Modal */}
+            {showSchedulerModal && (
+                <ViewingSchedulerModal
+                    property={{
+                        id: property.id,
+                        title: property.title,
+                        price: property.price,
+                        currency: property.currency || "KES",
+                        city: typeof property.location === "object" ? property.location.city : (property as any).city,
+                        neighborhood: typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood,
+                        images: property.images,
+                        agentId: firestoreProp?.agentId || (property as any).agentId || "agent",
+                        agentName: property.agentName,
+                        agentPhone: property.agentPhone,
+                    }}
+                    isOpen={showSchedulerModal}
+                    onClose={() => setShowSchedulerModal(false)}
+                />
+            )}
+
+            {/* Save to Collaborative Shared Collection Modal */}
+            {showAddToCollectionModal && (
+                <AddToCollectionModal
+                    property={{
+                        id: property.id,
+                        title: property.title,
+                        price: property.price,
+                        currency: property.currency || "KES",
+                        images: property.images,
+                        city: typeof property.location === "object" ? property.location.city : (property as any).city,
+                        neighborhood: typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood,
+                    }}
+                    isOpen={showAddToCollectionModal}
+                    onClose={() => setShowAddToCollectionModal(false)}
                 />
             )}
 
