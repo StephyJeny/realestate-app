@@ -1,6 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback, createContext, useContext } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useState, useCallback, useRef, createContext, useContext } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
     prompt: () => Promise<void>;
@@ -26,7 +25,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     const [showBanner, setShowBanner] = useState(false);
     const [isInstalled, setIsInstalled] = useState(false);
     const [canInstall, setCanInstall] = useState(false);
-    const pathname = usePathname();
+    const dismissedRef = useRef(false);
 
     useEffect(() => {
         // Register service worker
@@ -70,12 +69,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
         };
     }, []);
 
-    // Re-show banner on every page navigation
-    useEffect(() => {
-        if (canInstall && !isInstalled) {
-            setShowBanner(true);
-        }
-    }, [pathname, canInstall, isInstalled]);
+    // No longer re-show on every navigation — respect user's dismiss action
 
     const triggerInstall = useCallback(async () => {
         if (!deferredPrompt) return;
@@ -92,6 +86,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     // Dismiss banner — just hides it until next navigation
     const handleDismiss = () => {
         setShowBanner(false);
+        dismissedRef.current = true;
     };
 
     return (

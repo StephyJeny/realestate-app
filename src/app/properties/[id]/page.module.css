@@ -1259,25 +1259,164 @@
 }
 
 /* ========================================
+   MEDIA TOOLBAR & ACTION BAR
+   ======================================== */
+
+.mediaToolbar {
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-light, #eef2f6);
+    padding: 0.5rem 0;
+    margin-bottom: 1rem;
+}
+
+.mediaToolbarInner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.mediaTabs {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.mediaTabs::-webkit-scrollbar {
+    display: none;
+}
+
+.mediaTab {
+    padding: 0.4rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #e2e6ee);
+    background: var(--bg-secondary, #f8f9fb);
+    color: var(--text-secondary, #475569);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.mediaTab:hover {
+    border-color: var(--gold-500);
+    color: var(--gold-600);
+    background: var(--bg-primary);
+}
+
+.mediaTabActive {
+    background: var(--navy-800, #0f1629);
+    color: #ffffff;
+    border-color: var(--navy-800, #0f1629);
+}
+
+.mediaActions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.actionBrochureBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.42rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid rgba(212, 160, 23, 0.35);
+    background: rgba(212, 160, 23, 0.08);
+    color: var(--gold-600, #b8860b);
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.actionBrochureBtn:hover {
+    background: var(--gold-500, #d4a017);
+    color: #ffffff;
+    border-color: var(--gold-500, #d4a017);
+}
+
+/* ========================================
+   PRINT BROCHURE SPECIFICS (Screen Hidden)
+   ======================================== */
+
+.printBrochureHeader {
+    display: none;
+}
+
+.printBrochureFooter {
+    display: none;
+}
+
+/* ========================================
    PRINT STYLES
    ======================================== */
 
 @media print {
-    .page {
-        padding-top: 0 !important;
+    :global(body) {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        background: #ffffff !important;
+        color: #000000 !important;
     }
 
+    :global(nav),
+    :global(header),
+    :global(footer),
+    :global(.mobile-nav),
     .breadcrumbs,
+    .mediaToolbar,
     .shareWrap,
+    .shareMenu,
     .agentCard,
     .statsCard,
     .similar,
-    .printBtn {
+    .printBtn,
+    .thumbnails,
+    :global(.toast),
+    :global([role="status"]) {
         display: none !important;
+    }
+
+    .page {
+        padding-top: 0 !important;
+        margin: 0 !important;
+    }
+
+    .printBrochureHeader {
+        display: flex !important;
+        justify-content: space-between;
+        align-items: flex-end;
+        border-bottom: 2px solid #0f1629;
+        padding-bottom: 0.85rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .printBrochureFooter {
+        display: block !important;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1.5px solid #0f1629;
+    }
+
+    .printFooterCard {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
     .contentGrid {
         grid-template-columns: 1fr !important;
+        display: block !important;
+    }
+
+    .leftCol {
+        width: 100% !important;
     }
 
     .rightCol {
@@ -1285,14 +1424,20 @@
     }
 
     .mainImage {
-        height: 350px !important;
+        height: 380px !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
     }
 
     .section {
         break-inside: avoid;
+        page-break-inside: avoid;
+        margin-bottom: 1.5rem !important;
+        padding: 1rem 0 !important;
     }
 
     .mortgageCalc {
         break-inside: avoid;
+        page-break-inside: avoid;
     }
 }

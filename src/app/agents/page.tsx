@@ -88,12 +88,23 @@ export default function AgentsPage() {
             try {
                 const firestoreAgents = await getApprovedAgents();
 
+                // Cycle through different default avatars so real agents without photos look distinct
+                const defaultAvatars = [
+                    "/images/agent-avatar.png",
+                    "/images/agent-1.png",
+                    "/images/agent-2.png",
+                    "/images/agent-3.png",
+                    "/images/agent-4.png",
+                    "/images/agent-5.png",
+                    "/images/agent-6.png",
+                ];
+
                 // Convert Firestore agents to DisplayAgent format
-                const realAgents: DisplayAgent[] = firestoreAgents.map((agent: UserProfile) => ({
+                const realAgents: DisplayAgent[] = firestoreAgents.map((agent: UserProfile, index: number) => ({
                     id: agent.uid,
                     name: agent.displayName || "Agent",
                     role: agent.specialization || "Real Estate Agent",
-                    image: agent.avatar || "/images/agent-avatar.png",
+                    image: agent.avatar || defaultAvatars[index % defaultAvatars.length],
                     phone: agent.phone || "",
                     email: agent.email || "",
                     bio: agent.bio || "Experienced real estate professional ready to help you find your dream property.",

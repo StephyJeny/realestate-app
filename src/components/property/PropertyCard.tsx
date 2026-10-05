@@ -2,9 +2,10 @@
 import { useState, useEffect } from "react";
 import OptimizedImage from "@/components/ui/OptimizedImage";
 import Link from "next/link";
-import { Property, formatPrice } from "@/lib/data";
+import { Property } from "@/lib/data";
 import { useAuth } from "@/context/AuthContext";
 import { useCompare } from "@/context/CompareContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import { addToFavorites, removeFromFavorites } from "@/lib/firestore";
 import styles from "./PropertyCard.module.css";
 
@@ -15,6 +16,7 @@ interface PropertyCardProps {
 export default function PropertyCard({ property }: PropertyCardProps) {
     const { user, userProfile, refreshProfile } = useAuth();
     const { isInCompare, toggleCompare, compareCount, maxCompare } = useCompare();
+    const { formatCurrency } = useCurrency();
     const [isSaved, setIsSaved] = useState(false);
     const [saving, setSaving] = useState(false);
     const [showToast, setShowToast] = useState<string | null>(null);
@@ -87,6 +89,25 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                     {property.isFeatured && (
                         <span className="badge badge-featured">Featured</span>
                     )}
+                    {property.views && property.views > 100 && (
+                        <span
+                            className="badge"
+                            style={{
+                                background: "rgba(15, 22, 41, 0.75)",
+                                backdropFilter: "blur(6px)",
+                                color: "#ffffff",
+                                border: "1px solid rgba(255, 255, 255, 0.2)",
+                                fontSize: "0.72rem",
+                                fontWeight: 600,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                            }}
+                        >
+                            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px #10b981" }} />
+                            {property.views.toLocaleString()} views
+                        </span>
+                    )}
                 </div>
                 {/* Status Badges */}
                 {property.status === "sold" && (
@@ -131,13 +152,13 @@ export default function PropertyCard({ property }: PropertyCardProps) {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
                 </button>
                 <div className={styles.priceTag}>
-                    {formatPrice(property.price, property.currency)}
+                    {formatCurrency(property.price, true)}
                     {property.listingType === "rent" && <span className={styles.perMonth}>/mo</span>}
                     {property.listingType === "sale" && (() => {
                         const r = 0.12 / 12;
                         const n = 25 * 12;
                         const mo = (property.price * 0.8 * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-                        return <span className={styles.perMonth}> · ~{formatPrice(Math.round(mo), property.currency)}/mo</span>;
+                        return <span className={styles.perMonth}> · ~{formatCurrency(Math.round(mo), true)}/mo</span>;
                     })()}
                 </div>
             </div>

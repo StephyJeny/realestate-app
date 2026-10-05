@@ -32,8 +32,11 @@ interface PropertyResult {
 }
 
 const INITIAL_OPTIONS: QuickOption[] = [
+    { label: "🤖 AI Property Valuation", value: "go_valuation" },
+    { label: "✨ 60-Sec Dream Home Quiz", value: "go_quiz" },
     { label: "🏠 Buying a property", value: "I want to buy a property" },
     { label: "🔑 Renting a property", value: "I want to rent a property" },
+    { label: "📊 Mortgage Calculator", value: "go_mortgage" },
     { label: "💰 Property pricing", value: "What are the property prices?" },
     { label: "🔍 Search properties", value: "search_properties" },
     { label: "👤 Talk to an agent", value: "I want to talk to an agent" },
@@ -560,46 +563,125 @@ export default function ChatBot() {
         }
     };
 
-    const handleSend = () => {
+    const renderFormattedText = (rawText: string) => {
+        return rawText.split("\n").map((line, i) => {
+            const trimmed = line.trim();
+            if (trimmed.startsWith("### ")) {
+                return (
+                    <div key={i} style={{ fontWeight: 800, color: "var(--gold-500)", margin: "0.4rem 0 0.2rem", fontSize: "0.95rem" }}>
+                        {trimmed.replace("### ", "")}
+                    </div>
+                );
+            }
+            if (trimmed.startsWith("## ")) {
+                return (
+                    <div key={i} style={{ fontWeight: 800, color: "var(--gold-500)", margin: "0.5rem 0 0.25rem", fontSize: "1rem" }}>
+                        {trimmed.replace("## ", "")}
+                    </div>
+                );
+            }
+
+            const isBullet = trimmed.startsWith("* ") || trimmed.startsWith("- ") || /^\d+\.\s/.test(trimmed);
+            let displayLine = line;
+            let bulletPrefix = "";
+
+            if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
+                displayLine = trimmed.slice(2);
+                bulletPrefix = "•";
+            } else if (/^\d+\.\s/.test(trimmed)) {
+                const match = trimmed.match(/^(\d+\.)\s(.*)/);
+                if (match) {
+                    bulletPrefix = match[1];
+                    displayLine = match[2];
+                }
+            }
+
+            const parts = displayLine.split(/(\*\*.*?\*\*)/g);
+            return (
+                <div key={i} style={{ display: isBullet ? "flex" : "block", gap: isBullet ? "0.4rem" : "0", margin: "0.15rem 0" }}>
+                    {isBullet && <span style={{ color: "var(--gold-400)", fontWeight: 700, flexShrink: 0 }}>{bulletPrefix}</span>}
+                    <span>
+                        {parts.map((p, pIdx) => {
+                            if (p.startsWith("**") && p.endsWith("**")) {
+                                return <strong key={pIdx} style={{ fontWeight: 700, color: "inherit" }}>{p.slice(2, -2)}</strong>;
+                            }
+                            return p;
+                        })}
+                    </span>
+                </div>
+            );
+        });
+    };
+
+    const handleSend = async () => {
         if (!input.trim()) return;
 
+        const currentInput = input.trim();
         const userMsg: Message = {
             id: Date.now().toString(),
-            text: input.trim(),
+            text: currentInput,
             sender: "user",
             timestamp: new Date(),
         };
         setMessages((prev) => [...prev, userMsg]);
-        const category = classifyMessage(input.trim());
-        const currentInput = input.trim();
         setInput("");
+        setIsTyping(true);
 
-        if (category === "menu") {
-            setIsTyping(true);
-            setTimeout(() => {
-                const menuMsg: Message = {
-                    id: Date.now().toString(),
-                    text: "Sure! What would you like to know? 😊",
-                    sender: "bot",
-                    timestamp: new Date(),
-                    options: INITIAL_OPTIONS,
-                };
-                setMessages((prev) => [...prev, menuMsg]);
-                setIsTyping(false);
-            }, 500);
-            return;
+        try {
+            const res = await fetch("/api/ai/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: currentInput }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.reply) {
+                    const botMsg: Message = {
+                        id: Date.now().toString(),
+                        text: data.reply,
+                        sender: "bot",
+                        timestamp: new Date(),
+                        options: data.options,
+                        properties: data.properties,
+                    };
+                    setMessages((prev) => [...prev, botMsg]);
+                    setIsTyping(false);
+                    return;
+                }
+            }
+        } catch (err) {
+            console.warn("AI Chat API call error, falling back to local heuristic:", err);
         }
 
+        // Local heuristic fallback
+        const category = classifyMessage(currentInput);
         if (category === "search") {
             handlePropertySearch(currentInput);
-            return;
+        } else {
+            addBotResponse(category);
         }
-
-        addBotResponse(category);
     };
 
     const handleQuickOption = (option: QuickOption) => {
-        // Handle action options
+        // Handle navigation and action options
+        if (option.value === "go_valuation") {
+            window.location.href = "/estimate";
+            return;
+        }
+        if (option.value === "go_quiz") {
+            window.location.href = "/quiz";
+            return;
+        }
+        if (option.value === "go_mortgage") {
+            window.location.href = "/mortgage-calculator";
+            return;
+        }
+        if (option.value.startsWith("properties_in_")) {
+            const loc = option.value.replace("properties_in_", "");
+            window.location.href = `/properties?city=${loc}`;
+            return;
+        }
         if (option.value === "call_agent") {
             window.open("tel:+254700123456", "_self");
             return;
@@ -711,12 +793,7 @@ export default function ChatBot() {
                             )}
                             <div className={styles.msgContent}>
                                 <div className={styles.msgBubble}>
-                                    {msg.text.split("\n").map((line, i) => (
-                                        <span key={i}>
-                                            {line.replace(/\*\*(.*?)\*\*/g, "").replace(/\*\*(.*?)\*\*/g, "$1")}
-                                            {i < msg.text.split("\n").length - 1 && <br />}
-                                        </span>
-                                    ))}
+                                    {renderFormattedText(msg.text)}
                                 </div>
                                 {/* Property Cards */}
                                 {msg.properties && msg.properties.length > 0 && (

@@ -2,6 +2,7 @@
 import { useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import InvestmentCalculator from "@/components/property/InvestmentCalculator";
 import styles from "./page.module.css";
 
 function formatKES(n: number): string {
@@ -12,6 +13,7 @@ function MortgageCalculatorContent() {
     const searchParams = useSearchParams();
     const initialPrice = Number(searchParams.get("price")) || 15000000;
 
+    const [calculatorMode, setCalculatorMode] = useState<"mortgage" | "roi">("mortgage");
     const [propertyPrice, setPropertyPrice] = useState(initialPrice);
     const [downPaymentPercent, setDownPaymentPercent] = useState(20);
     const [interestRate, setInterestRate] = useState(12.5);
@@ -77,13 +79,68 @@ function MortgageCalculatorContent() {
         <div className={styles.page}>
             {/* Hero */}
             <div className={styles.hero}>
-                <h1 className={styles.heroTitle}>🏠 Mortgage Calculator</h1>
+                <h1 className={styles.heroTitle}>
+                    {calculatorMode === "mortgage" ? "🏠 Mortgage Calculator" : "📈 Investor Rental Yield & ROI"}
+                </h1>
                 <p className={styles.heroSub}>
-                    Calculate your estimated monthly payments and see a full breakdown of your mortgage.
+                    {calculatorMode === "mortgage"
+                        ? "Calculate your estimated monthly payments, amortization, and financing breakdown."
+                        : "Analyze gross yield, net cap rate, cash-on-cash return, and short-term Airbnb vs long-term tenant performance."}
                 </p>
             </div>
 
-            <div className={styles.layout}>
+            {/* Mode Switcher */}
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "2rem" }}>
+                <div style={{
+                    display: "inline-flex",
+                    background: "var(--bg-secondary, #f1f5f9)",
+                    padding: "4px",
+                    borderRadius: "12px",
+                    border: "1px solid var(--border-color, #e2e6ee)",
+                }}>
+                    <button
+                        type="button"
+                        onClick={() => setCalculatorMode("mortgage")}
+                        style={{
+                            padding: "0.6rem 1.25rem",
+                            borderRadius: "9px",
+                            border: "none",
+                            fontWeight: 700,
+                            fontSize: "0.9rem",
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            background: calculatorMode === "mortgage" ? "var(--primary, #0f1629)" : "transparent",
+                            color: calculatorMode === "mortgage" ? "#ffffff" : "var(--text-secondary, #475569)",
+                        }}
+                    >
+                        🏠 Homebuyer Mortgage
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setCalculatorMode("roi")}
+                        style={{
+                            padding: "0.6rem 1.25rem",
+                            borderRadius: "9px",
+                            border: "none",
+                            fontWeight: 700,
+                            fontSize: "0.9rem",
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            background: calculatorMode === "roi" ? "var(--gold-500, #d4a017)" : "transparent",
+                            color: calculatorMode === "roi" ? "#ffffff" : "var(--text-secondary, #475569)",
+                        }}
+                    >
+                        📈 Investor Rental Yield & ROI
+                    </button>
+                </div>
+            </div>
+
+            {calculatorMode === "roi" ? (
+                <div style={{ maxWidth: "960px", margin: "0 auto" }}>
+                    <InvestmentCalculator propertyPrice={propertyPrice} />
+                </div>
+            ) : (
+                <div className={styles.layout}>
                 {/* Left — Inputs */}
                 <div className={styles.card}>
                     <div className={styles.cardHeader}>
@@ -374,6 +431,7 @@ function MortgageCalculatorContent() {
                     )}
                 </div>
             </div>
+            )}
         </div>
     );
 }

@@ -9,6 +9,7 @@ import { sendInquiry, getPropertyById, FirestoreProperty, submitReview, getRevie
 import { addToRecentlyViewed } from "@/lib/recentlyViewed";
 import { sendInquiryEmail } from "@/lib/email";
 import { useAuth } from "@/context/AuthContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import PropertyCard from "@/components/property/PropertyCard";
 import PropertyMap from "@/components/property/PropertyMap";
 import { getRecentlyViewed, RecentlyViewedItem } from "@/lib/recentlyViewed";
@@ -16,6 +17,11 @@ import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { getOrCreateConversation } from "@/lib/chat";
 import MobileContactBar from "@/components/property/MobileContactBar";
+import LegalDueDiligence from "@/components/property/LegalDueDiligence";
+import FloorPlanViewer from "@/components/property/FloorPlanViewer";
+import CommuteRadar from "@/components/property/CommuteRadar";
+import InvestmentCalculator from "@/components/property/InvestmentCalculator";
+import EstateEstimateWidget from "@/components/property/EstateEstimateWidget";
 import styles from "./page.module.css";
 
 interface Props {
@@ -25,6 +31,7 @@ interface Props {
 export default function PropertyDetailPage({ params }: Props) {
     const { id } = use(params);
     const { user, userProfile } = useAuth();
+    const { formatCurrency, formatCurrencyFull, currency } = useCurrency();
     const router = useRouter();
 
     // Try sample data first, then Firestore
@@ -327,6 +334,23 @@ export default function PropertyDetailPage({ params }: Props) {
 
     return (
         <div className={styles.page}>
+            {/* Print-Only Brochure Header */}
+            <div className={styles.printBrochureHeader}>
+                <div className={styles.printBrand}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                        <span style={{ fontSize: "1.75rem" }}>🏰</span>
+                        <div>
+                            <h2 style={{ fontSize: "1.35rem", margin: 0, fontWeight: 800, letterSpacing: "-0.5px", color: "#0f1629" }}>ESTATEVUE LUXURY LIVING</h2>
+                            <p style={{ fontSize: "0.78rem", margin: "2px 0 0", color: "#555" }}>Official Property Brochure · Kenya Real Estate Portfolio</p>
+                        </div>
+                    </div>
+                </div>
+                <div className={styles.printMeta}>
+                    <div><strong>Listing ID:</strong> EV-{property.id.toUpperCase()}</div>
+                    <div><strong>Date Generated:</strong> {new Date().toLocaleDateString("en-KE", { dateStyle: "long" })}</div>
+                </div>
+            </div>
+
             {/* Breadcrumbs */}
             <div className={styles.breadcrumbs}>
                 <div className="container">
@@ -335,6 +359,77 @@ export default function PropertyDetailPage({ params }: Props) {
                     <Link href="/properties">Properties</Link>
                     <span>/</span>
                     <span className={styles.breadcrumbCurrent}>{property.title}</span>
+                </div>
+            </div>
+
+            {/* Media Navigation & Action Bar */}
+            <div className={styles.mediaToolbar}>
+                <div className="container">
+                    <div className={styles.mediaToolbarInner}>
+                        <div className={styles.mediaTabs}>
+                            <button
+                                type="button"
+                                className={`${styles.mediaTab} ${styles.mediaTabActive}`}
+                                onClick={() => {
+                                    document.querySelector(`.${styles.gallery}`)?.scrollIntoView({ behavior: "smooth" });
+                                }}
+                            >
+                                📷 Photos ({property.images.length})
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.mediaTab}
+                                onClick={() => {
+                                    document.getElementById("floor-plans-section")?.scrollIntoView({ behavior: "smooth" });
+                                }}
+                            >
+                                📐 Floor Plans
+                            </button>
+                            {virtualTourUrl && (
+                                <button
+                                    type="button"
+                                    className={styles.mediaTab}
+                                    onClick={() => {
+                                        document.getElementById("virtual-tour-section")?.scrollIntoView({ behavior: "smooth" });
+                                    }}
+                                >
+                                    🎬 360° Tour
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                className={styles.mediaTab}
+                                onClick={() => {
+                                    document.getElementById("commute-section")?.scrollIntoView({ behavior: "smooth" });
+                                }}
+                            >
+                                🧭 Commute
+                            </button>
+                            {property.listingType === "sale" && (
+                                <button
+                                    type="button"
+                                    className={styles.mediaTab}
+                                    onClick={() => {
+                                        document.getElementById("investment-roi-section")?.scrollIntoView({ behavior: "smooth" });
+                                    }}
+                                >
+                                    📈 Yield ROI
+                                </button>
+                            )}
+                        </div>
+
+                        <div className={styles.mediaActions}>
+                            <button
+                                type="button"
+                                className={styles.actionBrochureBtn}
+                                onClick={() => window.print()}
+                                title="Download or Print Property PDF Brochure"
+                            >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></svg>
+                                <span>📄 PDF Brochure</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -441,7 +536,12 @@ export default function PropertyDetailPage({ params }: Props) {
                                     )}
                                 </div>
                                 <div className={styles.propPrice}>
-                                    <span className={styles.priceValue}>{formatPriceFull(property.price, property.currency)}</span>
+                                    <span className={styles.priceValue}>{formatCurrencyFull(property.price)}</span>
+                                    {currency !== "KES" && (
+                                        <span style={{ fontSize: "0.82rem", color: "var(--text-tertiary)", fontWeight: 500, display: "block", marginTop: "2px" }}>
+                                            (~KES {property.price.toLocaleString()})
+                                        </span>
+                                    )}
                                     {property.listingType === "rent" && <span className={styles.priceUnit}>/month</span>}
                                 </div>
                             </div>
@@ -499,6 +599,33 @@ export default function PropertyDetailPage({ params }: Props) {
                                 );
                             })()}
 
+                            {/* EstateEstimate™ AI Property Valuation Appraisal */}
+                            <EstateEstimateWidget
+                                propertyPrice={property.price}
+                                area={property.area || 2000}
+                                bedrooms={property.bedrooms || 3}
+                                bathrooms={property.bathrooms || 2}
+                                city={typeof property.location === "object" ? property.location.city : (property as any).city || "Nairobi"}
+                                neighborhood={typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood || "Kilimani"}
+                                propertyType={property.type || "apartment"}
+                                amenities={property.amenities || []}
+                                listingType={property.listingType}
+                            />
+
+                            {/* Ardhisasa Legal Due Diligence Verification */}
+                            <div className={styles.section} id="legal-diligence-section">
+                                <LegalDueDiligence
+                                    propertyTitle={property.title}
+                                    city={typeof property.location === "object" ? property.location.city : (property as any).city || "Nairobi"}
+                                    neighborhood={typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood || ""}
+                                    listingType={property.listingType}
+                                    onOpenInquiry={() => {
+                                        setShowInquiry(true);
+                                        document.querySelector(`.${styles.agentCard}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    }}
+                                />
+                            </div>
+
                             {/* Description */}
                             <div className={styles.section}>
                                 <h2 className={styles.sectionTitle}>Description</h2>
@@ -518,9 +645,19 @@ export default function PropertyDetailPage({ params }: Props) {
                                 </div>
                             </div>
 
+                            {/* Architectural Floor Plans */}
+                            <div className={styles.section} id="floor-plans-section">
+                                <FloorPlanViewer
+                                    propertyTitle={property.title}
+                                    totalArea={property.area || 2500}
+                                    bedrooms={property.bedrooms || 3}
+                                    bathrooms={property.bathrooms || 2}
+                                />
+                            </div>
+
                             {/* Virtual Tour */}
                             {virtualTourUrl && (
-                                <div className={styles.section}>
+                                <div className={styles.section} id="virtual-tour-section">
                                     <h2 className={styles.sectionTitle}>🎬 Virtual Tour</h2>
                                     <div className={styles.virtualTourWrap}>
                                         <div className={styles.virtualTourHeader}>
@@ -640,6 +777,17 @@ export default function PropertyDetailPage({ params }: Props) {
                                             </div>
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {/* Investment & Rental Yield ROI Calculator */}
+                            {property.listingType === "sale" && (
+                                <div className={styles.section} id="investment-roi-section">
+                                    <InvestmentCalculator
+                                        propertyPrice={property.price}
+                                        listingType={property.listingType}
+                                        propertyTitle={property.title}
+                                    />
                                 </div>
                             )}
 
@@ -863,6 +1011,14 @@ export default function PropertyDetailPage({ params }: Props) {
                                         ))}
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Commute Time & Landmark Proximity Radar */}
+                            <div className={styles.section} id="commute-section">
+                                <CommuteRadar
+                                    city={typeof property.location === "object" ? property.location.city : (property as any).city || "Nairobi"}
+                                    neighborhood={typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood || ""}
+                                />
                             </div>
 
                             {/* Location Map */}
@@ -1259,6 +1415,31 @@ export default function PropertyDetailPage({ params }: Props) {
                     </div>
                 </section>
             )}
+
+            {/* Print-Only Brochure Footer */}
+            <div className={styles.printBrochureFooter}>
+                <div className={styles.printFooterCard}>
+                    <div>
+                        <h4 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#0f1629" }}>
+                            Listed by {property.agentName} · EstateVue Real Estate
+                        </h4>
+                        <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: "#555" }}>
+                            Tel: {property.agentPhone} · Email: {property.agentEmail}
+                        </p>
+                        <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "#777" }}>
+                            Ardhisasa Title Verified · EstateVue Real Estate Limited · Nairobi, Kenya
+                        </p>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#b8860b" }}>
+                            {formatCurrencyFull(property.price)}
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "#555" }}>
+                            Ref: EV-{property.id.toUpperCase()}
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             {/* Mobile Contact Bar */}
             <MobileContactBar

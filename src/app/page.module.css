@@ -138,6 +138,8 @@
   color: #ffffff;
   padding: 1rem 2rem;
   border-radius: calc(var(--radius-xl) - 4px);
+  border: none;
+  cursor: pointer;
   font-weight: 600;
   font-size: 0.95rem;
   transition: all var(--transition-base);
