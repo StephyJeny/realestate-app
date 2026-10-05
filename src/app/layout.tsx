@@ -9,6 +9,8 @@ import CookieConsent from "@/components/ui/CookieConsent";
 import ToastProvider from "@/components/ui/ToastProvider";
 import { Providers } from "./providers";
 import { PWAProvider } from "@/components/pwa/PWAInstall";
+import ViewTransitionsHandler from "@/components/navigation/ViewTransitionsHandler";
+import MobileBottomNav from "@/components/navigation/MobileBottomNav";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -121,11 +123,13 @@ export default function RootLayout({
       <body>
         <Providers>
           <PWAProvider>
+            <ViewTransitionsHandler />
             <ToastProvider />
             <Navbar />
             <main>{children}</main>
             <Footer />
             <ChatBot />
+            <MobileBottomNav />
             <CookieConsent />
             <BackToTop />
           </PWAProvider>

@@ -473,7 +473,10 @@ export default function PropertyDetailPage({ params }: Props) {
             <section className={styles.gallery}>
                 <div className="container">
                     <div className={styles.galleryGrid}>
-                        <div className={styles.mainImage}>
+                        <div 
+                            className={styles.mainImage}
+                            style={{ viewTransitionName: `prop-img-${property.id}` } as React.CSSProperties}
+                        >
                             <OptimizedImage
                                 src={property.images[activeImage]}
                                 alt={property.title}
@@ -550,7 +553,12 @@ export default function PropertyDetailPage({ params }: Props) {
                             {/* Header */}
                             <div className={styles.propHeader}>
                                 <div>
-                                    <h1 className={styles.propTitle}>{property.title}</h1>
+                                    <h1 
+                                        className={styles.propTitle}
+                                        style={{ viewTransitionName: `prop-title-${property.id}` } as React.CSSProperties}
+                                    >
+                                        {property.title}
+                                    </h1>
                                     <p className={styles.propLocation}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                                         {property.address}, {property.location.neighborhood}, {property.location.city}
