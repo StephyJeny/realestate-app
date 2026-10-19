@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sampleProperties } from "@/lib/data";
+import { enforceRateLimit } from "@/lib/apiSecurity";
 
 interface ChatMessage {
     role: "user" | "assistant" | "model" | "system";
     content: string;
 }
 
+type SampleProperty = (typeof sampleProperties)[number];
+
+interface PropertyContext {
+    title?: string;
+    price?: number | string;
+    location?: unknown;
+    bedrooms?: number;
+}
+
 interface ChatRequestBody {
     message: string;
     history?: ChatMessage[];
-    propertyContext?: any;
+    propertyContext?: PropertyContext;
 }
 
 // System Prompt for EstateVue AI Real Estate Consultant
@@ -39,18 +49,27 @@ YOUR EXPERTISE & KENYAN REAL ESTATE KNOWLEDGE:
    - Quote figures clearly in KES (Kenyan Shillings) or USD when relevant.
    - Encourage viewing bookings and using EstateVue's EstateEstimate™ AI valuation tool.`;
 
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+const MAX_MESSAGE_LENGTH = 1000;
+const MAX_HISTORY_TURNS = 8;
+
 export async function POST(request: NextRequest) {
     try {
-        const body: ChatRequestBody = await request.json();
-        const userMessage = body.message?.trim();
+        // Rate limit: max 20 chat requests per minute per IP
+        const rateLimitRes = enforceRateLimit(request, "ai-chat", 20, 60_000);
+        if (rateLimitRes) return rateLimitRes;
 
-        if (!userMessage) {
+        const body: ChatRequestBody = await request.json();
+        const rawMessage = typeof body.message === "string" ? body.message.trim() : "";
+
+        if (!rawMessage) {
             return NextResponse.json(
                 { success: false, message: "Message is required" },
                 { status: 400 }
             );
         }
 
+        const userMessage = rawMessage.slice(0, MAX_MESSAGE_LENGTH);
         const lower = userMessage.toLowerCase();
 
         // Find relevant properties to recommend
@@ -61,10 +80,26 @@ export async function POST(request: NextRequest) {
             return words.some(w => searchHaystack.includes(w));
         }).slice(0, 3);
 
-        // 1. If GEMINI_API_KEY is available, call Google Gemini 1.5 Flash
+        // 1. If GEMINI_API_KEY is available, call Google Gemini
         if (process.env.GEMINI_API_KEY) {
             try {
-                // Build Gemini messages payload
+                const recentHistory = Array.isArray(body.history)
+                    ? body.history
+                          .slice(-MAX_HISTORY_TURNS)
+                          .map((m) => `${m.role === "user" ? "User" : "VueBot"}: ${String(m.content || "").slice(0, 500)}`)
+                          .join("\n")
+                    : "";
+
+                const propertyContextText =
+                    body.propertyContext && typeof body.propertyContext === "object"
+                        ? `\nCurrently Viewed Property:\n${JSON.stringify({
+                              title: body.propertyContext.title,
+                              price: body.propertyContext.price,
+                              location: body.propertyContext.location,
+                              bedrooms: body.propertyContext.bedrooms,
+                          })}`
+                        : "";
+
                 const contents = [
                     {
                         role: "user",
@@ -83,17 +118,20 @@ export async function POST(request: NextRequest) {
                                     })),
                                     null,
                                     2
-                                )}\n\nUser Question: ${userMessage}`
+                                )}${propertyContextText}${recentHistory ? `\n\nRecent Conversation:\n${recentHistory}` : ""}\n\nUser Question: ${userMessage}`
                             }
                         ]
                     }
                 ];
 
                 const response = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+                    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
                     {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: {
+                            "Content-Type": "application/json",
+                            "x-goog-api-key": process.env.GEMINI_API_KEY,
+                        },
                         body: JSON.stringify({ contents }),
                     }
                 );
@@ -134,7 +172,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-function formatPropertySummary(p: any) {
+function formatPropertySummary(p: SampleProperty) {
     return {
         id: p.id,
         title: p.title,
@@ -149,7 +187,7 @@ function formatPropertySummary(p: any) {
     };
 }
 
-function generateSmartAdvisorReply(query: string, matched: any[]) {
+function generateSmartAdvisorReply(query: string, matched: SampleProperty[]) {
     const lower = query.toLowerCase();
 
     // Legal / ArdhiSasa / Conveyance

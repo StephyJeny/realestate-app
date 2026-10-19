@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import toast from "react-hot-toast";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useAuth } from "@/context/AuthContext";
 import { submitOffer, OfferDetails } from "@/lib/firestore";
 import { generateLOINumber, LOIData } from "@/lib/loiGenerator";
@@ -24,6 +25,7 @@ interface MakeAnOfferModalProps {
 }
 
 export default function MakeAnOfferModal({ property, onClose, onOfferCreated }: MakeAnOfferModalProps) {
+    const dialogRef = useDialogA11y(true, onClose);
     const { user, userProfile } = useAuth();
     const askingPrice = property.price || 0;
     const currency = property.currency || "KES";
@@ -111,7 +113,8 @@ export default function MakeAnOfferModal({ property, onClose, onOfferCreated }: 
             loiNumber,
             date: new Date().toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" }),
             propertyTitle: property.title,
-            lrNumber: `LR No. 209/${Math.floor(10000 + Math.random() * 89000)}`,
+            // The registered LR number is only known after the official title search
+            lrNumber: "To be confirmed at title search",
             city: property.city || "Nairobi",
             neighborhood: property.neighborhood || "Kenya",
             buyerName: buyerName.trim(),
@@ -161,11 +164,18 @@ export default function MakeAnOfferModal({ property, onClose, onOfferCreated }: 
 
     return (
         <div className={styles.overlay} onClick={onClose}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div
+                ref={dialogRef}
+                className={styles.modal}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="offer-modal-title"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Header */}
                 <div className={styles.header}>
                     <div>
-                        <h3 className={styles.headerTitle}>
+                        <h3 id="offer-modal-title" className={styles.headerTitle}>
                             <span>💼</span> Digital &ldquo;Make an Offer&rdquo; Workflow
                         </h3>
                         <p className={styles.headerSubtitle}>

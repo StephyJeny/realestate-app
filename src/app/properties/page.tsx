@@ -3,7 +3,8 @@ import { useState, useMemo, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { sampleProperties, Property } from "@/lib/data";
-import { getAllProperties, getPropertiesByAgent, getUserProfile, FirestoreProperty } from "@/lib/firestore";
+import { getPropertiesPage, getPropertiesByAgent, getUserProfile, FirestoreProperty, PUBLIC_LISTING_STATUSES } from "@/lib/firestore";
+import type { PropertiesPage as FirestorePropertiesPage } from "@/lib/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { createSavedSearch, SavedSearchFilters } from "@/lib/savedSearches";
 import PropertyCard from "@/components/property/PropertyCard";
@@ -13,6 +14,9 @@ import SmartSearchBar from "@/components/property/SmartSearchBar";
 import { filterPropertiesWithSmartQuery, ParsedSmartQuery } from "@/lib/smartSearch";
 import toast from "react-hot-toast";
 import styles from "./page.module.css";
+
+/** Number of Firestore listings fetched per page on the browse page. */
+const LISTINGS_PAGE_SIZE = 48;
 
 const propertyTypes = ["All", "Apartment", "House", "Villa", "Townhouse", "Land", "Commercial"];
 const bedroomOptions = ["Any", "1", "2", "3", "4", "5+"];
@@ -90,6 +94,9 @@ function PropertiesContent() {
     const [searchMode, setSearchMode] = useState<"smart" | "standard">("smart");
     const [firestoreProperties, setFirestoreProperties] = useState<Property[]>([]);
     const [loadingFirestore, setLoadingFirestore] = useState(true);
+    const [pageCursor, setPageCursor] = useState<FirestorePropertiesPage["cursor"]>(null);
+    const [hasMoreListings, setHasMoreListings] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [saveSearchName, setSaveSearchName] = useState("");
@@ -117,19 +124,29 @@ function PropertiesContent() {
     // Read filters from URL params (only after mount to prevent hydration mismatch)
     useEffect(() => {
         if (!hasMounted) return;
+        let hasStandardFilter = false;
+
         const type = searchParams.get("type");
         if (type === "sale" || type === "rent") {
             setSelectedListing(type);
+            hasStandardFilter = true;
         }
         const propertyType = searchParams.get("propertyType");
         if (propertyType) {
+            const normalized = propertyType.toLowerCase().replace(/s$/, "");
             const matched = propertyTypes.find(
-                (t) => t.toLowerCase() === propertyType.toLowerCase()
+                (t) => t.toLowerCase() === propertyType.toLowerCase() || t.toLowerCase() === normalized
             );
-            if (matched) setSelectedType(matched);
+            if (matched) {
+                setSelectedType(matched);
+                hasStandardFilter = true;
+            }
         }
-        const q = searchParams.get("q");
-        if (q) setSearchQuery(q);
+        const q = searchParams.get("q") || searchParams.get("search");
+        if (q) {
+            setSearchQuery(q);
+            hasStandardFilter = true;
+        }
 
         const smartParam = searchParams.get("smart");
         if (smartParam) {
@@ -140,10 +157,12 @@ function PropertiesContent() {
         const cityParam = searchParams.get("city");
         if (cityParam) {
             setSelectedCity(cityParam);
+            hasStandardFilter = true;
         }
         const neighborhoodParam = searchParams.get("neighborhood");
         if (neighborhoodParam) {
             setSelectedNeighborhood(neighborhoodParam);
+            hasStandardFilter = true;
         }
         const minPriceParam = searchParams.get("minPrice");
         const maxPriceParam = searchParams.get("maxPrice");
@@ -151,27 +170,36 @@ function PropertiesContent() {
             const minP = minPriceParam ? Math.max(PRICE_MIN, Number(minPriceParam)) : PRICE_MIN;
             const maxP = maxPriceParam ? Math.min(PRICE_MAX, Number(maxPriceParam)) : PRICE_MAX;
             setPriceRange([minP, maxP]);
+            hasStandardFilter = true;
         }
         const bedroomsParam = searchParams.get("bedrooms");
         if (bedroomsParam && bedroomOptions.includes(bedroomsParam)) {
             setSelectedBedrooms(bedroomsParam);
+            hasStandardFilter = true;
         }
         const bathroomsParam = searchParams.get("bathrooms");
         if (bathroomsParam && bathroomOptions.includes(bathroomsParam)) {
             setSelectedBathrooms(bathroomsParam);
+            hasStandardFilter = true;
         }
         const statusParam = searchParams.get("status");
         if (statusParam && statusOptions.some(s => s.value === statusParam)) {
             setSelectedStatus(statusParam);
+            hasStandardFilter = true;
         }
 
         // Agent filter
         const agentId = searchParams.get("agentId");
         if (agentId) {
             setFilterAgentId(agentId);
+            hasStandardFilter = true;
         } else {
             setFilterAgentId(null);
             setFilterAgentName("");
+        }
+
+        if (hasStandardFilter && !smartParam) {
+            setSearchMode("standard");
         }
     }, [searchParams, hasMounted]);
 
@@ -187,29 +215,57 @@ function PropertiesContent() {
         }
     }, [filterAgentId]);
 
-    // Fetch Firestore properties (filtered by agent if agentId is set)
+    // Fetch Firestore properties (filtered by agent if agentId is set).
+    // Public browsing is paginated; an agent's own listing page loads all of their listings.
     useEffect(() => {
+        let cancelled = false;
         const fetchProperties = async () => {
             setLoadingFirestore(true);
             try {
-                let data: FirestoreProperty[];
                 if (filterAgentId) {
-                    data = await getPropertiesByAgent(filterAgentId);
+                    const data = await getPropertiesByAgent(filterAgentId);
+                    if (cancelled) return;
+                    setFirestoreProperties(
+                        data
+                            .filter((p) => (PUBLIC_LISTING_STATUSES as readonly string[]).includes(p.status))
+                            .map(firestoreToProperty)
+                    );
+                    setPageCursor(null);
+                    setHasMoreListings(false);
                 } else {
-                    data = await getAllProperties();
+                    const page = await getPropertiesPage(LISTINGS_PAGE_SIZE);
+                    if (cancelled) return;
+                    setFirestoreProperties(page.items.map(firestoreToProperty));
+                    setPageCursor(page.cursor);
+                    setHasMoreListings(page.hasMore);
                 }
-                const converted = data
-                    .filter((p) => p.status === "active" || p.status === "under_offer" || p.status === "price_reduced" || p.status === "sold" || p.status === "rented")
-                    .map(firestoreToProperty);
-                setFirestoreProperties(converted);
             } catch (err) {
                 console.error("Failed to fetch Firestore properties:", err);
             } finally {
-                setLoadingFirestore(false);
+                if (!cancelled) setLoadingFirestore(false);
             }
         };
         fetchProperties();
+        return () => {
+            cancelled = true;
+        };
     }, [filterAgentId]);
+
+    const loadMoreListings = async () => {
+        if (!pageCursor || loadingMore) return;
+        setLoadingMore(true);
+        try {
+            const page = await getPropertiesPage(LISTINGS_PAGE_SIZE, pageCursor);
+            setFirestoreProperties((prev) => [...prev, ...page.items.map(firestoreToProperty)]);
+            setPageCursor(page.cursor);
+            setHasMoreListings(page.hasMore);
+        } catch (err) {
+            console.error("Failed to load more listings:", err);
+            toast.error("Couldn't load more listings. Please try again.");
+        } finally {
+            setLoadingMore(false);
+        }
+    };
 
     // Merge sample + Firestore, deduplicating by ID
     // When filtering by agent, only show their properties (no sample data)
@@ -1115,6 +1171,23 @@ function PropertiesContent() {
                                     Reset All Filters
                                 </button>
                             )}
+                        </div>
+                    )}
+
+                    {hasMoreListings && !loadingFirestore && (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", margin: "2rem 0 1rem" }}>
+                            <button
+                                type="button"
+                                onClick={loadMoreListings}
+                                disabled={loadingMore}
+                                className="btn btn-outline"
+                                style={{ minWidth: "220px" }}
+                            >
+                                {loadingMore ? "Loading more listings..." : "Load more listings"}
+                            </button>
+                            <span style={{ fontSize: "0.78rem", color: "var(--text-tertiary)" }}>
+                                Filters apply to the {firestoreProperties.length} listings loaded so far.
+                            </span>
                         </div>
                     )}
                 </div>

@@ -8,15 +8,14 @@ import {
     MapPin, 
     Video, 
     Download, 
-    CheckCircle2, 
     Sparkles, 
     MessageSquare, 
     ExternalLink, 
-    Building2, 
     CalendarCheck 
 } from "@/components/icons/Icons";
 import styles from "./ViewingSchedulerModal.module.css";
 import { useAuth } from "@/context/AuthContext";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { sendInquiry } from "@/lib/firestore";
 
 interface ViewingSchedulerModalProps {
@@ -43,6 +42,7 @@ export default function ViewingSchedulerModal({
     property,
 }: ViewingSchedulerModalProps) {
     const { user, userProfile } = useAuth();
+    const dialogRef = useDialogA11y(isOpen, onClose);
 
     // Scheduling states
     const [mode, setMode] = useState<"in_person" | "virtual">("in_person");
@@ -60,6 +60,7 @@ export default function ViewingSchedulerModal({
     const [note, setNote] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isBooked, setIsBooked] = useState(false);
+    const [bookingError, setBookingError] = useState("");
 
     if (!isOpen) return null;
 
@@ -102,7 +103,8 @@ export default function ViewingSchedulerModal({
     const getScheduledDateTime = () => {
         // e.g. "10:30 AM" -> 10, 30
         const [timePart, meridiem] = selectedSlot.split(" ");
-        let [hours, minutes] = timePart.split(":").map(Number);
+        const [rawHours, minutes] = timePart.split(":").map(Number);
+        let hours = rawHours;
         if (meridiem === "PM" && hours < 12) hours += 12;
         if (meridiem === "AM" && hours === 12) hours = 0;
 
@@ -124,7 +126,7 @@ export default function ViewingSchedulerModal({
             ? "Virtual / WhatsApp Video Tour"
             : `${property.title}, ${property.neighborhood ? property.neighborhood + ", " : ""}${property.city}`;
 
-        const viewingMessage = `Requested ${tourType} on ${selectedDate} at ${selectedSlot}. ` +
+        const viewingMessage = `Requested ${tourType} on ${selectedDate} at ${selectedSlot} (${locationStr}). ` +
             (note ? `Notes: "${note}"` : "") +
             ` Attendee Phone: ${phone}`;
 
@@ -132,21 +134,22 @@ export default function ViewingSchedulerModal({
             await sendInquiry({
                 propertyId: property.id,
                 propertyTitle: property.title,
-                senderId: user?.uid || `guest-${Date.now()}`,
-                senderName: fullName || "Prospective Buyer",
-                senderEmail: email || "buyer@estatevision.co.ke",
-                senderPhone: phone || "Not specified",
+                // Security rules only accept `guest` for signed-out visitors
+                senderId: user?.uid || "guest",
+                senderName: fullName.trim() || "Prospective Buyer",
+                senderEmail: email.trim(),
+                senderPhone: phone.trim() || "Not specified",
                 agentId: property.agentId || "agent-demo",
                 agentName: property.agentName,
                 message: viewingMessage,
                 type: "viewing",
             });
 
+            setBookingError("");
             setIsBooked(true);
         } catch (err) {
             console.error("Failed to book viewing:", err);
-            // Even on network hitch, permit calendar export
-            setIsBooked(true);
+            setBookingError("We couldn't save your viewing request. Please check your connection and try again, or contact the agent on WhatsApp.");
         } finally {
             setIsSubmitting(false);
         }
@@ -161,7 +164,7 @@ export default function ViewingSchedulerModal({
         const location = mode === "virtual" 
             ? "Google Meet / WhatsApp Video" 
             : `${property.title}, ${property.neighborhood ? property.neighborhood + ", " : ""}${property.city}, Kenya`;
-        const details = `Property Viewing arranged via EstateVision.\nProperty: ${property.title}\nAgent: ${property.agentName || "Listing Agent"} (${property.agentPhone || ""})\nMode: ${mode === "virtual" ? "Live Virtual Tour" : "In-Person Site Visit"}\nBuyer: ${fullName} (${phone})`;
+        const details = `Property Viewing arranged via EstateVue.\nProperty: ${property.title}\nAgent: ${property.agentName || "Listing Agent"} (${property.agentPhone || ""})\nMode: ${mode === "virtual" ? "Live Virtual Tour" : "In-Person Site Visit"}\nBuyer: ${fullName} (${phone})`;
 
         const params = new URLSearchParams({
             action: "TEMPLATE",
@@ -183,16 +186,16 @@ export default function ViewingSchedulerModal({
         const location = mode === "virtual"
             ? "WhatsApp Video / Virtual Meeting"
             : `${property.title}, ${property.neighborhood ? property.neighborhood + ", " : ""}${property.city}`;
-        const description = `Viewing for ${property.title} scheduled through EstateVision.\\nAgent: ${property.agentName || "Listing Agent"} (${property.agentPhone || ""})\\nBuyer: ${fullName} (${phone})`;
+        const description = `Viewing for ${property.title} scheduled through EstateVue.\\nAgent: ${property.agentName || "Listing Agent"} (${property.agentPhone || ""})\\nBuyer: ${fullName} (${phone})`;
 
         const icsData = [
             "BEGIN:VCALENDAR",
             "VERSION:2.0",
-            "PRODID:-//EstateVision Kenya//Tour Scheduler//EN",
+            "PRODID:-//EstateVue Kenya//Tour Scheduler//EN",
             "CALSCALE:GREGORIAN",
             "METHOD:REQUEST",
             "BEGIN:VEVENT",
-            `UID:viewing-${Date.now()}@estatevision.co.ke`,
+            `UID:viewing-${Date.now()}@estatevue.co.ke`,
             `DTSTAMP:${formatICSDate(new Date())}`,
             `DTSTART:${formatICSDate(start)}`,
             `DTEND:${formatICSDate(end)}`,
@@ -217,7 +220,7 @@ export default function ViewingSchedulerModal({
 
     // WhatsApp Direct Link
     const getWhatsAppUrl = () => {
-        const cleanPhone = (property.agentPhone || "+254700000000").replace(/[^0-9]/g, "");
+        const cleanPhone = (property.agentPhone || "+254700123456").replace(/[^0-9]/g, "");
         const formattedPhone = cleanPhone.startsWith("0") ? `254${cleanPhone.slice(1)}` : cleanPhone;
         const text = encodeURIComponent(
             `Hi ${property.agentName || "Agent"}, I just booked a ${mode === "virtual" ? "virtual tour" : "site viewing"} for "${property.title}" on ${selectedDate} at ${selectedSlot}. My name is ${fullName}. Looking forward!`
@@ -225,18 +228,25 @@ export default function ViewingSchedulerModal({
         return `https://wa.me/${formattedPhone}?text=${text}`;
     };
 
-    const propertyImage = property.images?.[0] || "/images/placeholder.jpg";
+    const propertyImage = property.images?.[0] || "/images/property-1.png";
 
     return (
         <div className={styles.overlay} onClick={onClose}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div
+                ref={dialogRef}
+                className={styles.modal}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="viewing-modal-title"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Header */}
                 <div className={styles.header}>
-                    <h3 className={styles.title}>
+                    <h3 id="viewing-modal-title" className={styles.title}>
                         <CalendarCheck size={20} color="var(--gold-600, #d97706)" />
-                        Schedule Viewing & Open House
+                        Schedule Viewing &amp; Open House
                     </h3>
-                    <button className={styles.closeBtn} onClick={onClose}>
+                    <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
                         ✕
                     </button>
                 </div>
@@ -389,9 +399,10 @@ export default function ViewingSchedulerModal({
                                     </div>
 
                                     <div className={styles.inputField} style={{ marginTop: "0.4rem" }}>
-                                        <label className={styles.inputLabel}>Email Address</label>
+                                        <label className={styles.inputLabel}>Email Address *</label>
                                         <input
                                             type="email"
+                                            required
                                             placeholder="buyer@gmail.com"
                                             className={styles.input}
                                             value={email}
@@ -410,6 +421,22 @@ export default function ViewingSchedulerModal({
                                         />
                                     </div>
                                 </div>
+
+                                {bookingError && (
+                                    <div
+                                        role="alert"
+                                        style={{
+                                            padding: "0.7rem 0.9rem",
+                                            borderRadius: "10px",
+                                            background: "rgba(239, 68, 68, 0.08)",
+                                            border: "1px solid rgba(239, 68, 68, 0.3)",
+                                            color: "#b91c1c",
+                                            fontSize: "0.82rem",
+                                        }}
+                                    >
+                                        {bookingError}
+                                    </div>
+                                )}
 
                                 <button
                                     type="submit"

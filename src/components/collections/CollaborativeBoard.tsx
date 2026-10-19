@@ -364,7 +364,7 @@ export default function CollaborativeBoard({
                                 {/* Thumbnail Image */}
                                 <div className={styles.imageWrap}>
                                     <Image
-                                        src={item.propertyImage || "/images/placeholder.jpg"}
+                                        src={item.propertyImage || "/images/property-1.png"}
                                         alt={item.propertyTitle}
                                         fill
                                         sizes="(max-width: 768px) 100vw, 360px"

@@ -95,7 +95,7 @@ function BuyerDashboardContent() {
             loiNumber: details.loiNumber || `EV-LOI-${new Date().getFullYear()}-0000`,
             date: inquiry.createdAt ? new Date((inquiry.createdAt as any).seconds * 1000).toLocaleDateString() : new Date().toLocaleDateString(),
             propertyTitle: inquiry.propertyTitle,
-            lrNumber: `LR No. 209/${Math.floor(10000 + Math.random() * 89000)}`,
+            lrNumber: "To be confirmed at title search",
             city: "Nairobi",
             neighborhood: "Kenya",
             buyerName: inquiry.senderName,

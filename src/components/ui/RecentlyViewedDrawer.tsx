@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getRecentlyViewed, clearRecentlyViewed, RecentlyViewedItem } from "@/lib/recentlyViewed";
+import { getRecentlyViewed, clearRecentlyViewed, RecentlyViewedItem, RECENTLY_VIEWED_EVENT } from "@/lib/recentlyViewed";
 import { useCurrency } from "@/context/CurrencyContext";
 
 export default function RecentlyViewedDrawer() {
@@ -10,23 +10,21 @@ export default function RecentlyViewedDrawer() {
     const [isOpen, setIsOpen] = useState(false);
     const { formatCurrency } = useCurrency();
 
-    const loadItems = () => {
-        const data = getRecentlyViewed();
-        setItems(data);
-    };
-
     useEffect(() => {
-        loadItems();
+        const loadItems = () => setItems(getRecentlyViewed());
 
-        // Listen for storage events (e.g. from other tabs)
+        // Initial read is deferred so it runs after hydration
+        const initial = setTimeout(loadItems, 0);
+
+        // Same-tab changes (fired by addToRecentlyViewed / clearRecentlyViewed)
+        window.addEventListener(RECENTLY_VIEWED_EVENT, loadItems);
+        // Changes made in other tabs
         window.addEventListener("storage", loadItems);
 
-        // Custom interval check to catch same-tab additions on navigation
-        const interval = setInterval(loadItems, 2000);
-
         return () => {
+            clearTimeout(initial);
+            window.removeEventListener(RECENTLY_VIEWED_EVENT, loadItems);
             window.removeEventListener("storage", loadItems);
-            clearInterval(interval);
         };
     }, []);
 

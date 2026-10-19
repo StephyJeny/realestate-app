@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import Image from "next/image";
 import Link from "next/link";
 import { Users, Plus, Check, ExternalLink, Sparkles, FolderPlus } from "@/components/icons/Icons";
@@ -32,9 +33,10 @@ export default function AddToCollectionModal({
     onClose,
     property,
 }: AddToCollectionModalProps) {
+    const dialogRef = useDialogA11y(isOpen, onClose);
     const { user, userProfile } = useAuth();
     const [collections, setCollections] = useState<SharedCollection[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [, setLoading] = useState(true);
     const [isCreatingNew, setIsCreatingNew] = useState(false);
     const [newTitle, setNewTitle] = useState("");
     const [newDescription, setNewDescription] = useState("");
@@ -44,7 +46,7 @@ export default function AddToCollectionModal({
 
     const effectiveUserId = user?.uid || "guest-buyer";
     const effectiveUserName = userProfile?.displayName || user?.displayName || "Prospective Buyer";
-    const effectiveUserEmail = user?.email || "buyer@estatevision.co.ke";
+    const effectiveUserEmail = user?.email || "buyer@estatevue.co.ke";
 
     useEffect(() => {
         if (!isOpen) return;
@@ -69,7 +71,7 @@ export default function AddToCollectionModal({
 
     if (!isOpen) return null;
 
-    const propertyImage = property.images?.[0] || "/images/placeholder.jpg";
+    const propertyImage = property.images?.[0] || "/images/property-1.png";
 
     const handleAddToExisting = async (collection: SharedCollection) => {
         if (!collection.id) return;
@@ -176,14 +178,21 @@ export default function AddToCollectionModal({
 
     return (
         <div className={styles.overlay} onClick={onClose}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div
+                ref={dialogRef}
+                className={styles.modal}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="collection-modal-title"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Header */}
                 <div className={styles.header}>
-                    <h3 className={styles.title}>
+                    <h3 id="collection-modal-title" className={styles.title}>
                         <Users size={20} color="var(--gold-600, #d97706)" />
                         Save to Shared Collection
                     </h3>
-                    <button className={styles.closeBtn} onClick={onClose}>
+                    <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
                         ✕
                     </button>
                 </div>

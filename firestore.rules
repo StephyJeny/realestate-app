@@ -8,150 +8,413 @@ service cloud.firestore {
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function reviewPath(reviewerUid, agentUid) {
+      return /databases/$(database)/documents/reviews/$(reviewerUid + '_' + agentUid);
+    }
+
     function isRegisteredUser() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      return isAuthenticated() && exists(userPath(request.auth.uid));
+    }
+
+    function currentUser() {
+      return get(userPath(request.auth.uid)).data;
     }
 
     function isAdmin() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isRegisteredUser() && currentUser().role == 'admin';
+    }
+
+    function isApprovedAgent() {
+      return isRegisteredUser() &&
+        currentUser().role == 'agent' &&
+        currentUser().get('agentStatus', '') == 'approved';
+    }
+
+    // Keys changed by this update (only valid inside update rules)
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function onlyChanges(keys) {
+      return changedKeys().hasOnly(keys);
+    }
+
+    function authEmail() {
+      return request.auth.token.get('email', '').lower();
+    }
+
+    function isEmailVerified() {
+      return isAuthenticated() && request.auth.token.get('email_verified', false) == true;
+    }
+
+    // Verifies that an agent rating update happens atomically alongside a real
+    // create, update, or delete of the caller's review document `{callerUid}_{agentUid}`
+    // and that the math (totalReviews, ratingSum, and average rating) is exact.
+    function isValidAtomicRatingUpdate(agentUid) {
+      let rPath = reviewPath(request.auth.uid, agentUid);
+      let hadBefore = exists(rPath);
+      let hasAfter = existsAfter(rPath);
+      let oldTotal = resource.data.get('totalReviews', 0);
+      let oldSum = resource.data.get('ratingSum', oldTotal * resource.data.get('rating', 0));
+      let newTotal = request.resource.data.totalReviews;
+      let newSum = request.resource.data.ratingSum;
+      let newAvg = request.resource.data.rating;
+
+      return isRegisteredUser() &&
+        request.auth.uid != agentUid &&
+        resource.data.role == 'agent' &&
+        onlyChanges(['rating', 'totalReviews', 'ratingSum', 'updatedAt']) &&
+        newTotal is int && newTotal >= 0 &&
+        newSum is number && newSum >= 0 &&
+        newAvg is number && newAvg >= 0 && newAvg <= 5 &&
+        (
+          // 1. Creating a brand-new review in the same batch
+          (!hadBefore && hasAfter &&
+            newTotal == oldTotal + 1 &&
+            newSum == oldSum + getAfter(rPath).data.rating &&
+            newAvg * newTotal >= newSum - 0.5 &&
+            newAvg * newTotal <= newSum + 0.5) ||
+          // 2. Updating an existing review in the same batch
+          (hadBefore && hasAfter &&
+            newTotal == oldTotal &&
+            newTotal > 0 &&
+            newSum == oldSum - get(rPath).data.rating + getAfter(rPath).data.rating &&
+            newAvg * newTotal >= newSum - 0.5 &&
+            newAvg * newTotal <= newSum + 0.5) ||
+          // 3. Deleting an existing review in the same batch
+          (hadBefore && !hasAfter &&
+            newTotal == oldTotal - 1 &&
+            newSum == oldSum - get(rPath).data.rating &&
+            ((newTotal == 0 && newAvg == 0) ||
+             (newTotal > 0 && newAvg * newTotal >= newSum - 0.5 && newAvg * newTotal <= newSum + 0.5)))
+        );
     }
 
     // ========================
     // USER PROFILES
-    // Users can read/write their own profile
-    // Admin can read/write all profiles
+    // - Owner and admins can read any profile.
+    // - Approved agents are public (agents directory / agent profile pages).
+    //   Buyer profiles (email, phone, saved items) are NOT public.
+    // - Users can never change their own role, approval status, verification
+    //   code or rating. Only admins can.
+    // - Agent ratings can ONLY be updated atomically with a verified review write.
     // ========================
     match /users/{userId} {
-      // Public read so the agents page works for unauthenticated visitors
-      allow read: if true;
-      // Allow creation during sign-up even if they aren't fully registered in the db yet
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && 
-        (request.auth.uid == userId || isAdmin());
-      allow delete: if isAuthenticated() && 
-        (request.auth.uid == userId || isAdmin());
+      allow get, list: if isOwner(userId) ||
+        isAdmin() ||
+        (resource.data.role == 'agent' && resource.data.agentStatus == 'approved');
+
+      // Sign-up: only buyer/agent roles, and no self-granted privileges
+      allow create: if isOwner(userId) &&
+        request.resource.data.uid == userId &&
+        request.resource.data.role in ['buyer', 'agent'] &&
+        request.resource.data.get('isVerified', false) == false &&
+        request.resource.data.get('agentStatus', 'pending') == 'pending' &&
+        request.resource.data.get('agentCode', '') == '' &&
+        request.resource.data.get('agentCodeVerified', false) == false &&
+        request.resource.data.get('rating', 0) == 0 &&
+        request.resource.data.get('totalReviews', 0) == 0 &&
+        request.resource.data.get('ratingSum', 0) == 0;
+
+      allow update: if isAdmin() ||
+        // Owner editing their own profile (protected fields locked)
+        (isOwner(userId) &&
+          !changedKeys().hasAny([
+            'uid', 'role', 'agentStatus', 'agentCode', 'isVerified',
+            'rating', 'totalReviews', 'ratingSum', 'createdAt'
+          ]) &&
+          // Agent code can only be confirmed AFTER an admin approved the agent
+          (!changedKeys().hasAny(['agentCodeVerified']) ||
+            (resource.data.get('agentStatus', '') == 'approved' &&
+             request.resource.data.agentCodeVerified == true))) ||
+        // Atomic, math-verified rating update tied to `/reviews/{callerUid}_{agentUid}`
+        isValidAtomicRatingUpdate(userId);
+
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     // ========================
     // PROPERTIES
-    // Anyone can read listings
-    // Authenticated agents can create/edit their own
-    // Admin can manage all
+    // - Anyone can read listings
+    // - Only approved agents can create listings, and only as themselves
+    // - Owners can edit/delete their own listings, but only admins or a
+    //   verified completed payment (`promotedByPaymentId`) can set `isFeatured`
     // ========================
     match /properties/{propertyId} {
+      function isValidPromotionUpdate() {
+        let payId = request.resource.data.get('promotedByPaymentId', '');
+        let payPath = /databases/$(database)/documents/payments/$(payId);
+        return payId is string && payId != '' &&
+          existsAfter(payPath) &&
+          getAfter(payPath).data.userId == request.auth.uid &&
+          getAfter(payPath).data.propertyId == propertyId &&
+          getAfter(payPath).data.purpose == 'listing_promotion' &&
+          getAfter(payPath).data.status == 'completed' &&
+          getAfter(payPath).data.serverVerified == true;
+      }
+
       allow read: if true;
-      allow create: if isRegisteredUser();
-      allow update: if isRegisteredUser() && 
-        (resource.data.agentId == request.auth.uid || isAdmin());
-      allow delete: if isRegisteredUser() && 
-        (resource.data.agentId == request.auth.uid || isAdmin());
+      allow create: if isAdmin() ||
+        (isApprovedAgent() &&
+          request.resource.data.agentId == request.auth.uid &&
+          request.resource.data.get('isFeatured', false) == false);
+      allow update: if isAdmin() ||
+        (isRegisteredUser() &&
+          resource.data.agentId == request.auth.uid &&
+          request.resource.data.agentId == resource.data.agentId &&
+          (!changedKeys().hasAny(['isFeatured', 'promotedUntil', 'promotionTier']) ||
+            isValidPromotionUpdate()));
+      allow delete: if isAdmin() ||
+        (isRegisteredUser() && resource.data.agentId == request.auth.uid);
     }
 
     // ========================
-    // INQUIRIES
-    // Authenticated users can create inquiries
-    // Users can read their own sent/received inquiries
-    // Admin can read all
+    // INQUIRIES / VIEWINGS / OFFERS
+    // - Authenticated users must set senderId == request.auth.uid
+    // - Validated guest inquiries allowed with senderId == 'guest'
+    // - Sender, receiving agent and admins can read
+    // - Only the receiving agent (or admin) can update; parties can't be changed
     // ========================
     match /inquiries/{inquiryId} {
-      allow create: if isRegisteredUser();
-      allow read: if isRegisteredUser() && 
-        (resource.data.senderId == request.auth.uid || 
+      allow create: if (
+          (isRegisteredUser() && request.resource.data.senderId == request.auth.uid) ||
+          (request.auth == null && request.resource.data.senderId == 'guest')
+        ) &&
+        request.resource.data.senderName is string &&
+        request.resource.data.senderName.size() >= 1 &&
+        request.resource.data.senderName.size() <= 120 &&
+        request.resource.data.senderEmail is string &&
+        request.resource.data.senderEmail.size() <= 254 &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() >= 1 &&
+        request.resource.data.message.size() <= 5000;
+      allow read: if isRegisteredUser() &&
+        (resource.data.senderId == request.auth.uid ||
          resource.data.agentId == request.auth.uid ||
          isAdmin());
-      allow update: if isRegisteredUser() && 
-        (resource.data.agentId == request.auth.uid || isAdmin());
-      allow delete: if isRegisteredUser() && isAdmin();
+      allow update: if isAdmin() ||
+        (isRegisteredUser() &&
+          resource.data.agentId == request.auth.uid &&
+          !changedKeys().hasAny(['senderId', 'agentId', 'propertyId']));
+      allow delete: if isAdmin();
     }
 
     // ========================
     // NOTIFICATIONS
-    // Users can read their own notifications
-    // Admin can create notifications for any user
+    // - Users read and mark-as-read their own notifications
+    // - Every notification must be stamped with its creator (createdBy)
+    // - System notifications (agent approval/rejection) are admin-only
     // ========================
     match /notifications/{notificationId} {
-      allow read: if isRegisteredUser() && 
-        resource.data.userId == request.auth.uid;
-      allow create: if isRegisteredUser();
-      allow update: if isRegisteredUser() && 
-        resource.data.userId == request.auth.uid;
+      allow read: if isRegisteredUser() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isRegisteredUser() &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.userId is string &&
+        request.resource.data.read == false &&
+        (!(request.resource.data.type in ['agent_approved', 'agent_rejected', 'system']) || isAdmin());
+      allow update: if isRegisteredUser() &&
+        resource.data.userId == request.auth.uid &&
+        onlyChanges(['read']);
+      allow delete: if isRegisteredUser() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // ========================
     // NEWSLETTER SUBSCRIPTIONS
-    // Anyone can subscribe, admin can read list
+    // Anyone can subscribe (validated), only admins can read/manage the list
     // ========================
-    match /newsletter_subscribers/{email} {
-      allow read: if isAuthenticated() && isAdmin();
-      allow create: if true;
-      allow update, delete: if isAuthenticated() && isAdmin();
+    match /newsletter_subscribers/{subscriberId} {
+      allow read: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly(['email', 'subscribedAt', 'active']) &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() <= 254 &&
+        request.resource.data.email.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$') &&
+        request.resource.data.active == true;
+      allow update, delete: if isAdmin();
+    }
+
+    // ========================
+    // CONTACT MESSAGES
+    // Anyone can submit a contact inquiry (validated), only admins can read/manage
+    // ========================
+    match /contact_messages/{messageId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly([
+          'name', 'email', 'phone', 'subject', 'message', 'senderId', 'status', 'createdAt'
+        ]) &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() >= 1 &&
+        request.resource.data.name.size() <= 120 &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() <= 254 &&
+        request.resource.data.email.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$') &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() >= 1 &&
+        request.resource.data.message.size() <= 5000 &&
+        request.resource.data.status == 'new';
     }
 
     // ========================
     // REVIEWS & RATINGS
-    // Public can read reviews, authenticated users can create
-    // Reviewers can update/delete their own, agents can respond
+    // - Public read
+    // - Document ID must be `{reviewerId}_{agentId}` (enforces 1 review per user per agent)
+    // - Reviewer must be the signed-in user, can't review themselves
+    // - Reviewer may edit their text/rating; agent may only add a response;
+    //   anyone signed in may bump "helpful" by exactly 1
     // ========================
     match /reviews/{reviewId} {
+      function validRating(r) {
+        return r is int && r >= 1 && r <= 5;
+      }
+
       allow read: if true;
-      allow create: if isRegisteredUser();
-      allow update: if isRegisteredUser() && 
-        (resource.data.reviewerId == request.auth.uid || 
-         resource.data.agentId == request.auth.uid ||
-         isAdmin());
-      allow delete: if isRegisteredUser() && 
+      allow create: if isRegisteredUser() &&
+        reviewId == request.auth.uid + '_' + request.resource.data.agentId &&
+        request.resource.data.reviewerId == request.auth.uid &&
+        request.resource.data.agentId != request.auth.uid &&
+        validRating(request.resource.data.rating) &&
+        request.resource.data.get('helpfulCount', 0) == 0 &&
+        request.resource.data.get('isVerifiedPurchase', false) == false &&
+        !request.resource.data.keys().hasAny(['agentResponse', 'agentRespondedAt']);
+      allow update: if isAdmin() ||
+        (isRegisteredUser() &&
+          resource.data.reviewerId == request.auth.uid &&
+          onlyChanges(['rating', 'title', 'comment', 'updatedAt']) &&
+          validRating(request.resource.data.rating)) ||
+        (isRegisteredUser() &&
+          resource.data.agentId == request.auth.uid &&
+          onlyChanges(['agentResponse', 'agentRespondedAt', 'updatedAt'])) ||
+        (isRegisteredUser() &&
+          onlyChanges(['helpfulCount']) &&
+          request.resource.data.helpfulCount == resource.data.get('helpfulCount', 0) + 1);
+      allow delete: if isRegisteredUser() &&
         (resource.data.reviewerId == request.auth.uid || isAdmin());
     }
 
     // ========================
     // CONVERSATIONS (Real-time Chat)
-    // Only participants can read/write conversations
+    // Only participants can read/write; participants can't be changed
     // ========================
     match /conversations/{convoId} {
-      allow read: if isRegisteredUser() && 
+      function isParticipant() {
+        return request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
+      }
+
+      allow read: if isRegisteredUser() &&
         request.auth.uid in resource.data.participants;
-      allow create: if isRegisteredUser();
-      allow update: if isRegisteredUser() && 
-        request.auth.uid in resource.data.participants;
+      allow create: if isRegisteredUser() &&
+        request.resource.data.participants is list &&
+        request.resource.data.participants.size() == 2 &&
+        request.auth.uid in request.resource.data.participants;
+      allow update: if isRegisteredUser() &&
+        request.auth.uid in resource.data.participants &&
+        !changedKeys().hasAny(['participants']);
       allow delete: if isAdmin();
 
       // Messages subcollection
       match /messages/{messageId} {
-        allow read: if isRegisteredUser() && 
-          request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
-        allow create: if isRegisteredUser() && 
-          request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
+        allow read: if isRegisteredUser() && isParticipant();
+        allow create: if isRegisteredUser() && isParticipant() &&
+          (request.resource.data.senderId == request.auth.uid ||
+           (request.resource.data.senderId == 'system' && request.resource.data.type == 'system'));
         allow update, delete: if isAdmin();
       }
     }
+
     // ========================
     // SAVED SEARCHES (Search Alerts)
     // Users can only access their own saved searches
     // ========================
     match /savedSearches/{searchId} {
-      allow read: if isRegisteredUser() && 
+      allow read: if isRegisteredUser() &&
         resource.data.userId == request.auth.uid;
-      allow create: if isRegisteredUser() && 
+      allow create: if isRegisteredUser() &&
         request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isRegisteredUser() && 
+      allow update: if isRegisteredUser() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if isRegisteredUser() &&
         resource.data.userId == request.auth.uid;
-        
     }
+
     // ========================
     // SAVED PROPERTIES
     // Users can only access their own saved properties
     // ========================
     match /savedProperties/{propertyId} {
-      allow read: if isRegisteredUser() && 
+      allow read: if isRegisteredUser() &&
         resource.data.userId == request.auth.uid;
-      allow create: if isRegisteredUser() && 
+      allow create: if isRegisteredUser() &&
         request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isRegisteredUser() && 
+      allow update: if isRegisteredUser() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if isRegisteredUser() &&
         resource.data.userId == request.auth.uid;
-      
+    }
+
+    // ========================
+    // PAYMENTS (M-Pesa Daraja Server-Verified Checkout)
+    // - Clients cannot directly create `"completed"` payments; payments start
+    //   as `"pending"` on `/api/payments/mpesa/stkpush` and are finalized by
+    //   `/api/payments/mpesa/verify` once Daraja confirms the checkout.
+    // ========================
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.checkoutRequestId == paymentId &&
+        request.resource.data.amount is number &&
+        request.resource.data.amount > 0 &&
+        request.resource.data.status == 'pending';
+      allow update: if isAdmin() ||
+        (isAuthenticated() &&
+          resource.data.userId == request.auth.uid &&
+          resource.data.status == 'pending' &&
+          request.resource.data.userId == resource.data.userId &&
+          request.resource.data.amount == resource.data.amount &&
+          request.resource.data.purpose == resource.data.purpose &&
+          request.resource.data.checkoutRequestId == resource.data.checkoutRequestId &&
+          request.resource.data.status in ['completed', 'failed'] &&
+          request.resource.data.serverVerified == true);
+      allow delete: if isAdmin();
+    }
+
+    // ========================
+    // SHARED COLLECTIONS (Co-Buying Collaborative Boards)
+    // - Anyone with the (unguessable) link can view a single board
+    // - Listing boards is limited to the creator / verified invited members
+    // - Only the creator or an invited member with a VERIFIED email can edit
+    // ========================
+    match /shared_collections/{collectionId} {
+      function isCollectionMember() {
+        return isAuthenticated() &&
+          (resource.data.createdBy == request.auth.uid ||
+           (isEmailVerified() && authEmail() != '' && authEmail() in resource.data.members));
+      }
+
+      allow get: if true;
+      allow list: if isCollectionMember() || isAdmin();
+      allow create: if isAuthenticated() &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.members is list &&
+        request.resource.data.members.size() <= 50;
+      allow update: if (isCollectionMember() || isAdmin()) &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        request.resource.data.members.size() <= 50;
+      allow delete: if isAuthenticated() &&
+        (resource.data.createdBy == request.auth.uid || isAdmin());
     }
   }
 }

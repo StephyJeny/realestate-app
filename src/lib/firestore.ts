@@ -15,12 +15,55 @@ import {
     arrayRemove,
     Timestamp,
     limit,
+    writeBatch,
+    startAfter,
+    QueryConstraint,
+    QueryDocumentSnapshot,
+    DocumentData,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
+
+// ========================
+// NOTIFICATION HELPER
+// ========================
+
+/**
+ * Create a notification for a user. Every notification is stamped with the
+ * creator's uid (`createdBy`) — required by Firestore security rules so that
+ * notifications can't be forged anonymously.
+ */
+async function createNotification(data: {
+    userId: string;
+    type: string;
+    title: string;
+    message: string;
+    [key: string]: unknown;
+}) {
+    if (!auth.currentUser?.uid) return null;
+    try {
+        return await addDoc(collection(db, "notifications"), {
+            ...data,
+            createdBy: auth.currentUser.uid,
+            read: false,
+            createdAt: serverTimestamp(),
+        });
+    } catch (err) {
+        console.warn("Notification creation skipped:", err);
+        return null;
+    }
+}
 
 // ========================
 // USER OPERATIONS
 // ========================
+
+export interface NotificationPreferences {
+    savedSearchAlerts: boolean;
+    priceDropAlerts: boolean;
+    offerUpdates: boolean;
+    viewingReminders: boolean;
+    marketNewsletter: boolean;
+}
 
 export interface UserProfile {
     uid: string;
@@ -32,6 +75,7 @@ export interface UserProfile {
     bio: string;
     savedProperties: string[];
     isVerified: boolean;
+    notificationPreferences?: NotificationPreferences;
     // Agent-specific fields
     agentStatus?: "pending" | "approved" | "rejected";
     agentCode?: string;
@@ -44,6 +88,7 @@ export interface UserProfile {
     propertiesCount?: number;
     rating?: number;
     totalReviews?: number;
+    ratingSum?: number;
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }
@@ -93,6 +138,7 @@ export async function createUserProfile(
         profileData.propertiesCount = 0;
         profileData.rating = 0;
         profileData.totalReviews = 0;
+        profileData.ratingSum = 0;
     }
 
     await setDoc(userRef, profileData);
@@ -192,14 +238,12 @@ export async function approveAgent(agentUid: string): Promise<string> {
     });
 
     // Create a notification for the agent
-    await addDoc(collection(db, "notifications"), {
+    await createNotification({
         userId: agentUid,
         type: "agent_approved",
         title: "Agent Application Approved! 🎉",
         message: `Congratulations! Your agent application has been approved. Your agent verification code is: ${code}. Use this code to verify your agent status.`,
         agentCode: code,
-        read: false,
-        createdAt: serverTimestamp(),
     });
 
     return code;
@@ -212,13 +256,11 @@ export async function rejectAgent(agentUid: string, reason?: string) {
         updatedAt: serverTimestamp(),
     });
 
-    await addDoc(collection(db, "notifications"), {
+    await createNotification({
         userId: agentUid,
         type: "agent_rejected",
         title: "Agent Application Update",
         message: reason || "Your agent application has been reviewed and was not approved at this time. Please contact support for more information.",
-        read: false,
-        createdAt: serverTimestamp(),
     });
 }
 
@@ -363,6 +405,52 @@ export async function getAllProperties(): Promise<FirestoreProperty[]> {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FirestoreProperty));
 }
 
+/** Listing statuses that are visible to the public on the browse page. */
+export const PUBLIC_LISTING_STATUSES = ["active", "under_offer", "price_reduced", "sold", "rented"] as const;
+
+export interface PropertiesPage {
+    items: FirestoreProperty[];
+    /** Pass back into `getPropertiesPage` to fetch the next page. `null` when there are no more. */
+    cursor: QueryDocumentSnapshot<DocumentData> | null;
+    hasMore: boolean;
+}
+
+/**
+ * Cursor-paginated public listings, newest first.
+ * Requires the composite index `properties (status ASC, createdAt DESC)`.
+ */
+export async function getPropertiesPage(
+    pageSize = 48,
+    cursor: QueryDocumentSnapshot<DocumentData> | null = null
+): Promise<PropertiesPage> {
+    const constraints: QueryConstraint[] = [
+        where("status", "in", [...PUBLIC_LISTING_STATUSES]),
+        orderBy("createdAt", "desc"),
+        // Fetch one extra to know whether another page exists
+        limit(pageSize + 1),
+    ];
+    if (cursor) constraints.splice(2, 0, startAfter(cursor));
+
+    const snap = await getDocs(query(collection(db, "properties"), ...constraints));
+    const docs = snap.docs.slice(0, pageSize);
+    return {
+        items: docs.map((d) => ({ id: d.id, ...d.data() } as FirestoreProperty)),
+        cursor: docs.length > 0 ? docs[docs.length - 1] : null,
+        hasMore: snap.docs.length > pageSize,
+    };
+}
+
+export async function getFeaturedProperties(maxItems = 6): Promise<FirestoreProperty[]> {
+    const q = query(
+        collection(db, "properties"),
+        where("isFeatured", "==", true),
+        limit(maxItems)
+    );
+    const snap = await getDocs(q);
+    const results = snap.docs.map((d) => ({ id: d.id, ...d.data() } as FirestoreProperty));
+    return results.sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
+}
+
 export async function getPropertyById(propertyId: string): Promise<FirestoreProperty | null> {
     const ref = doc(db, "properties", propertyId);
     const snap = await getDoc(ref);
@@ -445,15 +533,13 @@ export async function sendInquiry(data: {
         ? `New Formal Offer: KES ${data.offerDetails?.offeredPrice?.toLocaleString() || ""} 📝`
         : `New ${typeLabel} 📩`;
 
-    await addDoc(collection(db, "notifications"), {
+    await createNotification({
         userId: data.agentId,
         type: data.type === "offer" ? "new_offer" : "new_inquiry",
         title: titleText,
         message: `${data.senderName} submitted a ${typeLabel.toLowerCase()} for "${data.propertyTitle}": "${data.message.length > 100 ? data.message.slice(0, 100) + "..." : data.message}"`,
         propertyId: data.propertyId,
         inquiryId: inquiryRef.id,
-        read: false,
-        createdAt: serverTimestamp(),
     });
 
     return inquiryRef;
@@ -512,7 +598,7 @@ export async function respondToOffer(params: {
         : "rejected";
 
     const historyEntry = {
-        action: newStatus as any,
+        action: (params.action === "accept" ? "accepted" : params.action === "counter" ? "countered" : "rejected") as "accepted" | "countered" | "rejected",
         actor: params.actorId,
         actorName: params.actorName,
         price: params.counterPrice || currentOffer.offeredPrice,
@@ -525,7 +611,7 @@ export async function respondToOffer(params: {
         offerStatus: newStatus,
         counterPrice: params.counterPrice,
         counterTerms: params.counterTerms,
-        respondedAt: serverTimestamp() as any,
+        respondedAt: serverTimestamp() as unknown as Timestamp,
         history: [...(currentOffer.history || []), historyEntry],
     };
 
@@ -555,23 +641,23 @@ export async function respondToOffer(params: {
         ? `Counter-Offered with KES ${params.counterPrice?.toLocaleString()} ⚖️`
         : "Declined ❌";
 
-    await addDoc(collection(db, "notifications"), {
+    await createNotification({
         userId: inq.senderId,
         type: `offer_${params.action}`,
         title: `Offer ${actionLabel}`,
         message: `${params.actorName} has ${params.action === "accept" ? "accepted your offer" : params.action === "counter" ? `sent a counter-offer of KES ${params.counterPrice?.toLocaleString()}` : "declined your offer"} for "${inq.propertyTitle}".`,
         propertyId: inq.propertyId,
         inquiryId: params.inquiryId,
-        read: false,
-        createdAt: serverTimestamp(),
     });
 
     return updatedOffer;
 }
 
-// Payment Recording (M-Pesa STK Push / Card / Listing Promotion)
+// Payment Recording (M-Pesa Daraja Server-Verified Checkout)
 export interface PaymentRecord {
     id?: string;
+    checkoutRequestId?: string;
+    merchantRequestId?: string;
     userId: string;
     propertyId?: string;
     propertyTitle?: string;
@@ -580,38 +666,24 @@ export interface PaymentRecord {
     purpose: "reservation" | "viewing_fee" | "listing_promotion";
     mpesaReceiptNumber: string;
     phoneNumber: string;
-    status: "completed" | "failed";
+    status: "pending" | "completed" | "failed";
     paymentMethod: "mpesa" | "card";
     promotionTier?: "featured_7" | "featured_14" | "featured_30";
+    serverVerified?: boolean;
+    mode?: "live" | "sandbox";
     createdAt?: Timestamp;
+    completedAt?: Timestamp;
 }
 
-export async function recordPayment(payment: PaymentRecord) {
-    const colRef = collection(db, "payments");
-    const docRef = await addDoc(colRef, {
+export async function createPendingPayment(payment: Omit<PaymentRecord, "status" | "mpesaReceiptNumber"> & { checkoutRequestId: string }) {
+    const docRef = doc(db, "payments", payment.checkoutRequestId);
+    await setDoc(docRef, {
         ...payment,
+        mpesaReceiptNumber: "",
+        status: "pending",
+        serverVerified: false,
         createdAt: serverTimestamp(),
     });
-
-    // If listing promotion, activate promotion on property
-    if (payment.purpose === "listing_promotion" && payment.propertyId) {
-        try {
-            const propRef = doc(db, "properties", payment.propertyId);
-            const days = payment.promotionTier === "featured_30" ? 30 : payment.promotionTier === "featured_14" ? 14 : 7;
-            const expiry = new Date();
-            expiry.setDate(expiry.getDate() + days);
-
-            await updateDoc(propRef, {
-                isFeatured: true,
-                promotedUntil: expiry.toISOString(),
-                promotionTier: payment.promotionTier || "featured_7",
-                updatedAt: serverTimestamp(),
-            });
-        } catch (err) {
-            console.error("Failed to boost property status after payment:", err);
-        }
-    }
-
     return docRef;
 }
 
@@ -673,15 +745,13 @@ export async function replyToInquiry(inquiryId: string, agentId: string, agentNa
     if (snap.exists()) {
         const inquiry = snap.data();
         // Create a notification for the buyer
-        await addDoc(collection(db, "notifications"), {
+        await createNotification({
             userId: inquiry.senderId,
             type: "inquiry_reply",
             title: `Reply from ${agentName} 💬`,
             message: `${agentName} replied to your inquiry about "${inquiry.propertyTitle}": "${reply.length > 120 ? reply.slice(0, 120) + "..." : reply}"`,
             propertyId: inquiry.propertyId,
             inquiryId: inquiryId,
-            read: false,
-            createdAt: serverTimestamp(),
         });
     }
 }
@@ -800,38 +870,68 @@ export interface Review {
 }
 
 export async function submitReview(data: Omit<Review, "id" | "createdAt" | "updatedAt" | "helpfulCount">): Promise<string> {
-    // Check if user already reviewed this agent (one review per agent per user)
-    const existingQ = query(
-        collection(db, "reviews"),
-        where("agentId", "==", data.agentId),
-        where("reviewerId", "==", data.reviewerId)
-    );
-    const existingSnap = await getDocs(existingQ);
-    if (!existingSnap.empty) {
+    const cleanRating = Math.min(5, Math.max(1, Math.round(Number(data.rating) || 5)));
+    const reviewId = `${data.reviewerId}_${data.agentId}`;
+    const reviewRef = doc(db, "reviews", reviewId);
+    const agentRef = doc(db, "users", data.agentId);
+
+    // Check if user already reviewed this agent (both deterministic ID and any legacy review doc)
+    const [existingDoc, existingSnap, agentSnap] = await Promise.all([
+        getDoc(reviewRef),
+        getDocs(
+            query(
+                collection(db, "reviews"),
+                where("agentId", "==", data.agentId),
+                where("reviewerId", "==", data.reviewerId)
+            )
+        ),
+        getDoc(agentRef),
+    ]);
+
+    if (existingDoc.exists() || !existingSnap.empty) {
         throw new Error("already_reviewed");
     }
 
-    const ref = await addDoc(collection(db, "reviews"), {
+    const batch = writeBatch(db);
+    batch.set(reviewRef, {
         ...data,
+        rating: cleanRating,
         helpfulCount: 0,
+        isVerifiedPurchase: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     });
 
-    // Recalculate agent's average rating
-    await recalculateAgentRating(data.agentId);
+    if (agentSnap.exists()) {
+        const agentData = agentSnap.data();
+        const oldTotal = Number(agentData.totalReviews) || 0;
+        const oldSum =
+            typeof agentData.ratingSum === "number"
+                ? agentData.ratingSum
+                : Math.round(oldTotal * (Number(agentData.rating) || 0));
+        const newTotal = oldTotal + 1;
+        const newSum = oldSum + cleanRating;
+        const newAvg = Math.round((newSum / newTotal) * 10) / 10;
+
+        batch.update(agentRef, {
+            rating: newAvg,
+            totalReviews: newTotal,
+            ratingSum: newSum,
+            updatedAt: serverTimestamp(),
+        });
+    }
+
+    await batch.commit();
 
     // Send notification to agent
-    await addDoc(collection(db, "notifications"), {
+    await createNotification({
         userId: data.agentId,
         type: "new_review",
         title: "New Review ⭐",
-        message: `${data.reviewerName} left a ${data.rating}-star review: "${data.comment.length > 100 ? data.comment.slice(0, 100) + "..." : data.comment}"`,
-        read: false,
-        createdAt: serverTimestamp(),
+        message: `${data.reviewerName} left a ${cleanRating}-star review: "${data.comment.length > 100 ? data.comment.slice(0, 100) + "..." : data.comment}"`,
     });
 
-    return ref.id;
+    return reviewId;
 }
 
 export async function getReviewsByAgent(agentId: string): Promise<Review[]> {
@@ -864,8 +964,36 @@ export async function respondToReview(reviewId: string, response: string) {
 }
 
 export async function deleteReview(reviewId: string, agentId: string) {
-    await deleteDoc(doc(db, "reviews", reviewId));
-    await recalculateAgentRating(agentId);
+    const reviewRef = doc(db, "reviews", reviewId);
+    const agentRef = doc(db, "users", agentId);
+    const [reviewSnap, agentSnap] = await Promise.all([getDoc(reviewRef), getDoc(agentRef)]);
+
+    if (!reviewSnap.exists()) return;
+    const removedRating = Number(reviewSnap.data().rating) || 0;
+
+    const batch = writeBatch(db);
+    batch.delete(reviewRef);
+
+    if (agentSnap.exists()) {
+        const agentData = agentSnap.data();
+        const oldTotal = Number(agentData.totalReviews) || 1;
+        const oldSum =
+            typeof agentData.ratingSum === "number"
+                ? agentData.ratingSum
+                : Math.round(oldTotal * (Number(agentData.rating) || 0));
+        const newTotal = Math.max(0, oldTotal - 1);
+        const newSum = newTotal === 0 ? 0 : Math.max(0, oldSum - removedRating);
+        const newAvg = newTotal === 0 ? 0 : Math.round((newSum / newTotal) * 10) / 10;
+
+        batch.update(agentRef, {
+            rating: newAvg,
+            totalReviews: newTotal,
+            ratingSum: newSum,
+            updatedAt: serverTimestamp(),
+        });
+    }
+
+    await batch.commit();
 }
 
 export async function markReviewHelpful(reviewId: string) {
@@ -877,25 +1005,72 @@ export async function markReviewHelpful(reviewId: string) {
     }
 }
 
-async function recalculateAgentRating(agentId: string) {
-    const reviews = await getReviewsByAgent(agentId);
-    if (reviews.length === 0) {
-        await updateDoc(doc(db, "users", agentId), {
-            rating: 0,
-            totalReviews: 0,
-            updatedAt: serverTimestamp(),
-        });
-        return;
-    }
-
-    const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
-    const avgRating = Math.round((totalRating / reviews.length) * 10) / 10;
-
-    await updateDoc(doc(db, "users", agentId), {
-        rating: avgRating,
-        totalReviews: reviews.length,
-        updatedAt: serverTimestamp(),
+export async function submitContactMessage(data: {
+    name: string;
+    email: string;
+    phone?: string;
+    subject?: string;
+    message: string;
+    senderId?: string;
+}) {
+    await addDoc(collection(db, "contact_messages"), {
+        name: data.name.trim().slice(0, 120),
+        email: data.email.trim().toLowerCase().slice(0, 254),
+        phone: (data.phone || "").trim().slice(0, 40),
+        subject: (data.subject || "General Inquiry").trim().slice(0, 160),
+        message: data.message.trim().slice(0, 5000),
+        senderId: data.senderId || auth.currentUser?.uid || "guest",
+        status: "new",
+        createdAt: serverTimestamp(),
     });
+}
+
+export async function submitMortgagePreApproval(data: {
+    applicantName: string;
+    applicantEmail: string;
+    applicantPhone: string;
+    employmentType: string;
+    monthlyIncome: number;
+    preferredBank: string;
+    propertyId?: string;
+    propertyTitle?: string;
+    propertyPrice: number;
+    downPaymentPercent: number;
+    loanAmount: number;
+    interestRate: number;
+    loanTermYears: number;
+    estimatedMonthlyPayment: number;
+    agentId?: string;
+    agentName?: string;
+    senderId?: string;
+}) {
+    const summaryMessage = `Mortgage Pre-Approval Application (${data.preferredBank}): Loan Amount KES ${Math.round(data.loanAmount).toLocaleString()} (${100 - data.downPaymentPercent}% LTV, ${data.loanTermYears} yrs @ ${data.interestRate}% p.a., Est. KES ${Math.round(data.estimatedMonthlyPayment).toLocaleString()}/mo). Employment: ${data.employmentType}, Monthly Net Income: KES ${Math.round(data.monthlyIncome).toLocaleString()}.`;
+
+    // Record in contact_messages for platform mortgage desk
+    await submitContactMessage({
+        name: data.applicantName,
+        email: data.applicantEmail,
+        phone: data.applicantPhone,
+        subject: `Mortgage Pre-Approval — ${data.propertyTitle || "Home Loan"} (${data.preferredBank})`,
+        message: summaryMessage,
+        senderId: data.senderId || auth.currentUser?.uid || "guest",
+    });
+
+    // Also create a direct agent inquiry if tied to a property or agent
+    if (data.propertyId || data.agentId) {
+        await sendInquiry({
+            propertyId: data.propertyId || "mortgage-preapproval",
+            propertyTitle: data.propertyTitle || "Mortgage Pre-Approval Lead",
+            senderId: data.senderId || auth.currentUser?.uid || "guest",
+            senderName: data.applicantName.trim(),
+            senderEmail: data.applicantEmail.trim().toLowerCase(),
+            senderPhone: data.applicantPhone.trim(),
+            agentId: data.agentId || "sample-agent",
+            agentName: data.agentName || "Mortgage Desk",
+            message: summaryMessage,
+            type: "inquiry",
+        });
+    }
 }
 
 // ========================

@@ -11,28 +11,35 @@ import { sendInquiryEmail } from "@/lib/email";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import PropertyCard from "@/components/property/PropertyCard";
-import PropertyMap from "@/components/property/PropertyMap";
 import { getRecentlyViewed, RecentlyViewedItem } from "@/lib/recentlyViewed";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { getOrCreateConversation } from "@/lib/chat";
 import MobileContactBar from "@/components/property/MobileContactBar";
 import LegalDueDiligence from "@/components/property/LegalDueDiligence";
-import FloorPlanViewer from "@/components/property/FloorPlanViewer";
-import CommuteRadar from "@/components/property/CommuteRadar";
-import InvestmentCalculator from "@/components/property/InvestmentCalculator";
 import EstateEstimateWidget from "@/components/property/EstateEstimateWidget";
-import PanoramaViewer from "@/components/property/PanoramaViewer";
-import MakeAnOfferModal from "@/components/property/MakeAnOfferModal";
-import LOIModal from "@/components/property/LOIModal";
 import TitleVerificationBadge from "@/components/property/TitleVerificationBadge";
-import PaymentModal from "@/components/payment/PaymentModal";
-import LuxuryBrochureModal from "@/components/property/LuxuryBrochureModal";
 import FloatingWhatsAppChat from "@/components/property/FloatingWhatsAppChat";
-import ViewingSchedulerModal from "@/components/property/ViewingSchedulerModal";
-import AddToCollectionModal from "@/components/collections/AddToCollectionModal";
 import { LOIData } from "@/lib/loiGenerator";
 import styles from "./page.module.css";
+
+// Heavy, below-the-fold widgets and modals are code-split into their own bundles.
+// Canvas / Leaflet based widgets need `window`, so they skip server rendering.
+const sectionFallback = () => (
+    <div style={{ minHeight: "220px", borderRadius: "var(--radius-lg)", background: "var(--bg-tertiary)" }} />
+);
+const PropertyMap = dynamic(() => import("@/components/property/PropertyMap"), { ssr: false, loading: sectionFallback });
+const PanoramaViewer = dynamic(() => import("@/components/property/PanoramaViewer"), { ssr: false, loading: sectionFallback });
+const FloorPlanViewer = dynamic(() => import("@/components/property/FloorPlanViewer"), { loading: sectionFallback });
+const CommuteRadar = dynamic(() => import("@/components/property/CommuteRadar"), { loading: sectionFallback });
+const InvestmentCalculator = dynamic(() => import("@/components/property/InvestmentCalculator"), { loading: sectionFallback });
+const MakeAnOfferModal = dynamic(() => import("@/components/property/MakeAnOfferModal"));
+const LOIModal = dynamic(() => import("@/components/property/LOIModal"));
+const PaymentModal = dynamic(() => import("@/components/payment/PaymentModal"));
+const LuxuryBrochureModal = dynamic(() => import("@/components/property/LuxuryBrochureModal"));
+const ViewingSchedulerModal = dynamic(() => import("@/components/property/ViewingSchedulerModal"));
+const AddToCollectionModal = dynamic(() => import("@/components/collections/AddToCollectionModal"));
 
 interface Props {
     params: Promise<{ id: string }>;
@@ -47,6 +54,7 @@ export default function PropertyDetailPage({ params }: Props) {
     // Try sample data first, then Firestore
     const sampleProp = sampleProperties.find((p) => p.id === id);
     const [firestoreProp, setFirestoreProp] = useState<FirestoreProperty | null>(null);
+    const [loadingProp, setLoadingProp] = useState(!sampleProp);
     const [activeImage, setActiveImage] = useState(0);
     const [showInquiry, setShowInquiry] = useState(false);
     const [isSending, setIsSending] = useState(false);
@@ -95,7 +103,17 @@ export default function PropertyDetailPage({ params }: Props) {
     // Load Firestore property if not found in samples
     useEffect(() => {
         if (!sampleProp) {
-            getPropertyById(id).then(setFirestoreProp).catch(console.error);
+            setLoadingProp(true);
+            getPropertyById(id)
+                .then((data) => {
+                    setFirestoreProp(data);
+                })
+                .catch(console.error)
+                .finally(() => {
+                    setLoadingProp(false);
+                });
+        } else {
+            setLoadingProp(false);
         }
     }, [id, sampleProp]);
 
@@ -136,8 +154,10 @@ export default function PropertyDetailPage({ params }: Props) {
 
     // Load recently viewed (excluding current)
     useEffect(() => {
-        const items = getRecentlyViewed().filter((item) => item.id !== id);
-        setRecentlyViewed(items);
+        const timer = setTimeout(() => {
+            setRecentlyViewed(getRecentlyViewed().filter((item) => item.id !== id));
+        }, 0);
+        return () => clearTimeout(timer);
     }, [id]);
 
     // Determine which property data to use
@@ -222,6 +242,15 @@ export default function PropertyDetailPage({ params }: Props) {
             setReviewSubmitting(false);
         }
     };
+
+    if (loadingProp) {
+        return (
+            <div style={{ minHeight: "80vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: "var(--navbar-height, 80px)" }}>
+                <div style={{ width: 44, height: 44, border: "3px solid var(--border-color, #e2e8f0)", borderTopColor: "var(--gold-500, #d4a017)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                <p style={{ marginTop: "1rem", color: "var(--text-secondary, #64748b)", fontSize: "0.95rem", fontWeight: 600 }}>Loading luxury property details...</p>
+            </div>
+        );
+    }
 
     if (!property) {
         return (
@@ -327,6 +356,7 @@ export default function PropertyDetailPage({ params }: Props) {
             });
 
             await sendInquiryEmail({
+                propertyId: property.id,
                 agentName: property.agentName,
                 agentEmail: property.agentEmail,
                 senderName: inquiryForm.name,
@@ -799,9 +829,18 @@ export default function PropertyDetailPage({ params }: Props) {
                                                     <span>Estimated Monthly Payment</span>
                                                     <strong>KES {Math.round(monthlyPayment).toLocaleString()}/mo</strong>
                                                 </div>
-                                                <p className={styles.mortgageDisclaimer}>
-                                                    * This is an estimate. Actual payment may vary based on lender terms, insurance, and taxes.
-                                                </p>
+                                                <div style={{ marginTop: "0.85rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
+                                                    <p className={styles.mortgageDisclaimer} style={{ margin: 0 }}>
+                                                        * Indicative estimate based on Kenyan bank rates.
+                                                    </p>
+                                                    <Link
+                                                        href={`/mortgage-calculator?price=${mortgagePrice}&propertyId=${encodeURIComponent(property.id)}&propertyTitle=${encodeURIComponent(property.title)}`}
+                                                        className="btn btn-gold btn-sm"
+                                                        style={{ fontSize: "0.82rem", fontWeight: 700, textDecoration: "none" }}
+                                                    >
+                                                        🏦 Compare Banks & Apply for Pre-Approval →
+                                                    </Link>
+                                                </div>
                                             </div>
                                         </div>
                                     )}

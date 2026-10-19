@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import toast from "react-hot-toast";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { formatPriceFull } from "@/lib/data";
 import styles from "./LuxuryBrochureModal.module.css";
 
@@ -29,6 +30,7 @@ interface LuxuryBrochureModalProps {
 }
 
 export default function LuxuryBrochureModal({ property, onClose }: LuxuryBrochureModalProps) {
+    const dialogRef = useDialogA11y(true, onClose);
     const origin = typeof window !== "undefined" ? window.location.origin : "https://estatevue.co.ke";
     const propertyUrl = `${origin}/properties/${property.id}`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&format=svg&data=${encodeURIComponent(propertyUrl)}`;
@@ -76,13 +78,20 @@ export default function LuxuryBrochureModal({ property, onClose }: LuxuryBrochur
 
     return (
         <div className={styles.overlay} onClick={onClose}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div
+                ref={dialogRef}
+                className={styles.modal}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="brochure-modal-title"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* On-Screen Action Bar */}
                 <div className={styles.toolbar}>
                     <div className={styles.toolbarTitle}>
                         <span className={styles.toolbarIcon}>🏰</span>
                         <div className={styles.toolbarText}>
-                            <h3>Luxury PDF Brochure & Presentation Flyer</h3>
+                            <h3 id="brochure-modal-title">Luxury PDF Brochure &amp; Presentation Flyer</h3>
                             <p>Export branded portfolio flyer with QR code & agent specs</p>
                         </div>
                     </div>

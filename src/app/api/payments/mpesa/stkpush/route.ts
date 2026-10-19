@@ -1,13 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+    enforceRateLimit,
+    verifyFirebaseAuth,
+    patchFirestoreDocServer,
+} from "@/lib/apiSecurity";
+import {
+    PROMOTION_TIER_PRICES,
+    saveCheckoutSession,
+    getDarajaBaseUrl,
+    hasDarajaCredentials,
+    isSandboxSimulationAllowed,
+    getDarajaAccessToken,
+} from "@/lib/mpesaServer";
 
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
-        const { phone, amount, reference, description, purpose } = body;
+        const rateLimitRes = enforceRateLimit(req, "mpesa-stkpush", 8, 60_000);
+        if (rateLimitRes) return rateLimitRes;
 
-        if (!phone || !amount) {
+        const authUser = await verifyFirebaseAuth(req);
+        if (!authUser) {
             return NextResponse.json(
-                { error: "Phone number and amount are required" },
+                { error: "Please sign in to initiate an M-Pesa payment." },
+                { status: 401 }
+            );
+        }
+
+        const body = await req.json();
+        const {
+            phone,
+            amount,
+            reference,
+            description,
+            purpose = "reservation",
+            propertyId,
+            propertyTitle,
+            promotionTier,
+            currency = "KES",
+        } = body;
+
+        if (!phone) {
+            return NextResponse.json(
+                { error: "Safaricom phone number is required" },
+                { status: 400 }
+            );
+        }
+
+        if (!["reservation", "viewing_fee", "listing_promotion"].includes(purpose)) {
+            return NextResponse.json(
+                { error: "Invalid payment purpose" },
+                { status: 400 }
+            );
+        }
+
+        // Enforce server-side amount for promotions; validate bounds for other purposes
+        let verifiedAmount = Math.round(Number(amount) || 0);
+        const validTier: "featured_7" | "featured_14" | "featured_30" | undefined =
+            promotionTier === "featured_30" || promotionTier === "featured_14" || promotionTier === "featured_7"
+                ? promotionTier
+                : purpose === "listing_promotion"
+                ? "featured_7"
+                : undefined;
+
+        if (purpose === "listing_promotion" && validTier) {
+            verifiedAmount = PROMOTION_TIER_PRICES[validTier];
+        } else if (verifiedAmount < 1 || verifiedAmount > 10_000_000) {
+            return NextResponse.json(
+                { error: "Invalid payment amount" },
                 { status: 400 }
             );
         }
@@ -29,77 +88,121 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const consumerKey = process.env.MPESA_CONSUMER_KEY;
-        const consumerSecret = process.env.MPESA_CONSUMER_SECRET;
         const passkey = process.env.MPESA_PASSKEY;
         const shortcode = process.env.MPESA_SHORTCODE || "174379";
 
-        const checkoutRequestId = `ws_CO_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-        const merchantRequestId = `mr_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-        // Authentic Kenyan M-Pesa 10-char receipt format (e.g., TK74G9XP10)
-        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        let mpesaReceipt = "TK";
-        for (let i = 0; i < 8; i++) {
-            mpesaReceipt += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
+        let checkoutRequestId = `ws_CO_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+        let merchantRequestId = `mr_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        let mode: "live" | "sandbox" = "sandbox";
+        let darajaTimestamp: string | undefined;
 
-        // Check if real Daraja live credentials are provided
-        if (consumerKey && consumerSecret && passkey) {
-            try {
-                // Get OAuth token
-                const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
-                const tokenRes = await fetch(
-                    "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
-                    {
-                        headers: { Authorization: `Basic ${auth}` },
-                    }
+        if (hasDarajaCredentials() && passkey) {
+            const accessToken = await getDarajaAccessToken();
+            if (!accessToken) {
+                return NextResponse.json(
+                    { error: "Could not authenticate with Safaricom Daraja API" },
+                    { status: 502 }
                 );
-                const tokenData = await tokenRes.json();
-                const accessToken = tokenData.access_token;
-
-                if (accessToken) {
-                    const timestamp = new Date()
-                        .toISOString()
-                        .replace(/[^0-9]/g, "")
-                        .slice(0, 14);
-                    const password = Buffer.from(`${shortcode}${passkey}${timestamp}`).toString("base64");
-
-                    const stkRes = await fetch(
-                        "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
-                        {
-                            method: "POST",
-                            headers: {
-                                Authorization: `Bearer ${accessToken}`,
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                BusinessShortCode: shortcode,
-                                Password: password,
-                                Timestamp: timestamp,
-                                TransactionType: "CustomerPayBillOnline",
-                                Amount: Math.round(amount),
-                                PartyA: cleanPhone,
-                                PartyB: shortcode,
-                                PhoneNumber: cleanPhone,
-                                CallBackURL: "https://estatevue.co.ke/api/payments/mpesa/callback",
-                                AccountReference: reference || "EstateVue",
-                                TransactionDesc: description || "EstateVue Property Payment",
-                            }),
-                        }
-                    );
-                    const stkData = await stkRes.json();
-                    return NextResponse.json({
-                        ...stkData,
-                        phone: cleanPhone,
-                        mpesaReceiptNumber: mpesaReceipt,
-                    });
-                }
-            } catch (apiErr) {
-                console.warn("Daraja direct API call failed, falling back to simulated sandbox push:", apiErr);
             }
+
+            darajaTimestamp = new Date()
+                .toISOString()
+                .replace(/[^0-9]/g, "")
+                .slice(0, 14);
+            const password = Buffer.from(`${shortcode}${passkey}${darajaTimestamp}`).toString("base64");
+            const callbackUrl =
+                process.env.MPESA_CALLBACK_URL ||
+                `${req.nextUrl.origin}/api/payments/mpesa/callback`;
+
+            const stkRes = await fetch(
+                `${getDarajaBaseUrl()}/mpesa/stkpush/v1/processrequest`,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        BusinessShortCode: shortcode,
+                        Password: password,
+                        Timestamp: darajaTimestamp,
+                        TransactionType: "CustomerPayBillOnline",
+                        Amount: verifiedAmount,
+                        PartyA: cleanPhone,
+                        PartyB: shortcode,
+                        PhoneNumber: cleanPhone,
+                        CallBackURL: callbackUrl,
+                        AccountReference: String(reference || "EstateVue").slice(0, 12),
+                        TransactionDesc: String(description || "EstateVue Property Payment").slice(0, 30),
+                    }),
+                }
+            );
+
+            const stkData = await stkRes.json();
+            if (!stkRes.ok || stkData.ResponseCode !== "0") {
+                return NextResponse.json(
+                    {
+                        error:
+                            stkData.errorMessage ||
+                            stkData.ResponseDescription ||
+                            "Safaricom Daraja rejected the STK push request",
+                    },
+                    { status: 400 }
+                );
+            }
+
+            checkoutRequestId = stkData.CheckoutRequestID || checkoutRequestId;
+            merchantRequestId = stkData.MerchantRequestID || merchantRequestId;
+            mode = process.env.MPESA_ENV === "production" ? "live" : "sandbox";
+        } else if (!isSandboxSimulationAllowed()) {
+            return NextResponse.json(
+                { error: "M-Pesa payment gateway is not configured." },
+                { status: 503 }
+            );
         }
 
-        // High-fidelity sandbox / simulated STK Push response
+        // Save pending checkout session on the server
+        saveCheckoutSession({
+            checkoutRequestId,
+            merchantRequestId,
+            userId: authUser.uid,
+            phone: cleanPhone,
+            amount: verifiedAmount,
+            currency: String(currency || "KES"),
+            purpose,
+            propertyId: propertyId ? String(propertyId) : undefined,
+            propertyTitle: propertyTitle ? String(propertyTitle) : undefined,
+            promotionTier: validTier,
+            mode,
+            status: "pending",
+            createdAtMs: Date.now(),
+            darajaTimestamp,
+        });
+
+        // Create pending payment record in Firestore (status: "pending", serverVerified: false)
+        await patchFirestoreDocServer(
+            `payments/${checkoutRequestId}`,
+            {
+                checkoutRequestId,
+                merchantRequestId,
+                userId: authUser.uid,
+                propertyId: propertyId || "",
+                propertyTitle: propertyTitle || "EstateVue Property",
+                amount: verifiedAmount,
+                currency: String(currency || "KES"),
+                purpose,
+                mpesaReceiptNumber: "",
+                phoneNumber: cleanPhone,
+                status: "pending",
+                paymentMethod: "mpesa",
+                promotionTier: validTier || "",
+                serverVerified: false,
+                mode,
+                createdAt: new Date(),
+            },
+            authUser.idToken
+        );
+
         return NextResponse.json({
             ResponseCode: "0",
             ResponseDescription: "Success. Request accepted for processing",
@@ -107,14 +210,15 @@ export async function POST(req: NextRequest) {
             CheckoutRequestID: checkoutRequestId,
             CustomerMessage: "Success. Check your phone for the M-Pesa PIN prompt.",
             phone: cleanPhone,
-            amount: Math.round(amount),
-            mpesaReceiptNumber: mpesaReceipt,
-            status: "pending_pin",
+            amount: verifiedAmount,
+            mode,
+            status: "pending",
         });
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("M-Pesa STK Push error:", err);
+        const message = err instanceof Error ? err.message : "Failed to process STK push";
         return NextResponse.json(
-            { error: err.message || "Failed to process STK push" },
+            { error: message },
             { status: 500 }
         );
     }

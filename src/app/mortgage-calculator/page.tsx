@@ -3,15 +3,30 @@ import { useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import InvestmentCalculator from "@/components/property/InvestmentCalculator";
+import { useAuth } from "@/context/AuthContext";
+import { submitMortgagePreApproval } from "@/lib/firestore";
+import toast from "react-hot-toast";
 import styles from "./page.module.css";
 
 function formatKES(n: number): string {
     return n.toLocaleString("en-KE", { maximumFractionDigits: 0 });
 }
 
+const KENYAN_LENDERS = [
+    { name: "KCB Bank Kenya", rate: 12.5 },
+    { name: "Stanbic Bank Kenya", rate: 12.2 },
+    { name: "Absa Bank Kenya", rate: 12.4 },
+    { name: "NCBA Bank", rate: 12.8 },
+    { name: "Co-operative Bank", rate: 12.6 },
+    { name: "KMRC Affordable Housing Scheme", rate: 9.5 },
+];
+
 function MortgageCalculatorContent() {
     const searchParams = useSearchParams();
+    const { user, userProfile } = useAuth();
     const initialPrice = Number(searchParams.get("price")) || 15000000;
+    const initialPropertyTitle = searchParams.get("propertyTitle") || "";
+    const initialPropertyId = searchParams.get("propertyId") || "";
 
     const [calculatorMode, setCalculatorMode] = useState<"mortgage" | "roi">("mortgage");
     const [propertyPrice, setPropertyPrice] = useState(initialPrice);
@@ -19,6 +34,26 @@ function MortgageCalculatorContent() {
     const [interestRate, setInterestRate] = useState(12.5);
     const [loanTerm, setLoanTerm] = useState(25);
     const [showAmortization, setShowAmortization] = useState(false);
+
+    // Pre-Approval Application state
+    const [showPreApprovalForm, setShowPreApprovalForm] = useState(false);
+    const [applicantName, setApplicantName] = useState("");
+    const [applicantEmail, setApplicantEmail] = useState("");
+    const [applicantPhone, setApplicantPhone] = useState("");
+    const [employmentType, setEmploymentType] = useState("Salaried Employment");
+    const [monthlyNetIncome, setMonthlyNetIncome] = useState(350000);
+    const [preferredBank, setPreferredBank] = useState(KENYAN_LENDERS[0].name);
+    const [submittingPreApproval, setSubmittingPreApproval] = useState(false);
+    const [preApprovalSubmitted, setPreApprovalSubmitted] = useState(false);
+
+    const handleTogglePreApprovalForm = () => {
+        if (!showPreApprovalForm && user) {
+            setApplicantName((prev) => prev || userProfile?.displayName || user.displayName || "");
+            setApplicantEmail((prev) => prev || user.email || "");
+            setApplicantPhone((prev) => prev || userProfile?.phone || "");
+        }
+        setShowPreApprovalForm(!showPreApprovalForm);
+    };
 
     // Derived values
     const downPaymentAmount = Math.round(propertyPrice * (downPaymentPercent / 100));
@@ -369,16 +404,234 @@ function MortgageCalculatorContent() {
                         </div>
                     </div>
 
+                    {/* Kenyan Partner Banks Quick Rate Selector */}
+                    <div style={{ padding: "0 1.5rem 1.25rem" }}>
+                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "0.5rem" }}>
+                            Compare Kenyan Partner Bank Rates
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                            {KENYAN_LENDERS.map((bank) => {
+                                const isSelected = preferredBank === bank.name;
+                                return (
+                                    <button
+                                        key={bank.name}
+                                        type="button"
+                                        onClick={() => {
+                                            setPreferredBank(bank.name);
+                                            setInterestRate(bank.rate);
+                                        }}
+                                        style={{
+                                            padding: "0.35rem 0.7rem",
+                                            fontSize: "0.76rem",
+                                            fontWeight: 600,
+                                            borderRadius: "999px",
+                                            border: isSelected ? "1.5px solid var(--gold-500, #d4a017)" : "1px solid var(--border-color, #e2e6ee)",
+                                            background: isSelected ? "rgba(212, 160, 23, 0.12)" : "var(--bg-secondary, #f8fafc)",
+                                            color: isSelected ? "var(--gold-600, #b45309)" : "var(--text-secondary)",
+                                            cursor: "pointer",
+                                            transition: "all 0.15s",
+                                        }}
+                                    >
+                                        {bank.name} ({bank.rate}%)
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
                     {/* CTAs */}
-                    <div className={styles.ctaRow}>
-                        <Link href="/properties" className={styles.ctaBtn}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                    <div className={styles.ctaRow} style={{ flexWrap: "wrap" }}>
+                        <button
+                            type="button"
+                            onClick={handleTogglePreApprovalForm}
+                            className={styles.ctaBtn}
+                            style={{
+                                width: "100%",
+                                justifyContent: "center",
+                                background: preApprovalSubmitted
+                                    ? "var(--success, #10b981)"
+                                    : "linear-gradient(135deg, var(--gold-500, #d4a017), var(--gold-600, #b8860b))",
+                                color: "#fff",
+                                border: "none",
+                                cursor: "pointer",
+                            }}
+                        >
+                            {preApprovalSubmitted
+                                ? "✓ Pre-Approval Application Submitted"
+                                : showPreApprovalForm
+                                    ? "Close Pre-Approval Application"
+                                    : `🏦 Apply for Pre-Approval (${preferredBank})`}
+                        </button>
+                        <Link href="/properties" className={`${styles.ctaBtn} ${styles.ctaBtnOutline}`}>
                             Browse Properties
                         </Link>
                         <Link href="/agents" className={`${styles.ctaBtn} ${styles.ctaBtnOutline}`}>
                             Find an Agent
                         </Link>
                     </div>
+
+                    {/* Inline Mortgage Pre-Approval Lead Form */}
+                    {showPreApprovalForm && (
+                        <form
+                            onSubmit={async (e) => {
+                                e.preventDefault();
+                                if (!applicantName.trim() || !applicantEmail.trim() || !applicantPhone.trim()) {
+                                    toast.error("Please fill in your name, email, and phone number.");
+                                    return;
+                                }
+                                setSubmittingPreApproval(true);
+                                try {
+                                    await submitMortgagePreApproval({
+                                        applicantName: applicantName.trim(),
+                                        applicantEmail: applicantEmail.trim(),
+                                        applicantPhone: applicantPhone.trim(),
+                                        senderId: user?.uid,
+                                        propertyId: initialPropertyId || undefined,
+                                        propertyTitle: initialPropertyTitle || undefined,
+                                        propertyPrice,
+                                        downPaymentPercent,
+                                        loanAmount,
+                                        interestRate,
+                                        loanTermYears: loanTerm,
+                                        estimatedMonthlyPayment: Math.round(monthlyPayment),
+                                        monthlyIncome: monthlyNetIncome,
+                                        employmentType,
+                                        preferredBank,
+                                    });
+                                    setPreApprovalSubmitted(true);
+                                    setShowPreApprovalForm(false);
+                                    toast.success(`Pre-approval application submitted for ${preferredBank}! A mortgage specialist will contact you within 24 hours.`);
+                                } catch (err) {
+                                    console.error("Failed to submit pre-approval:", err);
+                                    toast.error("Could not submit pre-approval application. Please try again.");
+                                } finally {
+                                    setSubmittingPreApproval(false);
+                                }
+                            }}
+                            style={{
+                                margin: "0 1.5rem 1.5rem",
+                                padding: "1.25rem",
+                                background: "var(--bg-secondary, #f8fafc)",
+                                borderRadius: "12px",
+                                border: "1px solid var(--border-color, #e2e6ee)",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "0.85rem",
+                            }}
+                        >
+                            <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-heading)" }}>
+                                🏦 Mortgage Pre-Approval Request
+                            </div>
+                            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: 0 }}>
+                                Get a non-binding pre-qualification assessment for a <strong>KES {formatKES(loanAmount)}</strong> mortgage over <strong>{loanTerm} years</strong> (~KES {formatKES(Math.round(monthlyPayment))}/mo).
+                            </p>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem" }}>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.25rem" }}>
+                                        Full Name *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className={styles.input}
+                                        value={applicantName}
+                                        onChange={(e) => setApplicantName(e.target.value)}
+                                        placeholder="Jane Wanjiku"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.25rem" }}>
+                                        Email Address *
+                                    </label>
+                                    <input
+                                        type="email"
+                                        className={styles.input}
+                                        value={applicantEmail}
+                                        onChange={(e) => setApplicantEmail(e.target.value)}
+                                        placeholder="jane@example.com"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.25rem" }}>
+                                        Phone (M-Pesa / WhatsApp) *
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        className={styles.input}
+                                        value={applicantPhone}
+                                        onChange={(e) => setApplicantPhone(e.target.value)}
+                                        placeholder="+254 712 345 678"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.25rem" }}>
+                                        Preferred Bank
+                                    </label>
+                                    <select
+                                        className={styles.input}
+                                        value={preferredBank}
+                                        onChange={(e) => {
+                                            setPreferredBank(e.target.value);
+                                            const found = KENYAN_LENDERS.find((b) => b.name === e.target.value);
+                                            if (found) setInterestRate(found.rate);
+                                        }}
+                                    >
+                                        {KENYAN_LENDERS.map((b) => (
+                                            <option key={b.name} value={b.name}>
+                                                {b.name} ({b.rate}% p.a.)
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.25rem" }}>
+                                        Income Source
+                                    </label>
+                                    <select
+                                        className={styles.input}
+                                        value={employmentType}
+                                        onChange={(e) => setEmploymentType(e.target.value)}
+                                    >
+                                        <option value="Salaried Employment">Salaried Employment</option>
+                                        <option value="Business / Self-Employed">Business / Self-Employed</option>
+                                        <option value="Diaspora Income">Diaspora Remittance / Foreign Income</option>
+                                        <option value="Rental / Investment Income">Rental / Investment Income</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.25rem" }}>
+                                        Monthly Net Income (KES)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        className={styles.input}
+                                        value={monthlyNetIncome || ""}
+                                        onChange={(e) => setMonthlyNetIncome(Number(e.target.value) || 0)}
+                                        min={20000}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={submittingPreApproval}
+                                className={styles.ctaBtn}
+                                style={{
+                                    width: "100%",
+                                    justifyContent: "center",
+                                    background: "var(--navy-800, #0f1629)",
+                                    color: "#fff",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    marginTop: "0.25rem",
+                                }}
+                            >
+                                {submittingPreApproval ? "Submitting Application..." : "Submit Pre-Approval Application →"}
+                            </button>
+                        </form>
+                    )}
                 </div>
 
                 {/* Amortization Schedule */}

@@ -3,6 +3,7 @@ import React from "react";
 import toast from "react-hot-toast";
 import { LOIData, getLOITextDocument } from "@/lib/loiGenerator";
 import styles from "./LOIModal.module.css";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 interface LOIModalProps {
     loiData: LOIData;
@@ -10,6 +11,7 @@ interface LOIModalProps {
 }
 
 export default function LOIModal({ loiData, onClose }: LOIModalProps) {
+    const dialogRef = useDialogA11y(true, onClose);
     const documentText = getLOITextDocument(loiData);
 
     const handleCopy = () => {
@@ -23,13 +25,20 @@ export default function LOIModal({ loiData, onClose }: LOIModalProps) {
 
     return (
         <div className={styles.overlay} onClick={onClose}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div
+                ref={dialogRef}
+                className={styles.modal}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="loi-modal-title"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Header */}
                 <div className={styles.header}>
                     <div className={styles.titleWrap}>
                         <div className={styles.iconBadge}>📜</div>
                         <div>
-                            <h3 className={styles.title}>Official Letter of Intent (LOI)</h3>
+                            <h3 id="loi-modal-title" className={styles.title}>Official Letter of Intent (LOI)</h3>
                             <div className={styles.subtitle}>REF: {loiData.loiNumber} • KENYA CONVEYANCING</div>
                         </div>
                     </div>

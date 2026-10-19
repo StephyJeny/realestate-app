@@ -1,6 +1,8 @@
 "use client";
 import React, { useState } from "react";
 import toast from "react-hot-toast";
+import { useAuth } from "@/context/AuthContext";
+import { submitContactMessage } from "@/lib/firestore";
 
 interface LegalDueDiligenceProps {
     propertyTitle: string;
@@ -17,7 +19,13 @@ export default function LegalDueDiligence({
     listingType,
     onOpenInquiry,
 }: LegalDueDiligenceProps) {
+    const { user, userProfile } = useAuth();
     const [downloading, setDownloading] = useState(false);
+    const [requested, setRequested] = useState(false);
+    const [showGuestForm, setShowGuestForm] = useState(false);
+    const [guestName, setGuestName] = useState("");
+    const [guestEmail, setGuestEmail] = useState("");
+    const [guestPhone, setGuestPhone] = useState("");
 
     // Deterministic LR parcel number based on title
     const parcelHash = propertyTitle.split("").reduce((acc, c) => acc + c.charCodeAt(0), 100);
@@ -60,15 +68,57 @@ export default function LegalDueDiligence({
         },
     ];
 
-    const handleRequestPacket = () => {
+    const submitDossierRequest = async (name: string, email: string, phone: string) => {
         setDownloading(true);
-        setTimeout(() => {
+        try {
+            await submitContactMessage({
+                name: name.trim(),
+                email: email.trim(),
+                phone: phone.trim() || undefined,
+                subject: `Legal Due Diligence Dossier Request — ${propertyTitle} (${lrNumber})`,
+                message: [
+                    `Legal Due Diligence Dossier Request`,
+                    `Property: ${propertyTitle} (${listingType === "sale" ? "For Sale" : "For Rent"})`,
+                    `Location: ${neighborhood}, ${city}`,
+                    `Registered Parcel: ${lrNumber}`,
+                    `Tenure: ${tenureType}`,
+                    `Registry Office: ${registryOffice}`,
+                    `Please email the certified title search extract, deed plan, and rates clearance certificate.`,
+                ].join("\n"),
+                senderId: user?.uid,
+            });
+            setRequested(true);
+            setShowGuestForm(false);
+            toast.success("Due Diligence Dossier request saved! Our legal coordinator will email the verification pack.");
+        } catch (err) {
+            console.error("Failed to request legal pack:", err);
+            toast.error("Could not submit request. Please try again.");
+            if (onOpenInquiry) onOpenInquiry();
+        } finally {
             setDownloading(false);
-            toast.success("Due Diligence Dossier requested! Our legal coordinator will email the verification pack.");
-            if (onOpenInquiry) {
-                onOpenInquiry();
-            }
-        }, 600);
+        }
+    };
+
+    const handleRequestPacket = async () => {
+        if (requested) return;
+        if (user && user.email) {
+            await submitDossierRequest(
+                userProfile?.displayName || user.displayName || "Verified Buyer",
+                user.email,
+                userProfile?.phone || ""
+            );
+        } else {
+            setShowGuestForm((prev) => !prev);
+        }
+    };
+
+    const handleGuestSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!guestName.trim() || !guestEmail.trim()) {
+            toast.error("Please enter your name and email address.");
+            return;
+        }
+        await submitDossierRequest(guestName, guestEmail, guestPhone);
     };
 
     return (
@@ -194,22 +244,105 @@ export default function LegalDueDiligence({
                 </div>
                 <button
                     onClick={handleRequestPacket}
-                    disabled={downloading}
+                    disabled={downloading || requested}
                     style={{
                         padding: "0.5rem 1rem",
                         borderRadius: "var(--radius-sm, 6px)",
-                        background: "var(--navy-800, #0a0e1a)",
+                        background: requested ? "var(--success, #10b981)" : "var(--navy-800, #0a0e1a)",
                         color: "#fff",
                         border: "none",
                         fontSize: "0.8rem",
                         fontWeight: 600,
-                        cursor: "pointer",
+                        cursor: requested ? "default" : "pointer",
                         transition: "opacity 0.2s",
                     }}
                 >
-                    {downloading ? "Requesting..." : "Request Legal Pack →"}
+                    {downloading
+                        ? "Requesting..."
+                        : requested
+                            ? "✓ Legal Pack Requested"
+                            : showGuestForm
+                                ? "Close"
+                                : "Request Legal Pack →"}
                 </button>
             </div>
+
+            {showGuestForm && !requested && (
+                <form
+                    onSubmit={handleGuestSubmit}
+                    style={{
+                        marginTop: "0.75rem",
+                        padding: "1rem",
+                        background: "var(--bg-primary, #fff)",
+                        borderRadius: "var(--radius-md, 10px)",
+                        border: "1px solid var(--border-color, #e2e6ee)",
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: "0.75rem",
+                    }}
+                >
+                    <input
+                        type="text"
+                        placeholder="Your Full Name *"
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                        required
+                        style={{
+                            padding: "0.55rem 0.75rem",
+                            fontSize: "0.84rem",
+                            borderRadius: "var(--radius-sm, 6px)",
+                            border: "1px solid var(--border-color, #cbd5e1)",
+                            background: "var(--bg-input, #fff)",
+                            color: "var(--text-primary)",
+                        }}
+                    />
+                    <input
+                        type="email"
+                        placeholder="Your Email Address *"
+                        value={guestEmail}
+                        onChange={(e) => setGuestEmail(e.target.value)}
+                        required
+                        style={{
+                            padding: "0.55rem 0.75rem",
+                            fontSize: "0.84rem",
+                            borderRadius: "var(--radius-sm, 6px)",
+                            border: "1px solid var(--border-color, #cbd5e1)",
+                            background: "var(--bg-input, #fff)",
+                            color: "var(--text-primary)",
+                        }}
+                    />
+                    <input
+                        type="tel"
+                        placeholder="Phone (+254...)"
+                        value={guestPhone}
+                        onChange={(e) => setGuestPhone(e.target.value)}
+                        style={{
+                            padding: "0.55rem 0.75rem",
+                            fontSize: "0.84rem",
+                            borderRadius: "var(--radius-sm, 6px)",
+                            border: "1px solid var(--border-color, #cbd5e1)",
+                            background: "var(--bg-input, #fff)",
+                            color: "var(--text-primary)",
+                        }}
+                    />
+                    <button
+                        type="submit"
+                        disabled={downloading}
+                        style={{
+                            padding: "0.55rem 1rem",
+                            borderRadius: "var(--radius-sm, 6px)",
+                            background: "linear-gradient(135deg, var(--gold-500, #d4a017), var(--gold-600, #b8860b))",
+                            color: "#fff",
+                            border: "none",
+                            fontSize: "0.82rem",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                        }}
+                    >
+                        {downloading ? "Submitting..." : "Send Dossier to My Email"}
+                    </button>
+                </form>
+            )}
         </div>
     );
 }

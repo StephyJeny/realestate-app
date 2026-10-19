@@ -11,7 +11,7 @@ interface FloatingWhatsAppChatProps {
 
 export default function FloatingWhatsAppChat({
     agentName = "Sarah",
-    agentPhone = "+254700000000",
+    agentPhone = "+254712345678",
     propertyTitle,
     propertyId,
 }: FloatingWhatsAppChatProps) {

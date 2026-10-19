@@ -2,8 +2,6 @@
 
 import { use, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import CollaborativeBoard from "@/components/collections/CollaborativeBoard";
 import { useAuth } from "@/context/AuthContext";
 import { getSharedCollectionById, SharedCollection } from "@/lib/firestore";
@@ -13,12 +11,27 @@ interface Props {
     params: Promise<{ id: string }>;
 }
 
+import toast from "react-hot-toast";
+
 export default function CollectionDetailPage({ params }: Props) {
     const { id } = use(params);
-    const { user, userProfile, loading: authLoading } = useAuth();
+    const { user, userProfile, sendVerificationEmail, refreshProfile } = useAuth();
     const [collection, setCollection] = useState<SharedCollection | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [sendingVerify, setSendingVerify] = useState(false);
+
+    // Stable guest ID across re-renders and page visits
+    const [guestId] = useState(() => {
+        if (typeof window !== "undefined") {
+            const stored = localStorage.getItem("estatevue_guest_id");
+            if (stored) return stored;
+            const newId = "guest-" + Math.random().toString(36).slice(2, 9);
+            try { localStorage.setItem("estatevue_guest_id", newId); } catch {}
+            return newId;
+        }
+        return "guest-user";
+    });
 
     const loadCollection = useCallback(async () => {
         try {
@@ -42,15 +55,39 @@ export default function CollectionDetailPage({ params }: Props) {
         loadCollection();
     }, [loadCollection]);
 
-    const effectiveUserId = user?.uid || "guest-" + Math.random().toString(36).slice(2, 7);
+    const effectiveUserId = user?.uid || guestId;
     const effectiveUserName = userProfile?.displayName || user?.displayName || "Prospective Buyer";
     const effectiveUserEmail = user?.email || undefined;
+    const isUnverifiedInvitedMember = Boolean(
+        user &&
+        !user.emailVerified &&
+        collection &&
+        collection.createdBy !== user.uid &&
+        user.email &&
+        collection.members?.includes(user.email.toLowerCase())
+    );
+
+    const handleSendVerification = async () => {
+        setSendingVerify(true);
+        try {
+            await sendVerificationEmail();
+            toast.success("Verification email sent! Check your inbox.");
+        } catch (err: any) {
+            toast.error(err?.message || "Could not send verification email.");
+        } finally {
+            setSendingVerify(false);
+        }
+    };
+
+    const handleRefreshVerification = async () => {
+        await refreshProfile();
+        await loadCollection();
+        toast.success("Verification status refreshed.");
+    };
 
     return (
-        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#f8fafc" }}>
-            <Navbar />
-
-            <main style={{ flex: 1, maxWidth: "1280px", width: "100%", margin: "0 auto", padding: "2rem 1.5rem" }}>
+        <div style={{ minHeight: "calc(100vh - var(--navbar-height, 80px))", display: "flex", flexDirection: "column", background: "#f8fafc", paddingTop: "var(--navbar-height, 80px)" }}>
+            <div style={{ flex: 1, maxWidth: "1280px", width: "100%", margin: "0 auto", padding: "2rem 1.5rem" }}>
                 {/* Breadcrumbs & Navigation */}
                 <div style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <Link
@@ -70,7 +107,7 @@ export default function CollectionDetailPage({ params }: Props) {
 
                     <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.78rem", color: "#64748b" }}>
                         <Sparkles size={14} color="var(--gold-600, #d97706)" />
-                        EstateVision Co-Buying Room
+                        EstateVue Co-Buying Room
                     </div>
                 </div>
 
@@ -113,17 +150,72 @@ export default function CollectionDetailPage({ params }: Props) {
                         </Link>
                     </div>
                 ) : (
-                    <CollaborativeBoard
-                        collection={collection}
-                        currentUserId={effectiveUserId}
-                        currentUserName={effectiveUserName}
-                        currentUserEmail={effectiveUserEmail}
-                        onUpdate={loadCollection}
-                    />
+                    <>
+                        {isUnverifiedInvitedMember && (
+                            <div
+                                style={{
+                                    background: "#fffbeb",
+                                    border: "1px solid #fde68a",
+                                    borderRadius: "12px",
+                                    padding: "1rem 1.25rem",
+                                    marginBottom: "1.25rem",
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: "0.75rem",
+                                }}
+                            >
+                                <div style={{ fontSize: "0.86rem", color: "#92400e" }}>
+                                    <strong>Verify your email ({user?.email})</strong> to vote, comment, or edit this shared board.
+                                </div>
+                                <div style={{ display: "flex", gap: "0.5rem" }}>
+                                    <button
+                                        type="button"
+                                        onClick={handleSendVerification}
+                                        disabled={sendingVerify}
+                                        style={{
+                                            background: "#d97706",
+                                            color: "#fff",
+                                            border: "none",
+                                            borderRadius: "8px",
+                                            padding: "0.45rem 0.9rem",
+                                            fontSize: "0.8rem",
+                                            fontWeight: 700,
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        {sendingVerify ? "Sending..." : "Send Verification Link"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleRefreshVerification}
+                                        style={{
+                                            background: "#ffffff",
+                                            color: "#92400e",
+                                            border: "1px solid #f59e0b",
+                                            borderRadius: "8px",
+                                            padding: "0.45rem 0.9rem",
+                                            fontSize: "0.8rem",
+                                            fontWeight: 700,
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        I&apos;ve Verified
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        <CollaborativeBoard
+                            collection={collection}
+                            currentUserId={effectiveUserId}
+                            currentUserName={effectiveUserName}
+                            currentUserEmail={effectiveUserEmail}
+                            onUpdate={loadCollection}
+                        />
+                    </>
                 )}
-            </main>
-
-            <Footer />
+            </div>
         </div>
     );
 }

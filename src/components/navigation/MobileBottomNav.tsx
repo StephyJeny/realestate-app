@@ -139,7 +139,7 @@ function MobileBottomNavInner() {
                         <div className={styles.sheetHeader}>
                             <h3 className={styles.sheetTitle}>
                                 <Sparkles size={18} color="var(--gold-600, #d97706)" />
-                                EstateVision Quick Hub
+                                EstateVue Quick Hub
                             </h3>
                             <button
                                 className={styles.sheetCloseBtn}
@@ -222,7 +222,7 @@ function MobileBottomNavInner() {
 
                             {/* WhatsApp Direct Support Banner */}
                             <a
-                                href="https://wa.me/254700000000?text=Hi%20EstateVision%20Concierge%2C%20I%20need%20help%20finding%20a%20property%20in%20Kenya"
+                                href="https://wa.me/254700123456?text=Hi%20EstateVue%20Concierge%2C%20I%20need%20help%20finding%20a%20property%20in%20Kenya"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className={styles.supportBanner}
