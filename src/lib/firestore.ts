@@ -15,12 +15,55 @@ import {
     arrayRemove,
     Timestamp,
     limit,
+    writeBatch,
+    startAfter,
+    QueryConstraint,
+    QueryDocumentSnapshot,
+    DocumentData,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
+
+// ========================
+// NOTIFICATION HELPER
+// ========================
+
+/**
+ * Create a notification for a user. Every notification is stamped with the
+ * creator's uid (`createdBy`) — required by Firestore security rules so that
+ * notifications can't be forged anonymously.
+ */
+async function createNotification(data: {
+    userId: string;
+    type: string;
+    title: string;
+    message: string;
+    [key: string]: unknown;
+}) {
+    if (!auth.currentUser?.uid) return null;
+    try {
+        return await addDoc(collection(db, "notifications"), {
+            ...data,
+            createdBy: auth.currentUser.uid,
+            read: false,
+            createdAt: serverTimestamp(),
+        });
+    } catch (err) {
+        console.warn("Notification creation skipped:", err);
+        return null;
+    }
+}
 
 // ========================
 // USER OPERATIONS
 // ========================
+
+export interface NotificationPreferences {
+    savedSearchAlerts: boolean;
+    priceDropAlerts: boolean;
+    offerUpdates: boolean;
+    viewingReminders: boolean;
+    marketNewsletter: boolean;
+}
 
 export interface UserProfile {
     uid: string;
@@ -32,6 +75,7 @@ export interface UserProfile {
     bio: string;
     savedProperties: string[];
     isVerified: boolean;
+    notificationPreferences?: NotificationPreferences;
     // Agent-specific fields
     agentStatus?: "pending" | "approved" | "rejected";
     agentCode?: string;
@@ -44,6 +88,7 @@ export interface UserProfile {
     propertiesCount?: number;
     rating?: number;
     totalReviews?: number;
+    ratingSum?: number;
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }
@@ -93,6 +138,7 @@ export async function createUserProfile(
         profileData.propertiesCount = 0;
         profileData.rating = 0;
         profileData.totalReviews = 0;
+        profileData.ratingSum = 0;
     }
 
     await setDoc(userRef, profileData);
@@ -192,14 +238,12 @@ export async function approveAgent(agentUid: string): Promise<string> {
     });
 
     // Create a notification for the agent
-    await addDoc(collection(db, "notifications"), {
+    await createNotification({
         userId: agentUid,
         type: "agent_approved",
         title: "Agent Application Approved! 🎉",
         message: `Congratulations! Your agent application has been approved. Your agent verification code is: ${code}. Use this code to verify your agent status.`,
         agentCode: code,
-        read: false,
-        createdAt: serverTimestamp(),
     });
 
     return code;
@@ -212,13 +256,11 @@ export async function rejectAgent(agentUid: string, reason?: string) {
         updatedAt: serverTimestamp(),
     });
 
-    await addDoc(collection(db, "notifications"), {
+    await createNotification({
         userId: agentUid,
         type: "agent_rejected",
         title: "Agent Application Update",
         message: reason || "Your agent application has been reviewed and was not approved at this time. Please contact support for more information.",
-        read: false,
-        createdAt: serverTimestamp(),
     });
 }
 
@@ -363,6 +405,52 @@ export async function getAllProperties(): Promise<FirestoreProperty[]> {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FirestoreProperty));
 }
 
+/** Listing statuses that are visible to the public on the browse page. */
+export const PUBLIC_LISTING_STATUSES = ["active", "under_offer", "price_reduced", "sold", "rented"] as const;
+
+export interface PropertiesPage {
+    items: FirestoreProperty[];
+    /** Pass back into `getPropertiesPage` to fetch the next page. `null` when there are no more. */
+    cursor: QueryDocumentSnapshot<DocumentData> | null;
+    hasMore: boolean;
+}
+
+/**
+ * Cursor-paginated public listings, newest first.
+ * Requires the composite index `properties (status ASC, createdAt DESC)`.
+ */
+export async function getPropertiesPage(
+    pageSize = 48,
+    cursor: QueryDocumentSnapshot<DocumentData> | null = null
+): Promise<PropertiesPage> {
+    const constraints: QueryConstraint[] = [
+        where("status", "in", [...PUBLIC_LISTING_STATUSES]),
+        orderBy("createdAt", "desc"),
+        // Fetch one extra to know whether another page exists
+        limit(pageSize + 1),
+    ];
+    if (cursor) constraints.splice(2, 0, startAfter(cursor));
+
+    const snap = await getDocs(query(collection(db, "properties"), ...constraints));
+    const docs = snap.docs.slice(0, pageSize);
+    return {
+        items: docs.map((d) => ({ id: d.id, ...d.data() } as FirestoreProperty)),
+        cursor: docs.length > 0 ? docs[docs.length - 1] : null,
+        hasMore: snap.docs.length > pageSize,
+    };
+}
+
+export async function getFeaturedProperties(maxItems = 6): Promise<FirestoreProperty[]> {
+    const q = query(
+        collection(db, "properties"),
+        where("isFeatured", "==", true),
+        limit(maxItems)
+    );
+    const snap = await getDocs(q);
+    const results = snap.docs.map((d) => ({ id: d.id, ...d.data() } as FirestoreProperty));
+    return results.sort((a, b) => ((b.createdAt as Timestamp)?.seconds || 0) - ((a.createdAt as Timestamp)?.seconds || 0));
+}
+
 export async function getPropertyById(propertyId: string): Promise<FirestoreProperty | null> {
     const ref = doc(db, "properties", propertyId);
     const snap = await getDoc(ref);
@@ -372,6 +460,31 @@ export async function getPropertyById(propertyId: string): Promise<FirestoreProp
 // ========================
 // INQUIRY OPERATIONS
 // ========================
+
+export interface OfferDetails {
+    offeredPrice: number;
+    askingPrice: number;
+    downPaymentPercent: number;
+    downPaymentAmount: number;
+    financingType: "cash" | "mortgage" | "installments";
+    moveInDate: string;
+    contingencies: string[];
+    specialConditions?: string;
+    loiNumber: string;
+    offerStatus: "pending" | "accepted" | "countered" | "rejected";
+    counterPrice?: number;
+    counterTerms?: string;
+    counteredAt?: Timestamp;
+    respondedAt?: Timestamp;
+    history?: {
+        action: "submitted" | "countered" | "accepted" | "rejected";
+        actor: string;
+        actorName: string;
+        price?: number;
+        note?: string;
+        timestamp: string;
+    }[];
+}
 
 export interface Inquiry {
     id?: string;
@@ -385,6 +498,8 @@ export interface Inquiry {
     message: string;
     type: "inquiry" | "viewing" | "offer";
     status: string;
+    stage?: "new" | "contacted" | "viewing_scheduled" | "offer_made" | "closed";
+    offerDetails?: OfferDetails;
     agentReply?: string;
     repliedAt?: Timestamp;
     createdAt?: Timestamp;
@@ -402,29 +517,174 @@ export async function sendInquiry(data: {
     agentName?: string;
     message: string;
     type: "inquiry" | "viewing" | "offer";
+    offerDetails?: OfferDetails;
 }) {
     const ref = collection(db, "inquiries");
     const inquiryRef = await addDoc(ref, {
         ...data,
-        status: "new",
+        status: data.type === "offer" ? "pending" : "new",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     });
 
     // Create a dashboard notification for the agent
-    const typeLabel = data.type === "viewing" ? "Viewing Request" : data.type === "offer" ? "Offer" : "Inquiry";
-    await addDoc(collection(db, "notifications"), {
+    const typeLabel = data.type === "viewing" ? "Viewing Request" : data.type === "offer" ? "Digital Offer" : "Inquiry";
+    const titleText = data.type === "offer"
+        ? `New Formal Offer: KES ${data.offerDetails?.offeredPrice?.toLocaleString() || ""} 📝`
+        : `New ${typeLabel} 📩`;
+
+    await createNotification({
         userId: data.agentId,
-        type: "new_inquiry",
-        title: `New ${typeLabel} 📩`,
-        message: `${data.senderName} sent a ${typeLabel.toLowerCase()} for "${data.propertyTitle}": "${data.message.length > 100 ? data.message.slice(0, 100) + "..." : data.message}"`,
+        type: data.type === "offer" ? "new_offer" : "new_inquiry",
+        title: titleText,
+        message: `${data.senderName} submitted a ${typeLabel.toLowerCase()} for "${data.propertyTitle}": "${data.message.length > 100 ? data.message.slice(0, 100) + "..." : data.message}"`,
         propertyId: data.propertyId,
         inquiryId: inquiryRef.id,
-        read: false,
-        createdAt: serverTimestamp(),
     });
 
     return inquiryRef;
+}
+
+export async function submitOffer(data: {
+    propertyId: string;
+    propertyTitle: string;
+    senderId: string;
+    senderName: string;
+    senderEmail: string;
+    senderPhone: string;
+    agentId: string;
+    agentName?: string;
+    offerDetails: OfferDetails;
+}) {
+    const message = `Formal Letter of Intent to purchase for KES ${data.offerDetails.offeredPrice.toLocaleString()} with ${data.offerDetails.financingType.toUpperCase()} financing (${data.offerDetails.downPaymentPercent}% down payment). Target move-in: ${data.offerDetails.moveInDate}.`;
+    return sendInquiry({
+        ...data,
+        message,
+        type: "offer",
+        offerDetails: data.offerDetails,
+    });
+}
+
+export async function respondToOffer(params: {
+    inquiryId: string;
+    action: "accept" | "counter" | "reject";
+    actorId: string;
+    actorName: string;
+    counterPrice?: number;
+    counterTerms?: string;
+    note?: string;
+}) {
+    const ref = doc(db, "inquiries", params.inquiryId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error("Offer not found");
+
+    const inq = snap.data() as Inquiry;
+    const currentOffer = inq.offerDetails || {
+        offeredPrice: 0,
+        askingPrice: 0,
+        downPaymentPercent: 10,
+        downPaymentAmount: 0,
+        financingType: "cash",
+        moveInDate: "",
+        contingencies: [],
+        loiNumber: `EV-LOI-${new Date().getFullYear()}-0000`,
+        offerStatus: "pending",
+    };
+
+    const newStatus = params.action === "accept"
+        ? "accepted"
+        : params.action === "counter"
+        ? "countered"
+        : "rejected";
+
+    const historyEntry = {
+        action: (params.action === "accept" ? "accepted" : params.action === "counter" ? "countered" : "rejected") as "accepted" | "countered" | "rejected",
+        actor: params.actorId,
+        actorName: params.actorName,
+        price: params.counterPrice || currentOffer.offeredPrice,
+        note: params.note || params.counterTerms || "",
+        timestamp: new Date().toISOString(),
+    };
+
+    const updatedOffer: OfferDetails = {
+        ...currentOffer,
+        offerStatus: newStatus,
+        counterPrice: params.counterPrice,
+        counterTerms: params.counterTerms,
+        respondedAt: serverTimestamp() as unknown as Timestamp,
+        history: [...(currentOffer.history || []), historyEntry],
+    };
+
+    await updateDoc(ref, {
+        offerDetails: updatedOffer,
+        status: newStatus,
+        updatedAt: serverTimestamp(),
+    });
+
+    // If accepted, update the property listing to 'under_offer'
+    if (params.action === "accept" && inq.propertyId) {
+        try {
+            const propRef = doc(db, "properties", inq.propertyId);
+            await updateDoc(propRef, {
+                status: "under_offer",
+                updatedAt: serverTimestamp(),
+            });
+        } catch (e) {
+            console.warn("Could not update property status to under_offer:", e);
+        }
+    }
+
+    // Notify the buyer of the response
+    const actionLabel = params.action === "accept"
+        ? "Accepted 🎉"
+        : params.action === "counter"
+        ? `Counter-Offered with KES ${params.counterPrice?.toLocaleString()} ⚖️`
+        : "Declined ❌";
+
+    await createNotification({
+        userId: inq.senderId,
+        type: `offer_${params.action}`,
+        title: `Offer ${actionLabel}`,
+        message: `${params.actorName} has ${params.action === "accept" ? "accepted your offer" : params.action === "counter" ? `sent a counter-offer of KES ${params.counterPrice?.toLocaleString()}` : "declined your offer"} for "${inq.propertyTitle}".`,
+        propertyId: inq.propertyId,
+        inquiryId: params.inquiryId,
+    });
+
+    return updatedOffer;
+}
+
+// Payment Recording (M-Pesa Daraja Server-Verified Checkout)
+export interface PaymentRecord {
+    id?: string;
+    checkoutRequestId?: string;
+    merchantRequestId?: string;
+    userId: string;
+    propertyId?: string;
+    propertyTitle?: string;
+    amount: number;
+    currency: string;
+    purpose: "reservation" | "viewing_fee" | "listing_promotion";
+    mpesaReceiptNumber: string;
+    phoneNumber: string;
+    status: "pending" | "completed" | "failed";
+    paymentMethod: "mpesa" | "card";
+    promotionTier?: "featured_7" | "featured_14" | "featured_30";
+    serverVerified?: boolean;
+    mode?: "live" | "sandbox";
+    createdAt?: Timestamp;
+    completedAt?: Timestamp;
+}
+
+export async function createPendingPayment(payment: Omit<PaymentRecord, "status" | "mpesaReceiptNumber"> & { checkoutRequestId: string }) {
+    const docRef = doc(db, "payments", payment.checkoutRequestId);
+    await setDoc(docRef, {
+        ...payment,
+        mpesaReceiptNumber: "",
+        status: "pending",
+        serverVerified: false,
+        createdAt: serverTimestamp(),
+    });
+    return docRef;
 }
 
 export async function getInquiriesByAgent(agentId: string): Promise<Inquiry[]> {
@@ -458,6 +718,18 @@ export async function updateInquiryStatus(inquiryId: string, status: string) {
     await updateDoc(ref, { status, updatedAt: serverTimestamp() });
 }
 
+export async function updateInquiryStage(
+    inquiryId: string,
+    stage: "new" | "contacted" | "viewing_scheduled" | "offer_made" | "closed"
+) {
+    const ref = doc(db, "inquiries", inquiryId);
+    await updateDoc(ref, {
+        stage,
+        status: stage,
+        updatedAt: serverTimestamp(),
+    });
+}
+
 export async function replyToInquiry(inquiryId: string, agentId: string, agentName: string, reply: string) {
     // Update the inquiry with the agent's reply
     const ref = doc(db, "inquiries", inquiryId);
@@ -473,15 +745,13 @@ export async function replyToInquiry(inquiryId: string, agentId: string, agentNa
     if (snap.exists()) {
         const inquiry = snap.data();
         // Create a notification for the buyer
-        await addDoc(collection(db, "notifications"), {
+        await createNotification({
             userId: inquiry.senderId,
             type: "inquiry_reply",
             title: `Reply from ${agentName} 💬`,
             message: `${agentName} replied to your inquiry about "${inquiry.propertyTitle}": "${reply.length > 120 ? reply.slice(0, 120) + "..." : reply}"`,
             propertyId: inquiry.propertyId,
             inquiryId: inquiryId,
-            read: false,
-            createdAt: serverTimestamp(),
         });
     }
 }
@@ -600,38 +870,68 @@ export interface Review {
 }
 
 export async function submitReview(data: Omit<Review, "id" | "createdAt" | "updatedAt" | "helpfulCount">): Promise<string> {
-    // Check if user already reviewed this agent (one review per agent per user)
-    const existingQ = query(
-        collection(db, "reviews"),
-        where("agentId", "==", data.agentId),
-        where("reviewerId", "==", data.reviewerId)
-    );
-    const existingSnap = await getDocs(existingQ);
-    if (!existingSnap.empty) {
+    const cleanRating = Math.min(5, Math.max(1, Math.round(Number(data.rating) || 5)));
+    const reviewId = `${data.reviewerId}_${data.agentId}`;
+    const reviewRef = doc(db, "reviews", reviewId);
+    const agentRef = doc(db, "users", data.agentId);
+
+    // Check if user already reviewed this agent (both deterministic ID and any legacy review doc)
+    const [existingDoc, existingSnap, agentSnap] = await Promise.all([
+        getDoc(reviewRef),
+        getDocs(
+            query(
+                collection(db, "reviews"),
+                where("agentId", "==", data.agentId),
+                where("reviewerId", "==", data.reviewerId)
+            )
+        ),
+        getDoc(agentRef),
+    ]);
+
+    if (existingDoc.exists() || !existingSnap.empty) {
         throw new Error("already_reviewed");
     }
 
-    const ref = await addDoc(collection(db, "reviews"), {
+    const batch = writeBatch(db);
+    batch.set(reviewRef, {
         ...data,
+        rating: cleanRating,
         helpfulCount: 0,
+        isVerifiedPurchase: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     });
 
-    // Recalculate agent's average rating
-    await recalculateAgentRating(data.agentId);
+    if (agentSnap.exists()) {
+        const agentData = agentSnap.data();
+        const oldTotal = Number(agentData.totalReviews) || 0;
+        const oldSum =
+            typeof agentData.ratingSum === "number"
+                ? agentData.ratingSum
+                : Math.round(oldTotal * (Number(agentData.rating) || 0));
+        const newTotal = oldTotal + 1;
+        const newSum = oldSum + cleanRating;
+        const newAvg = Math.round((newSum / newTotal) * 10) / 10;
+
+        batch.update(agentRef, {
+            rating: newAvg,
+            totalReviews: newTotal,
+            ratingSum: newSum,
+            updatedAt: serverTimestamp(),
+        });
+    }
+
+    await batch.commit();
 
     // Send notification to agent
-    await addDoc(collection(db, "notifications"), {
+    await createNotification({
         userId: data.agentId,
         type: "new_review",
         title: "New Review ⭐",
-        message: `${data.reviewerName} left a ${data.rating}-star review: "${data.comment.length > 100 ? data.comment.slice(0, 100) + "..." : data.comment}"`,
-        read: false,
-        createdAt: serverTimestamp(),
+        message: `${data.reviewerName} left a ${cleanRating}-star review: "${data.comment.length > 100 ? data.comment.slice(0, 100) + "..." : data.comment}"`,
     });
 
-    return ref.id;
+    return reviewId;
 }
 
 export async function getReviewsByAgent(agentId: string): Promise<Review[]> {
@@ -664,8 +964,36 @@ export async function respondToReview(reviewId: string, response: string) {
 }
 
 export async function deleteReview(reviewId: string, agentId: string) {
-    await deleteDoc(doc(db, "reviews", reviewId));
-    await recalculateAgentRating(agentId);
+    const reviewRef = doc(db, "reviews", reviewId);
+    const agentRef = doc(db, "users", agentId);
+    const [reviewSnap, agentSnap] = await Promise.all([getDoc(reviewRef), getDoc(agentRef)]);
+
+    if (!reviewSnap.exists()) return;
+    const removedRating = Number(reviewSnap.data().rating) || 0;
+
+    const batch = writeBatch(db);
+    batch.delete(reviewRef);
+
+    if (agentSnap.exists()) {
+        const agentData = agentSnap.data();
+        const oldTotal = Number(agentData.totalReviews) || 1;
+        const oldSum =
+            typeof agentData.ratingSum === "number"
+                ? agentData.ratingSum
+                : Math.round(oldTotal * (Number(agentData.rating) || 0));
+        const newTotal = Math.max(0, oldTotal - 1);
+        const newSum = newTotal === 0 ? 0 : Math.max(0, oldSum - removedRating);
+        const newAvg = newTotal === 0 ? 0 : Math.round((newSum / newTotal) * 10) / 10;
+
+        batch.update(agentRef, {
+            rating: newAvg,
+            totalReviews: newTotal,
+            ratingSum: newSum,
+            updatedAt: serverTimestamp(),
+        });
+    }
+
+    await batch.commit();
 }
 
 export async function markReviewHelpful(reviewId: string) {
@@ -677,23 +1005,396 @@ export async function markReviewHelpful(reviewId: string) {
     }
 }
 
-async function recalculateAgentRating(agentId: string) {
-    const reviews = await getReviewsByAgent(agentId);
-    if (reviews.length === 0) {
-        await updateDoc(doc(db, "users", agentId), {
-            rating: 0,
-            totalReviews: 0,
+export async function submitContactMessage(data: {
+    name: string;
+    email: string;
+    phone?: string;
+    subject?: string;
+    message: string;
+    senderId?: string;
+}) {
+    await addDoc(collection(db, "contact_messages"), {
+        name: data.name.trim().slice(0, 120),
+        email: data.email.trim().toLowerCase().slice(0, 254),
+        phone: (data.phone || "").trim().slice(0, 40),
+        subject: (data.subject || "General Inquiry").trim().slice(0, 160),
+        message: data.message.trim().slice(0, 5000),
+        senderId: data.senderId || auth.currentUser?.uid || "guest",
+        status: "new",
+        createdAt: serverTimestamp(),
+    });
+}
+
+export async function submitMortgagePreApproval(data: {
+    applicantName: string;
+    applicantEmail: string;
+    applicantPhone: string;
+    employmentType: string;
+    monthlyIncome: number;
+    preferredBank: string;
+    propertyId?: string;
+    propertyTitle?: string;
+    propertyPrice: number;
+    downPaymentPercent: number;
+    loanAmount: number;
+    interestRate: number;
+    loanTermYears: number;
+    estimatedMonthlyPayment: number;
+    agentId?: string;
+    agentName?: string;
+    senderId?: string;
+}) {
+    const summaryMessage = `Mortgage Pre-Approval Application (${data.preferredBank}): Loan Amount KES ${Math.round(data.loanAmount).toLocaleString()} (${100 - data.downPaymentPercent}% LTV, ${data.loanTermYears} yrs @ ${data.interestRate}% p.a., Est. KES ${Math.round(data.estimatedMonthlyPayment).toLocaleString()}/mo). Employment: ${data.employmentType}, Monthly Net Income: KES ${Math.round(data.monthlyIncome).toLocaleString()}.`;
+
+    // Record in contact_messages for platform mortgage desk
+    await submitContactMessage({
+        name: data.applicantName,
+        email: data.applicantEmail,
+        phone: data.applicantPhone,
+        subject: `Mortgage Pre-Approval — ${data.propertyTitle || "Home Loan"} (${data.preferredBank})`,
+        message: summaryMessage,
+        senderId: data.senderId || auth.currentUser?.uid || "guest",
+    });
+
+    // Also create a direct agent inquiry if tied to a property or agent
+    if (data.propertyId || data.agentId) {
+        await sendInquiry({
+            propertyId: data.propertyId || "mortgage-preapproval",
+            propertyTitle: data.propertyTitle || "Mortgage Pre-Approval Lead",
+            senderId: data.senderId || auth.currentUser?.uid || "guest",
+            senderName: data.applicantName.trim(),
+            senderEmail: data.applicantEmail.trim().toLowerCase(),
+            senderPhone: data.applicantPhone.trim(),
+            agentId: data.agentId || "sample-agent",
+            agentName: data.agentName || "Mortgage Desk",
+            message: summaryMessage,
+            type: "inquiry",
+        });
+    }
+}
+
+// ========================
+// SHARED COLLECTIONS (CO-BUYING / FAMILY BOARD)
+// ========================
+
+export interface CollectionComment {
+    id: string;
+    userId: string;
+    userName: string;
+    text: string;
+    createdAt: string;
+}
+
+export interface CollectionItem {
+    propertyId: string;
+    propertyTitle: string;
+    propertyPrice: number;
+    propertyCurrency?: string;
+    propertyImage: string;
+    city: string;
+    neighborhood?: string;
+    addedBy: string;
+    addedByName: string;
+    addedAt: string;
+    votes: Record<string, "up" | "down">; // userId -> vote
+    comments: CollectionComment[];
+}
+
+export interface SharedCollection {
+    id?: string;
+    title: string;
+    description?: string;
+    createdBy: string;
+    createdByName: string;
+    createdByEmail: string;
+    members: string[]; // user IDs or email addresses
+    memberNames?: Record<string, string>; // userId/email -> display name
+    items: CollectionItem[];
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
+}
+
+const LOCAL_COLLECTIONS_KEY = "ev_shared_collections";
+
+function getLocalCollections(): SharedCollection[] {
+    if (typeof window === "undefined") return [];
+    try {
+        const raw = localStorage.getItem(LOCAL_COLLECTIONS_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveLocalCollections(cols: SharedCollection[]) {
+    if (typeof window === "undefined") return;
+    try {
+        localStorage.setItem(LOCAL_COLLECTIONS_KEY, JSON.stringify(cols));
+    } catch (e) {
+        console.error("Local storage error:", e);
+    }
+}
+
+export async function createSharedCollection(
+    data: Omit<SharedCollection, "id" | "createdAt" | "updatedAt">
+): Promise<string> {
+    try {
+        const colRef = collection(db, "shared_collections");
+        const docRef = await addDoc(colRef, {
+            ...data,
+            createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
-        return;
+        return docRef.id;
+    } catch (err) {
+        console.warn("Firestore collection create fallback to local:", err);
+        const id = `col-${Date.now()}`;
+        const newCol: SharedCollection = {
+            ...data,
+            id,
+        };
+        const list = getLocalCollections();
+        list.unshift(newCol);
+        saveLocalCollections(list);
+        return id;
+    }
+}
+
+export async function getSharedCollectionsByUser(userId: string, email?: string): Promise<SharedCollection[]> {
+    const list: SharedCollection[] = [];
+    try {
+        // Query by createdBy
+        const q1 = query(collection(db, "shared_collections"), where("createdBy", "==", userId));
+        const snap1 = await getDocs(q1);
+        snap1.forEach((d) => list.push({ id: d.id, ...d.data() } as SharedCollection));
+
+        // Query by members
+        if (email) {
+            const q2 = query(collection(db, "shared_collections"), where("members", "array-contains", email.toLowerCase()));
+            const snap2 = await getDocs(q2);
+            snap2.forEach((d) => {
+                if (!list.some((existing) => existing.id === d.id)) {
+                    list.push({ id: d.id, ...d.data() } as SharedCollection);
+                }
+            });
+        }
+    } catch (err) {
+        console.warn("Firestore get collections error, using local fallback:", err);
     }
 
-    const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
-    const avgRating = Math.round((totalRating / reviews.length) * 10) / 10;
+    // Merge with local fallback
+    const local = getLocalCollections().filter(
+        (c) => c.createdBy === userId || (email && c.members?.includes(email.toLowerCase()))
+    );
+    for (const l of local) {
+        if (!list.some((existing) => existing.id === l.id)) {
+            list.push(l);
+        }
+    }
 
-    await updateDoc(doc(db, "users", agentId), {
-        rating: avgRating,
-        totalReviews: reviews.length,
-        updatedAt: serverTimestamp(),
-    });
+    return list;
+}
+
+export async function getSharedCollectionById(collectionId: string): Promise<SharedCollection | null> {
+    try {
+        const ref = doc(db, "shared_collections", collectionId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            return { id: snap.id, ...snap.data() } as SharedCollection;
+        }
+    } catch (err) {
+        console.warn("Firestore get collection by ID error:", err);
+    }
+
+    const local = getLocalCollections().find((c) => c.id === collectionId);
+    return local || null;
+}
+
+export async function addPropertyToSharedCollection(
+    collectionId: string,
+    item: Omit<CollectionItem, "votes" | "comments">
+) {
+    const fullItem: CollectionItem = {
+        ...item,
+        votes: {},
+        comments: [],
+    };
+
+    try {
+        const ref = doc(db, "shared_collections", collectionId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            const current = (snap.data().items || []) as CollectionItem[];
+            if (!current.some((i) => i.propertyId === item.propertyId)) {
+                await updateDoc(ref, {
+                    items: [...current, fullItem],
+                    updatedAt: serverTimestamp(),
+                });
+            }
+            return;
+        }
+    } catch (err) {
+        console.warn("Firestore add property fallback:", err);
+    }
+
+    const local = getLocalCollections();
+    const target = local.find((c) => c.id === collectionId);
+    if (target) {
+        if (!target.items.some((i) => i.propertyId === item.propertyId)) {
+            target.items.push(fullItem);
+            saveLocalCollections(local);
+        }
+    }
+}
+
+export async function removePropertyFromSharedCollection(collectionId: string, propertyId: string) {
+    try {
+        const ref = doc(db, "shared_collections", collectionId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            const current = (snap.data().items || []) as CollectionItem[];
+            await updateDoc(ref, {
+                items: current.filter((i) => i.propertyId !== propertyId),
+                updatedAt: serverTimestamp(),
+            });
+            return;
+        }
+    } catch (err) {
+        console.warn("Firestore remove property fallback:", err);
+    }
+
+    const local = getLocalCollections();
+    const target = local.find((c) => c.id === collectionId);
+    if (target) {
+        target.items = target.items.filter((i) => i.propertyId !== propertyId);
+        saveLocalCollections(local);
+    }
+}
+
+export async function voteOnCollectionProperty(
+    collectionId: string,
+    propertyId: string,
+    userId: string,
+    vote: "up" | "down" | "remove"
+) {
+    try {
+        const ref = doc(db, "shared_collections", collectionId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            const current = (snap.data().items || []) as CollectionItem[];
+            const updated = current.map((i) => {
+                if (i.propertyId !== propertyId) return i;
+                const newVotes = { ...(i.votes || {}) };
+                if (vote === "remove") {
+                    delete newVotes[userId];
+                } else {
+                    newVotes[userId] = vote;
+                }
+                return { ...i, votes: newVotes };
+            });
+            await updateDoc(ref, { items: updated, updatedAt: serverTimestamp() });
+            return;
+        }
+    } catch (err) {
+        console.warn("Firestore vote fallback:", err);
+    }
+
+    const local = getLocalCollections();
+    const target = local.find((c) => c.id === collectionId);
+    if (target) {
+        target.items = target.items.map((i) => {
+            if (i.propertyId !== propertyId) return i;
+            const newVotes = { ...(i.votes || {}) };
+            if (vote === "remove") {
+                delete newVotes[userId];
+            } else {
+                newVotes[userId] = vote;
+            }
+            return { ...i, votes: newVotes };
+        });
+        saveLocalCollections(local);
+    }
+}
+
+export async function addCommentToCollectionProperty(
+    collectionId: string,
+    propertyId: string,
+    comment: Omit<CollectionComment, "id" | "createdAt">
+) {
+    const fullComment: CollectionComment = {
+        ...comment,
+        id: `cmt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        createdAt: new Date().toISOString(),
+    };
+
+    try {
+        const ref = doc(db, "shared_collections", collectionId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            const current = (snap.data().items || []) as CollectionItem[];
+            const updated = current.map((i) => {
+                if (i.propertyId !== propertyId) return i;
+                return {
+                    ...i,
+                    comments: [...(i.comments || []), fullComment],
+                };
+            });
+            await updateDoc(ref, { items: updated, updatedAt: serverTimestamp() });
+            return fullComment;
+        }
+    } catch (err) {
+        console.warn("Firestore comment fallback:", err);
+    }
+
+    const local = getLocalCollections();
+    const target = local.find((c) => c.id === collectionId);
+    if (target) {
+        target.items = target.items.map((i) => {
+            if (i.propertyId !== propertyId) return i;
+            return {
+                ...i,
+                comments: [...(i.comments || []), fullComment],
+            };
+        });
+        saveLocalCollections(local);
+    }
+    return fullComment;
+}
+
+export async function inviteMemberToSharedCollection(
+    collectionId: string,
+    email: string,
+    name?: string
+) {
+    const cleanEmail = email.toLowerCase().trim();
+    try {
+        const ref = doc(db, "shared_collections", collectionId);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+            const currentMembers = (snap.data().members || []) as string[];
+            if (!currentMembers.includes(cleanEmail)) {
+                await updateDoc(ref, {
+                    members: arrayUnion(cleanEmail),
+                    ...(name ? { [`memberNames.${cleanEmail}`]: name } : {}),
+                    updatedAt: serverTimestamp(),
+                });
+            }
+            return;
+        }
+    } catch (err) {
+        console.warn("Firestore invite member fallback:", err);
+    }
+
+    const local = getLocalCollections();
+    const target = local.find((c) => c.id === collectionId);
+    if (target) {
+        if (!target.members.includes(cleanEmail)) {
+            target.members.push(cleanEmail);
+            if (name) {
+                target.memberNames = target.memberNames || {};
+                target.memberNames[cleanEmail] = name;
+            }
+            saveLocalCollections(local);
+        }
+    }
 }

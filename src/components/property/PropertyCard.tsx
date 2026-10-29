@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCompare } from "@/context/CompareContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { addToFavorites, removeFromFavorites } from "@/lib/firestore";
+import TitleVerificationBadge from "@/components/property/TitleVerificationBadge";
 import styles from "./PropertyCard.module.css";
 
 interface PropertyCardProps {
@@ -74,7 +75,10 @@ export default function PropertyCard({ property }: PropertyCardProps) {
 
     return (
         <Link href={`/properties/${property.id}`} className={styles.card}>
-            <div className={styles.imageWrapper}>
+            <div 
+                className={styles.imageWrapper}
+                style={{ viewTransitionName: `prop-img-${property.id}` } as React.CSSProperties}
+            >
                 <OptimizedImage
                     src={property.images[0]}
                     alt={property.title}
@@ -164,11 +168,25 @@ export default function PropertyCard({ property }: PropertyCardProps) {
             </div>
 
             <div className={styles.content}>
-                <h3 className={styles.title}>{property.title}</h3>
+                <h3 
+                    className={styles.title}
+                    style={{ viewTransitionName: `prop-title-${property.id}` } as React.CSSProperties}
+                >
+                    {property.title}
+                </h3>
                 <p className={styles.location}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                     {property.location.neighborhood}, {property.location.city}
                 </p>
+
+                <div style={{ marginTop: "0.45rem", marginBottom: "0.25rem" }} onClick={(e) => e.stopPropagation()}>
+                    <TitleVerificationBadge
+                        compact={true}
+                        propertyTitle={property.title}
+                        city={property.location.city}
+                        neighborhood={property.location.neighborhood}
+                    />
+                </div>
 
                 <div className={styles.features}>
                     <div className={styles.feature}>

@@ -3,16 +3,20 @@ import { useState, useMemo, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { sampleProperties, Property } from "@/lib/data";
-import { getAllProperties, getPropertiesByAgent, getUserProfile, FirestoreProperty } from "@/lib/firestore";
+import { getPropertiesPage, getPropertiesByAgent, getUserProfile, FirestoreProperty, PUBLIC_LISTING_STATUSES } from "@/lib/firestore";
+import type { PropertiesPage as FirestorePropertiesPage } from "@/lib/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { createSavedSearch, SavedSearchFilters } from "@/lib/savedSearches";
 import PropertyCard from "@/components/property/PropertyCard";
-import CatalogMap from "@/components/property/CatalogMap";
+import CatalogMap, { MapBounds, getDeterministicCoords, isPointInPolygon } from "@/components/property/CatalogMap";
 import PropertySkeleton from "@/components/ui/PropertySkeleton";
 import SmartSearchBar from "@/components/property/SmartSearchBar";
 import { filterPropertiesWithSmartQuery, ParsedSmartQuery } from "@/lib/smartSearch";
 import toast from "react-hot-toast";
 import styles from "./page.module.css";
+
+/** Number of Firestore listings fetched per page on the browse page. */
+const LISTINGS_PAGE_SIZE = 48;
 
 const propertyTypes = ["All", "Apartment", "House", "Villa", "Townhouse", "Land", "Commercial"];
 const bedroomOptions = ["Any", "1", "2", "3", "4", "5+"];
@@ -78,13 +82,21 @@ function PropertiesContent() {
     const [selectedCity, setSelectedCity] = useState("All");
     const [selectedNeighborhood, setSelectedNeighborhood] = useState("All");
     const [sortBy, setSortBy] = useState("newest");
-    const [viewMode, setViewMode] = useState<"grid" | "list" | "map">("grid");
+    const [viewMode, setViewMode] = useState<"grid" | "list" | "map" | "split">("split");
+    const [hoveredPropId, setHoveredPropId] = useState<string | null>(null);
+    const [selectedPropId, setSelectedPropId] = useState<string | null>(null);
+    const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+    const [mapPolygon, setMapPolygon] = useState<[number, number][] | null>(null);
+    const [mobileSplitTab, setMobileSplitTab] = useState<"cards" | "map">("cards");
     const [searchQuery, setSearchQuery] = useState("");
     const [smartQuery, setSmartQuery] = useState("");
     const [smartParsed, setSmartParsed] = useState<ParsedSmartQuery | null>(null);
     const [searchMode, setSearchMode] = useState<"smart" | "standard">("smart");
     const [firestoreProperties, setFirestoreProperties] = useState<Property[]>([]);
     const [loadingFirestore, setLoadingFirestore] = useState(true);
+    const [pageCursor, setPageCursor] = useState<FirestorePropertiesPage["cursor"]>(null);
+    const [hasMoreListings, setHasMoreListings] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [saveSearchName, setSaveSearchName] = useState("");
@@ -112,19 +124,29 @@ function PropertiesContent() {
     // Read filters from URL params (only after mount to prevent hydration mismatch)
     useEffect(() => {
         if (!hasMounted) return;
+        let hasStandardFilter = false;
+
         const type = searchParams.get("type");
         if (type === "sale" || type === "rent") {
             setSelectedListing(type);
+            hasStandardFilter = true;
         }
         const propertyType = searchParams.get("propertyType");
         if (propertyType) {
+            const normalized = propertyType.toLowerCase().replace(/s$/, "");
             const matched = propertyTypes.find(
-                (t) => t.toLowerCase() === propertyType.toLowerCase()
+                (t) => t.toLowerCase() === propertyType.toLowerCase() || t.toLowerCase() === normalized
             );
-            if (matched) setSelectedType(matched);
+            if (matched) {
+                setSelectedType(matched);
+                hasStandardFilter = true;
+            }
         }
-        const q = searchParams.get("q");
-        if (q) setSearchQuery(q);
+        const q = searchParams.get("q") || searchParams.get("search");
+        if (q) {
+            setSearchQuery(q);
+            hasStandardFilter = true;
+        }
 
         const smartParam = searchParams.get("smart");
         if (smartParam) {
@@ -135,10 +157,12 @@ function PropertiesContent() {
         const cityParam = searchParams.get("city");
         if (cityParam) {
             setSelectedCity(cityParam);
+            hasStandardFilter = true;
         }
         const neighborhoodParam = searchParams.get("neighborhood");
         if (neighborhoodParam) {
             setSelectedNeighborhood(neighborhoodParam);
+            hasStandardFilter = true;
         }
         const minPriceParam = searchParams.get("minPrice");
         const maxPriceParam = searchParams.get("maxPrice");
@@ -146,27 +170,36 @@ function PropertiesContent() {
             const minP = minPriceParam ? Math.max(PRICE_MIN, Number(minPriceParam)) : PRICE_MIN;
             const maxP = maxPriceParam ? Math.min(PRICE_MAX, Number(maxPriceParam)) : PRICE_MAX;
             setPriceRange([minP, maxP]);
+            hasStandardFilter = true;
         }
         const bedroomsParam = searchParams.get("bedrooms");
         if (bedroomsParam && bedroomOptions.includes(bedroomsParam)) {
             setSelectedBedrooms(bedroomsParam);
+            hasStandardFilter = true;
         }
         const bathroomsParam = searchParams.get("bathrooms");
         if (bathroomsParam && bathroomOptions.includes(bathroomsParam)) {
             setSelectedBathrooms(bathroomsParam);
+            hasStandardFilter = true;
         }
         const statusParam = searchParams.get("status");
         if (statusParam && statusOptions.some(s => s.value === statusParam)) {
             setSelectedStatus(statusParam);
+            hasStandardFilter = true;
         }
 
         // Agent filter
         const agentId = searchParams.get("agentId");
         if (agentId) {
             setFilterAgentId(agentId);
+            hasStandardFilter = true;
         } else {
             setFilterAgentId(null);
             setFilterAgentName("");
+        }
+
+        if (hasStandardFilter && !smartParam) {
+            setSearchMode("standard");
         }
     }, [searchParams, hasMounted]);
 
@@ -182,29 +215,57 @@ function PropertiesContent() {
         }
     }, [filterAgentId]);
 
-    // Fetch Firestore properties (filtered by agent if agentId is set)
+    // Fetch Firestore properties (filtered by agent if agentId is set).
+    // Public browsing is paginated; an agent's own listing page loads all of their listings.
     useEffect(() => {
+        let cancelled = false;
         const fetchProperties = async () => {
             setLoadingFirestore(true);
             try {
-                let data: FirestoreProperty[];
                 if (filterAgentId) {
-                    data = await getPropertiesByAgent(filterAgentId);
+                    const data = await getPropertiesByAgent(filterAgentId);
+                    if (cancelled) return;
+                    setFirestoreProperties(
+                        data
+                            .filter((p) => (PUBLIC_LISTING_STATUSES as readonly string[]).includes(p.status))
+                            .map(firestoreToProperty)
+                    );
+                    setPageCursor(null);
+                    setHasMoreListings(false);
                 } else {
-                    data = await getAllProperties();
+                    const page = await getPropertiesPage(LISTINGS_PAGE_SIZE);
+                    if (cancelled) return;
+                    setFirestoreProperties(page.items.map(firestoreToProperty));
+                    setPageCursor(page.cursor);
+                    setHasMoreListings(page.hasMore);
                 }
-                const converted = data
-                    .filter((p) => p.status === "active" || p.status === "under_offer" || p.status === "price_reduced" || p.status === "sold" || p.status === "rented")
-                    .map(firestoreToProperty);
-                setFirestoreProperties(converted);
             } catch (err) {
                 console.error("Failed to fetch Firestore properties:", err);
             } finally {
-                setLoadingFirestore(false);
+                if (!cancelled) setLoadingFirestore(false);
             }
         };
         fetchProperties();
+        return () => {
+            cancelled = true;
+        };
     }, [filterAgentId]);
+
+    const loadMoreListings = async () => {
+        if (!pageCursor || loadingMore) return;
+        setLoadingMore(true);
+        try {
+            const page = await getPropertiesPage(LISTINGS_PAGE_SIZE, pageCursor);
+            setFirestoreProperties((prev) => [...prev, ...page.items.map(firestoreToProperty)]);
+            setPageCursor(page.cursor);
+            setHasMoreListings(page.hasMore);
+        } catch (err) {
+            console.error("Failed to load more listings:", err);
+            toast.error("Couldn't load more listings. Please try again.");
+        } finally {
+            setLoadingMore(false);
+        }
+    };
 
     // Merge sample + Firestore, deduplicating by ID
     // When filtering by agent, only show their properties (no sample data)
@@ -262,7 +323,7 @@ function PropertiesContent() {
         setSelectedNeighborhood("All");
     }, [selectedCity]);
 
-    const filtered = useMemo(() => {
+    const baseFiltered = useMemo(() => {
         let result = [...allProperties];
 
         // Natural language AI smart search query filter
@@ -341,6 +402,32 @@ function PropertiesContent() {
         return result;
     }, [allProperties, selectedType, selectedBedrooms, selectedBathrooms, selectedListing, selectedStatus, selectedCity, selectedNeighborhood, sortBy, priceRange, minArea, maxArea, searchQuery, searchMode, smartParsed]);
 
+    // Spatially filtered properties (takes Polygon boundary or Map Viewport into account)
+    const filtered = useMemo(() => {
+        let result = [...baseFiltered];
+
+        // 1. Custom drawn polygon has highest priority
+        if (mapPolygon && mapPolygon.length > 2) {
+            result = result.filter((p) => {
+                const coords = getDeterministicCoords(p);
+                return isPointInPolygon(coords, mapPolygon);
+            });
+        } else if ((viewMode === "split" || viewMode === "map") && mapBounds) {
+            // 2. Viewport boundary filter when panning / zooming map
+            result = result.filter((p) => {
+                const [lat, lng] = getDeterministicCoords(p);
+                return (
+                    lat >= mapBounds.minLat &&
+                    lat <= mapBounds.maxLat &&
+                    lng >= mapBounds.minLng &&
+                    lng <= mapBounds.maxLng
+                );
+            });
+        }
+
+        return result;
+    }, [baseFiltered, mapPolygon, mapBounds, viewMode]);
+
     // Count active filters
     const activeFilterCount = useMemo(() => {
         let count = 0;
@@ -355,8 +442,10 @@ function PropertiesContent() {
         if (priceRange[0] > PRICE_MIN || priceRange[1] < PRICE_MAX) count++;
         if (minArea || maxArea) count++;
         if (searchMode === "standard" && searchQuery.trim()) count++;
+        if (mapPolygon) count++;
+        if (mapBounds && (viewMode === "split" || viewMode === "map")) count++;
         return count;
-    }, [selectedType, selectedBedrooms, selectedBathrooms, selectedListing, selectedStatus, selectedCity, selectedNeighborhood, priceRange, minArea, maxArea, searchQuery, searchMode, smartParsed]);
+    }, [selectedType, selectedBedrooms, selectedBathrooms, selectedListing, selectedStatus, selectedCity, selectedNeighborhood, priceRange, minArea, maxArea, searchQuery, searchMode, smartParsed, mapPolygon, mapBounds, viewMode]);
 
     const resetAll = useCallback(() => {
         setSelectedType("All");
@@ -370,6 +459,18 @@ function PropertiesContent() {
         setMinArea("");
         setMaxArea("");
         setSearchQuery("");
+        setSmartQuery("");
+        setSmartParsed(null);
+        setMapPolygon(null);
+        setMapBounds(null);
+    }, []);
+
+    const handleMapSelectProperty = useCallback((id: string) => {
+        setSelectedPropId(id);
+        const el = document.getElementById(`property-card-${id}`);
+        if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
     }, []);
 
     // Current filters object for saving
@@ -546,7 +647,7 @@ function PropertiesContent() {
                 </div>
             </div>
 
-            <div className={`container ${styles.layout}`}>
+            <div className={`container ${styles.layout} ${viewMode === "split" ? styles.layoutSplit : ""}`}>
                 {/* Mobile Filter Toggle */}
                 <button
                     className={styles.mobileFilterBtn}
@@ -832,9 +933,21 @@ function PropertiesContent() {
 
                             <div className={styles.viewToggle}>
                                 <button
+                                    className={`${styles.viewBtn} ${viewMode === "split" ? styles.viewActive : ""}`}
+                                    onClick={() => setViewMode("split")}
+                                    aria-label="Split-screen view"
+                                    title="Split-Screen View (Cards + Map)"
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <rect x="3" y="3" width="8" height="18" rx="2" />
+                                        <rect x="13" y="3" width="8" height="18" rx="2" />
+                                    </svg>
+                                </button>
+                                <button
                                     className={`${styles.viewBtn} ${viewMode === "grid" ? styles.viewActive : ""}`}
                                     onClick={() => setViewMode("grid")}
                                     aria-label="Grid view"
+                                    title="Grid View"
                                 >
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
                                 </button>
@@ -842,7 +955,7 @@ function PropertiesContent() {
                                     className={`${styles.viewBtn} ${viewMode === "list" ? styles.viewActive : ""}`}
                                     onClick={() => setViewMode("list")}
                                     aria-label="List view"
-                                    title="List view"
+                                    title="List View"
                                 >
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="4" rx="1" /><rect x="3" y="10" width="18" height="4" rx="1" /><rect x="3" y="16" width="18" height="4" rx="1" /></svg>
                                 </button>
@@ -850,7 +963,7 @@ function PropertiesContent() {
                                     className={`${styles.viewBtn} ${viewMode === "map" ? styles.viewActive : ""}`}
                                     onClick={() => setViewMode("map")}
                                     aria-label="Map view"
-                                    title="Interactive Map view"
+                                    title="Full Map View"
                                 >
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" /><line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" /></svg>
                                 </button>
@@ -862,6 +975,18 @@ function PropertiesContent() {
                     {activeFilterCount > 0 && (
                         <div className={styles.filterPills}>
                             <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Active:</span>
+                            {mapPolygon && (
+                                <span className={styles.filterPill} style={{ background: "rgba(212, 160, 23, 0.15)", borderColor: "var(--gold-500)", color: "var(--gold-400)", fontWeight: 700 }}>
+                                    ✏️ Custom Boundary ({filtered.length} homes)
+                                    <button onClick={() => setMapPolygon(null)} aria-label="Clear boundary filter">✕</button>
+                                </span>
+                            )}
+                            {mapBounds && !mapPolygon && (viewMode === "split" || viewMode === "map") && (
+                                <span className={styles.filterPill} style={{ background: "rgba(59, 130, 246, 0.12)", borderColor: "rgba(59, 130, 246, 0.4)", color: "#93c5fd" }}>
+                                    🗺️ Map Area ({filtered.length} homes)
+                                    <button onClick={() => setMapBounds(null)} aria-label="Clear map bounds filter">✕</button>
+                                </span>
+                            )}
                             {selectedListing !== "all" && (
                                 <span className={styles.filterPill}>
                                     {selectedListing === "sale" ? "For Sale" : "For Rent"}
@@ -937,16 +1062,86 @@ function PropertiesContent() {
                     {loadingFirestore && filtered.length === 0 ? (
                         <PropertySkeleton count={6} />
                     ) : filtered.length > 0 ? (
-                        viewMode === "map" ? (
+                        viewMode === "split" ? (
+                            <div className={styles.splitViewContainer}>
+                                {/* Mobile Segmented Toggle (Cards vs Map) */}
+                                <div className={styles.mobileSplitSegmented}>
+                                    <button
+                                        type="button"
+                                        className={`${styles.mobileSplitSegmentBtn} ${mobileSplitTab === "cards" ? styles.mobileSplitSegmentBtnActive : ""}`}
+                                        onClick={() => setMobileSplitTab("cards")}
+                                    >
+                                        🏠 Listings ({filtered.length})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`${styles.mobileSplitSegmentBtn} ${mobileSplitTab === "map" ? styles.mobileSplitSegmentBtnActive : ""}`}
+                                        onClick={() => setMobileSplitTab("map")}
+                                    >
+                                        🗺️ Interactive Map
+                                    </button>
+                                </div>
+
+                                {/* Left Column: Property Cards */}
+                                <div className={`${styles.splitCardsCol} ${mobileSplitTab === "map" ? styles.hideOnMobileMap : ""}`}>
+                                    <div className={styles.splitCardsGrid}>
+                                        {filtered.map((property) => (
+                                            <div
+                                                key={property.id}
+                                                id={`property-card-${property.id}`}
+                                                onMouseEnter={() => setHoveredPropId(property.id)}
+                                                onMouseLeave={() => setHoveredPropId(null)}
+                                                className={`${styles.cardWrapper} ${hoveredPropId === property.id ? styles.cardHovered : ""}`}
+                                            >
+                                                <PropertyCard property={property} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Right Column: Sticky Leaflet Map */}
+                                <div className={`${styles.splitMapCol} ${mobileSplitTab === "cards" ? styles.hideOnMobileCards : ""}`}>
+                                    <CatalogMap
+                                        properties={baseFiltered}
+                                        selectedPropertyId={selectedPropId}
+                                        hoveredPropertyId={hoveredPropId}
+                                        onSelectProperty={handleMapSelectProperty}
+                                        onHoverProperty={setHoveredPropId}
+                                        onBoundsChange={setMapBounds}
+                                        onPolygonFilter={setMapPolygon}
+                                        height="100%"
+                                        showSearchAsMoveToggle={true}
+                                    />
+                                </div>
+                            </div>
+                        ) : viewMode === "map" ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                                <CatalogMap properties={filtered} height="520px" />
+                                <CatalogMap
+                                    properties={baseFiltered}
+                                    selectedPropertyId={selectedPropId}
+                                    hoveredPropertyId={hoveredPropId}
+                                    onSelectProperty={handleMapSelectProperty}
+                                    onHoverProperty={setHoveredPropId}
+                                    onBoundsChange={setMapBounds}
+                                    onPolygonFilter={setMapPolygon}
+                                    height="520px"
+                                    showSearchAsMoveToggle={true}
+                                />
                                 <div>
                                     <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--text-heading)", marginBottom: "1rem" }}>
                                         Matching Listings ({filtered.length})
                                     </h3>
                                     <div className={styles.propertyGrid}>
                                         {filtered.map((property) => (
-                                            <PropertyCard key={property.id} property={property} />
+                                            <div
+                                                key={property.id}
+                                                id={`property-card-${property.id}`}
+                                                onMouseEnter={() => setHoveredPropId(property.id)}
+                                                onMouseLeave={() => setHoveredPropId(null)}
+                                                className={`${styles.cardWrapper} ${hoveredPropId === property.id ? styles.cardHovered : ""}`}
+                                            >
+                                                <PropertyCard property={property} />
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
@@ -954,7 +1149,15 @@ function PropertiesContent() {
                         ) : (
                             <div className={`${styles.propertyGrid} ${viewMode === "list" ? styles.listView : ""}`}>
                                 {filtered.map((property) => (
-                                    <PropertyCard key={property.id} property={property} />
+                                    <div
+                                        key={property.id}
+                                        id={`property-card-${property.id}`}
+                                        onMouseEnter={() => setHoveredPropId(property.id)}
+                                        onMouseLeave={() => setHoveredPropId(null)}
+                                        className={`${styles.cardWrapper} ${hoveredPropId === property.id ? styles.cardHovered : ""}`}
+                                    >
+                                        <PropertyCard property={property} />
+                                    </div>
                                 ))}
                             </div>
                         )
@@ -962,12 +1165,29 @@ function PropertiesContent() {
                         <div className={styles.emptyState}>
                             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
                             <h3>No properties found</h3>
-                            <p>Try adjusting your filters to see more results</p>
+                            <p>Try adjusting your filters or clearing map boundaries to see more results</p>
                             {activeFilterCount > 0 && (
                                 <button onClick={resetAll} className={styles.emptyResetBtn}>
                                     Reset All Filters
                                 </button>
                             )}
+                        </div>
+                    )}
+
+                    {hasMoreListings && !loadingFirestore && (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", margin: "2rem 0 1rem" }}>
+                            <button
+                                type="button"
+                                onClick={loadMoreListings}
+                                disabled={loadingMore}
+                                className="btn btn-outline"
+                                style={{ minWidth: "220px" }}
+                            >
+                                {loadingMore ? "Loading more listings..." : "Load more listings"}
+                            </button>
+                            <span style={{ fontSize: "0.78rem", color: "var(--text-tertiary)" }}>
+                                Filters apply to the {firestoreProperties.length} listings loaded so far.
+                            </span>
                         </div>
                     )}
                 </div>

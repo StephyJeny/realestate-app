@@ -64,6 +64,7 @@ export default function Navbar() {
                 <nav className={`${styles.nav} ${isMobileOpen ? styles.navOpen : ""}`}>
                     <Link href="/properties?type=sale" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Buy</Link>
                     <Link href="/properties?type=rent" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Rent</Link>
+                    <Link href="/projects" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>🏗️ Off-Plan</Link>
                     <Link href="/properties" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Properties</Link>
                     <Link href="/estimate" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>🤖 AI Valuer</Link>
                     <Link href="/quiz" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>✨ Matchmaker</Link>

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { sampleProperties, Property, formatPrice } from "@/lib/data";
-import { getAllProperties, FirestoreProperty } from "@/lib/firestore";
+import { getPropertiesPage, FirestoreProperty } from "@/lib/firestore";
 import styles from "./ChatBot.module.css";
 
 interface Message {
@@ -283,7 +283,7 @@ async function searchProperties(query: string): Promise<PropertyResult[]> {
 
     // Firestore properties
     try {
-        const firestoreData = await getAllProperties();
+        const { items: firestoreData } = await getPropertiesPage(100);
         const firestoreResults = firestoreData
             .filter(p => p.status === "active")
             .map((p: FirestoreProperty) => ({
@@ -807,7 +807,8 @@ export default function ChatBot() {
                                                 rel="noreferrer"
                                             >
                                                 <div className={styles.propCardImage}>
-                                                    <img src={prop.image} alt={prop.title} />
+                                                    {/* eslint-disable-next-line @next/next/no-img-element -- small thumbnails from mixed hosts */}
+                                                    <img src={prop.image} alt={prop.title} loading="lazy" decoding="async" />
                                                     <span className={styles.propCardBadge}>
                                                         For {prop.listingType === "sale" ? "Sale" : "Rent"}
                                                     </span>

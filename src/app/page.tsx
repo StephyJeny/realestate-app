@@ -1,29 +1,80 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import OptimizedImage from "@/components/ui/OptimizedImage";
 import Link from "next/link";
-import { sampleProperties, formatPrice } from "@/lib/data";
+import { sampleProperties, Property } from "@/lib/data";
+import { getFeaturedProperties, FirestoreProperty } from "@/lib/firestore";
 import PropertyCard from "@/components/property/PropertyCard";
 import ScrollReveal from "@/components/ui/ScrollReveal";
 import SmartSearchBar from "@/components/property/SmartSearchBar";
 import styles from "./page.module.css";
 
+function mapFirestoreToProperty(fp: FirestoreProperty): Property {
+  return {
+    id: fp.id || "",
+    title: fp.title,
+    slug: fp.title.toLowerCase().replace(/\s+/g, "-"),
+    description: fp.description,
+    type: fp.type,
+    listingType: fp.listingType,
+    price: fp.price,
+    currency: fp.currency || "KES",
+    bedrooms: fp.bedrooms,
+    bathrooms: fp.bathrooms,
+    area: fp.area,
+    yearBuilt: fp.yearBuilt || 2024,
+    address: fp.address || "",
+    location: {
+      city: fp.city || "Nairobi",
+      neighborhood: fp.neighborhood || "",
+    },
+    amenities: fp.amenities || [],
+    images: fp.images?.length ? fp.images : ["/images/property-1.png"],
+    agentName: fp.agentName || "Agent",
+    agentImage: "/images/agent-avatar.png",
+    agentPhone: fp.agentPhone || "",
+    agentEmail: fp.agentEmail || "",
+    status: fp.status,
+    isFeatured: true,
+    views: fp.views || 0,
+    favorites: fp.favorites || 0,
+    createdAt: fp.createdAt
+      ? new Date(fp.createdAt.seconds * 1000).toISOString()
+      : new Date().toISOString(),
+  };
+}
+
 export default function Home() {
   const router = useRouter();
+  const [heroListingType, setHeroListingType] = useState<"" | "sale" | "rent">("");
   const [heroLocation, setHeroLocation] = useState("");
   const [heroType, setHeroType] = useState("");
   const [heroPriceRange, setHeroPriceRange] = useState("");
+  const [heroKeyword, setHeroKeyword] = useState("");
   const [searchMode, setSearchMode] = useState<"smart" | "filter">("smart");
+  const [liveFeatured, setLiveFeatured] = useState<Property[]>([]);
 
-  const featuredProperties = sampleProperties.filter((p) => p.isFeatured);
+  useEffect(() => {
+    getFeaturedProperties(6)
+      .then((items) => setLiveFeatured(items.map(mapFirestoreToProperty)))
+      .catch(() => {});
+  }, []);
+
+  const featuredProperties = [
+    ...liveFeatured,
+    ...sampleProperties.filter(
+      (p) => p.isFeatured && !liveFeatured.some((lf) => lf.id === p.id)
+    ),
+  ].slice(0, 6);
 
   const handleHeroSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
+    if (heroListingType) params.set("type", heroListingType);
     if (heroLocation) params.set("city", heroLocation);
     if (heroType) params.set("propertyType", heroType.toLowerCase());
+    if (heroKeyword.trim()) params.set("q", heroKeyword.trim());
     if (heroPriceRange === "under-10m") {
       params.set("maxPrice", "10000000");
     } else if (heroPriceRange === "10m-30m") {
@@ -127,6 +178,15 @@ export default function Home() {
           ) : (
             <form onSubmit={handleHeroSearch} className={styles.searchBar}>
               <div className={styles.searchField}>
+                <label>Purpose</label>
+                <select value={heroListingType} onChange={(e) => setHeroListingType(e.target.value as "" | "sale" | "rent")}>
+                  <option value="">Buy or Rent</option>
+                  <option value="sale">For Sale</option>
+                  <option value="rent">For Rent</option>
+                </select>
+              </div>
+              <div className={styles.searchDivider} />
+              <div className={styles.searchField}>
                 <label>Location</label>
                 <select value={heroLocation} onChange={(e) => setHeroLocation(e.target.value)}>
                   <option value="">All Locations</option>
@@ -146,6 +206,7 @@ export default function Home() {
                   <option value="Villa">Villa</option>
                   <option value="Townhouse">Townhouse</option>
                   <option value="Land">Land</option>
+                  <option value="Commercial">Commercial</option>
                 </select>
               </div>
               <div className={styles.searchDivider} />
@@ -159,6 +220,24 @@ export default function Home() {
                   <option value="60m-100m">KES 60M - 100M</option>
                   <option value="over-100m">Over KES 100M</option>
                 </select>
+              </div>
+              <div className={styles.searchDivider} />
+              <div className={styles.searchField}>
+                <label>Keyword</label>
+                <input
+                  type="text"
+                  placeholder="Karen, pool, 4BR..."
+                  value={heroKeyword}
+                  onChange={(e) => setHeroKeyword(e.target.value)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "inherit",
+                    fontSize: "0.92rem",
+                    outline: "none",
+                    width: "100%",
+                  }}
+                />
               </div>
               <button type="submit" className={styles.searchButton}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
@@ -278,15 +357,15 @@ export default function Home() {
 
           <div className={styles.categoryGrid}>
             {[
-              { name: "Apartments", count: 430, icon: "🏢", color: "#3b82f6" },
-              { name: "Houses", count: 280, icon: "🏠", color: "#10b981" },
-              { name: "Villas", count: 150, icon: "🏛️", color: "#d4a017" },
-              { name: "Land", count: 95, icon: "🌿", color: "#8b5cf6" },
-              { name: "Commercial", count: 120, icon: "🏗️", color: "#ef4444" },
-              { name: "Townhouses", count: 200, icon: "🏘️", color: "#06b6d4" },
+              { name: "Apartments", slug: "apartment", count: 430, icon: "🏢", color: "#3b82f6" },
+              { name: "Houses", slug: "house", count: 280, icon: "🏠", color: "#10b981" },
+              { name: "Villas", slug: "villa", count: 150, icon: "🏛️", color: "#d4a017" },
+              { name: "Land", slug: "land", count: 95, icon: "🌿", color: "#8b5cf6" },
+              { name: "Commercial", slug: "commercial", count: 120, icon: "🏗️", color: "#ef4444" },
+              { name: "Townhouses", slug: "townhouse", count: 200, icon: "🏘️", color: "#06b6d4" },
             ].map((cat, i) => (
               <ScrollReveal key={cat.name} delay={i * 80} direction="up">
-                <Link href={`/properties?propertyType=${cat.name.toLowerCase()}`} className={styles.categoryCard}>
+                <Link href={`/properties?propertyType=${cat.slug}`} className={styles.categoryCard}>
                   <div className={styles.categoryIcon} style={{ background: `${cat.color}15` }}>
                     <span>{cat.icon}</span>
                   </div>
@@ -361,11 +440,11 @@ export default function Home() {
                 Join thousands of property owners who trust EstateVue to connect them with qualified buyers and tenants.
               </p>
               <div className={styles.ctaActions}>
-                <Link href="#" className="btn btn-primary btn-lg">
+                <Link href="/dashboard/agent" className="btn btn-primary btn-lg">
                   List Your Property
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                 </Link>
-                <Link href="#" className={`btn ${styles.ctaOutlineBtn} btn-lg`}>
+                <Link href="/about" className={`btn ${styles.ctaOutlineBtn} btn-lg`}>
                   Learn More
                 </Link>
               </div>

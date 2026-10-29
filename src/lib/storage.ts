@@ -217,3 +217,39 @@ export async function uploadDocument(
     });
 }
 
+
+/**
+ * Upload a conveyancing document (PDF or image) into a Deal Room vault.
+ * Path: deal_rooms/{dealRoomId}/{uploaderId}/{timestamp}_{safeName}
+ */
+export async function uploadDealRoomDocument(
+    file: File,
+    dealRoomId: string,
+    uploaderId: string,
+    onProgress?: (percent: number) => void
+): Promise<string> {
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `deal_rooms/${dealRoomId}/${uploaderId}/${timestamp}_${safeName}`;
+    const storageRef = ref(storage, path);
+
+    return new Promise((resolve, reject) => {
+        const uploadTask = uploadBytesResumable(storageRef, file);
+        uploadTask.on(
+            "state_changed",
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                onProgress?.(Math.round(progress));
+            },
+            (error) => reject(error),
+            async () => {
+                try {
+                    const url = await getDownloadURL(uploadTask.snapshot.ref);
+                    resolve(url);
+                } catch (err) {
+                    reject(err);
+                }
+            }
+        );
+    });
+}

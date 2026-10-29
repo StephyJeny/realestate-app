@@ -2,6 +2,8 @@
 import { useState } from "react";
 import styles from "./page.module.css";
 import toast from "react-hot-toast";
+import { submitContactMessage } from "@/lib/firestore";
+import { sendContactEmail } from "@/lib/email";
 
 export default function ContactPage() {
     const [formData, setFormData] = useState({
@@ -20,11 +22,30 @@ export default function ContactPage() {
             return;
         }
         setSending(true);
-        // Simulate sending
-        await new Promise((r) => setTimeout(r, 1500));
-        toast.success("Message sent successfully! We'll get back to you soon. 📬");
-        setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
-        setSending(false);
+        try {
+            const [dbRes, emailRes] = await Promise.allSettled([
+                submitContactMessage(formData),
+                sendContactEmail({
+                    senderName: formData.name,
+                    senderEmail: formData.email,
+                    senderPhone: formData.phone,
+                    subject: formData.subject,
+                    message: formData.message,
+                }),
+            ]);
+
+            if (dbRes.status === "rejected" && (emailRes.status === "rejected" || !emailRes.value)) {
+                throw dbRes.reason;
+            }
+
+            toast.success("Message sent successfully! We'll get back to you soon. 📬");
+            setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+        } catch (err) {
+            console.error("Failed to submit contact form:", err);
+            toast.error("Could not send your message. Please try again.");
+        } finally {
+            setSending(false);
+        }
     };
 
     return (

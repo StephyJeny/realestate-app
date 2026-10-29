@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { useCurrency } from "@/context/CurrencyContext";
+import { calculateClosingCosts } from "@/lib/closingCosts";
 
 interface InvestmentCalculatorProps {
     propertyPrice: number;
@@ -24,6 +25,8 @@ export default function InvestmentCalculator({
     const [interestRate, setInterestRate] = useState<number>(12.5);
     const [loanYears, setLoanYears] = useState<number>(20);
     const [isCashPurchase, setIsCashPurchase] = useState<boolean>(false);
+    const [includeClosingCosts, setIncludeClosingCosts] = useState<boolean>(true);
+    const [closingZone, setClosingZone] = useState<"urban" | "rural">("urban");
 
     // Rental revenue inputs (seeded with realistic Kenyan market defaults)
     // Long-term: approx 0.6% - 0.9% of value per month
@@ -90,11 +93,24 @@ export default function InvestmentCalculator({
     const annualNetCashFlow = annualNOI - annualDebtService;
     const monthlyNetCashFlow = annualNetCashFlow / 12;
 
-    // ROI Metrics
+    // ROI Metrics (optionally factoring in Kenyan Stamp Duty + LSK Legal Closing Costs)
+    const closingBreakdown = useMemo(
+        () =>
+            calculateClosingCosts({
+                propertyPriceKES: price,
+                zone: closingZone,
+                financing: isCashPurchase ? "cash" : "mortgage",
+                downPaymentPct,
+            }),
+        [price, closingZone, isCashPurchase, downPaymentPct]
+    );
+    const totalInitialCashInvested =
+        downPaymentAmount + (includeClosingCosts ? closingBreakdown.totalClosingCostsKES : 0);
+
     const grossRentalYield = price > 0 ? (annualGrossRevenue / price) * 100 : 0;
     const netCapRate = price > 0 ? (annualNOI / price) * 100 : 0;
     const cashOnCashReturn =
-        downPaymentAmount > 0 ? (annualNetCashFlow / downPaymentAmount) * 100 : 0;
+        totalInitialCashInvested > 0 ? (annualNetCashFlow / totalInitialCashInvested) * 100 : 0;
 
     // 5-Year Capital Appreciation estimate (historical Kenya prime residential ~7% p.a.)
     const appreciationRate = 0.07;
@@ -347,7 +363,7 @@ export default function InvestmentCalculator({
                     </h4>
 
                     {/* Cash vs Mortgage checkbox */}
-                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary, #475569)", marginBottom: "0.85rem", cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary, #475569)", marginBottom: "0.55rem", cursor: "pointer" }}>
                         <input
                             type="checkbox"
                             checked={isCashPurchase}
@@ -356,6 +372,36 @@ export default function InvestmentCalculator({
                         />
                         100% All-Cash Purchase (No Mortgage Debt)
                     </label>
+
+                    {/* Kenyan Closing Costs toggle */}
+                    <div style={{ padding: "0.65rem 0.8rem", borderRadius: "8px", background: "var(--bg-secondary, #f8f9fb)", border: "1px solid var(--border-light, #eef2fb)", marginBottom: "0.85rem" }}>
+                        <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", fontSize: "0.78rem", fontWeight: 600, color: "var(--text-primary)", cursor: "pointer" }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
+                                <input
+                                    type="checkbox"
+                                    checked={includeClosingCosts}
+                                    onChange={(e) => setIncludeClosingCosts(e.target.checked)}
+                                    style={{ accentColor: "var(--gold-500, #d4a017)" }}
+                                />
+                                Factor Closing Costs ({closingZone === "urban" ? "4%" : "2%"} Duty + LSK)
+                            </span>
+                            <span style={{ color: "var(--gold-600, #b8860b)", fontWeight: 700 }}>
+                                +{formatCurrency(closingBreakdown.totalClosingCostsKES)}
+                            </span>
+                        </label>
+                        {includeClosingCosts && (
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.4rem", fontSize: "0.72rem", color: "var(--text-tertiary)" }}>
+                                <span>Total Cash-to-Close: <strong style={{ color: "var(--text-heading)" }}>{formatCurrencyFull(totalInitialCashInvested)}</strong></span>
+                                <button
+                                    type="button"
+                                    onClick={() => setClosingZone(closingZone === "urban" ? "rural" : "urban")}
+                                    style={{ border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-secondary)", borderRadius: "5px", padding: "2px 6px", fontSize: "0.68rem", fontWeight: 700, cursor: "pointer" }}
+                                >
+                                    Switch to {closingZone === "urban" ? "2% Rural" : "4% Urban"}
+                                </button>
+                            </div>
+                        )}
+                    </div>
 
                     {!isCashPurchase && (
                         <>

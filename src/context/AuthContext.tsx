@@ -8,6 +8,7 @@ import {
     signInWithPopup,
     signOut,
     sendPasswordResetEmail,
+    sendEmailVerification,
     updateProfile,
 } from "firebase/auth";
 import { auth, googleProvider, isConfigured } from "@/lib/firebase";
@@ -29,6 +30,7 @@ interface AuthContextType {
     signInWithGoogle: () => Promise<void>;
     logout: () => Promise<void>;
     resetPassword: (email: string) => Promise<void>;
+    sendVerificationEmail: () => Promise<void>;
     refreshProfile: () => Promise<void>;
     getDashboardPath: () => string;
 }
@@ -152,6 +154,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role: role || "buyer",
             ...(agentData || {}),
         });
+        try {
+            await sendEmailVerification(result.user);
+        } catch (verifyErr) {
+            console.warn("Could not send initial verification email:", verifyErr);
+        }
         const profile = await fetchProfile(result.user.uid);
         return profile || null;
     };
@@ -182,9 +189,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await sendPasswordResetEmail(auth, email);
     };
 
+    const sendVerificationEmail = async () => {
+        if (!isConfigured || !auth.currentUser) {
+            throw new Error("You must be signed in to verify your email.");
+        }
+        await sendEmailVerification(auth.currentUser);
+    };
+
     const refreshProfile = async () => {
-        if (user) {
-            await fetchProfile(user.uid);
+        if (auth.currentUser) {
+            try {
+                await auth.currentUser.reload();
+                await auth.currentUser.getIdToken(true);
+                setUser({ ...auth.currentUser });
+            } catch {
+                // Ignore token reload errors
+            }
+            await fetchProfile(auth.currentUser.uid);
         }
     };
 
@@ -200,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 signInWithGoogle,
                 logout,
                 resetPassword,
+                sendVerificationEmail,
                 refreshProfile,
                 getDashboardPath,
             }}

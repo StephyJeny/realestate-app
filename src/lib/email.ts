@@ -1,27 +1,9 @@
 // ============================================================
 // Email Service — Resend (primary) with EmailJS fallback
 // ============================================================
-//
-// How it works:
-//   1. Emails are sent server-side via /api/send-email (Resend).
-//   2. If Resend is not configured (no RESEND_API_KEY), the API
-//      route returns { success: false } gracefully.
-//   3. If the API call fails entirely, falls back to EmailJS
-//      (client-side) for backward compatibility.
-//
-// Environment variables for Resend (server-side, in .env.local):
-//   RESEND_API_KEY=re_xxxxxxxxx
-//   RESEND_FROM_EMAIL=EstateVue <onboarding@resend.dev>
-//
-// Legacy EmailJS env vars (still supported as fallback):
-//   NEXT_PUBLIC_EMAILJS_SERVICE_ID
-//   NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
-//   NEXT_PUBLIC_EMAILJS_APPROVAL_TEMPLATE_ID
-//   NEXT_PUBLIC_EMAILJS_INQUIRY_TEMPLATE_ID
-//   NEXT_PUBLIC_EMAILJS_REPLY_EMAIL
-// ============================================================
 
 import emailjs from "@emailjs/browser";
+import { auth } from "./firebase";
 
 // Legacy EmailJS configuration (fallback)
 const SERVICE_ID = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || "";
@@ -34,7 +16,7 @@ const isEmailJSConfigured = !!(SERVICE_ID && PUBLIC_KEY && APPROVAL_TEMPLATE_ID)
 const isInquiryEmailJSConfigured = !!(SERVICE_ID && PUBLIC_KEY && INQUIRY_TEMPLATE_ID);
 
 // Expose for backward compat
-const isEmailConfigured = true; // Always "configured" — Resend route handles gracefully
+const isEmailConfigured = true;
 const isInquiryEmailConfigured = true;
 
 if (PUBLIC_KEY) {
@@ -58,6 +40,7 @@ export interface RejectionEmailData {
 }
 
 export interface InquiryEmailData {
+    propertyId?: string;
     agentName: string;
     agentEmail: string;
     senderName: string;
@@ -68,27 +51,42 @@ export interface InquiryEmailData {
     inquiryType: "inquiry" | "viewing" | "offer";
 }
 
+export interface ContactEmailData {
+    senderName: string;
+    senderEmail: string;
+    senderPhone?: string;
+    subject?: string;
+    message: string;
+}
+
 // ========================
 // RESEND API CALLER
 // ========================
 
 async function sendViaResend(payload: Record<string, unknown>): Promise<boolean> {
     try {
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (auth.currentUser) {
+            try {
+                const token = await auth.currentUser.getIdToken();
+                headers.Authorization = `Bearer ${token}`;
+            } catch {
+                // Proceed without token for public contact form
+            }
+        }
+
         const res = await fetch("/api/send-email", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify(payload),
         });
 
         const data = await res.json();
 
         if (data.success) {
-            console.info(`✅ Email sent via Resend (type: ${payload.type})`);
             return true;
         }
 
-        // Resend not configured or failed — not a hard error
-        console.warn(`Resend returned: ${data.message || "not configured"}`);
         return false;
     } catch (err) {
         console.warn("Resend API call failed:", err);
@@ -101,11 +99,7 @@ async function sendViaResend(payload: Record<string, unknown>): Promise<boolean>
 // ========================
 
 async function sendApprovalViaEmailJS(data: ApprovalEmailData): Promise<boolean> {
-    if (!isEmailJSConfigured) {
-        console.warn("EmailJS not configured. Skipping approval email fallback.");
-        console.info(`Would send approval email to ${data.agentEmail} with code: ${data.agentCode}`);
-        return false;
-    }
+    if (!isEmailJSConfigured) return false;
 
     try {
         await emailjs.send(
@@ -121,7 +115,6 @@ async function sendApprovalViaEmailJS(data: ApprovalEmailData): Promise<boolean>
             },
             PUBLIC_KEY
         );
-        console.info(`Approval email sent via EmailJS to ${data.agentEmail}`);
         return true;
     } catch (error: unknown) {
         console.error("EmailJS approval email failed:", error);
@@ -130,10 +123,7 @@ async function sendApprovalViaEmailJS(data: ApprovalEmailData): Promise<boolean>
 }
 
 async function sendRejectionViaEmailJS(data: RejectionEmailData): Promise<boolean> {
-    if (!isEmailJSConfigured) {
-        console.warn("EmailJS not configured. Skipping rejection email fallback.");
-        return false;
-    }
+    if (!isEmailJSConfigured) return false;
 
     try {
         await emailjs.send(
@@ -149,7 +139,6 @@ async function sendRejectionViaEmailJS(data: RejectionEmailData): Promise<boolea
             },
             PUBLIC_KEY
         );
-        console.info(`Rejection email sent via EmailJS to ${data.agentEmail}`);
         return true;
     } catch (error: unknown) {
         console.error("EmailJS rejection email failed:", error);
@@ -158,10 +147,7 @@ async function sendRejectionViaEmailJS(data: RejectionEmailData): Promise<boolea
 }
 
 async function sendInquiryViaEmailJS(data: InquiryEmailData): Promise<boolean> {
-    if (!isInquiryEmailJSConfigured) {
-        console.warn("EmailJS inquiry template not configured. Skipping inquiry fallback.");
-        return false;
-    }
+    if (!isInquiryEmailJSConfigured) return false;
 
     const typeLabel = data.inquiryType === "viewing" ? "Viewing Request" : data.inquiryType === "offer" ? "Offer" : "Inquiry";
 
@@ -179,7 +165,6 @@ async function sendInquiryViaEmailJS(data: InquiryEmailData): Promise<boolean> {
             },
             PUBLIC_KEY
         );
-        console.info(`Inquiry email sent via EmailJS to ${data.agentEmail}`);
         return true;
     } catch (error: unknown) {
         console.error("EmailJS inquiry email failed:", error);
@@ -191,12 +176,7 @@ async function sendInquiryViaEmailJS(data: InquiryEmailData): Promise<boolean> {
 // PUBLIC API (Resend → EmailJS fallback)
 // ========================
 
-/**
- * Send an approval email to the agent with their verification code.
- * Tries Resend first, falls back to EmailJS.
- */
 export async function sendApprovalEmail(data: ApprovalEmailData): Promise<boolean> {
-    // Try Resend first
     const sent = await sendViaResend({
         type: "approval",
         toName: data.agentName,
@@ -205,15 +185,9 @@ export async function sendApprovalEmail(data: ApprovalEmailData): Promise<boolea
     });
 
     if (sent) return true;
-
-    // Fallback to EmailJS
     return sendApprovalViaEmailJS(data);
 }
 
-/**
- * Send a rejection email to the agent.
- * Tries Resend first, falls back to EmailJS.
- */
 export async function sendRejectionEmail(data: RejectionEmailData): Promise<boolean> {
     const sent = await sendViaResend({
         type: "rejection",
@@ -223,17 +197,13 @@ export async function sendRejectionEmail(data: RejectionEmailData): Promise<bool
     });
 
     if (sent) return true;
-
     return sendRejectionViaEmailJS(data);
 }
 
-/**
- * Send an inquiry notification email to the agent.
- * Tries Resend first, falls back to EmailJS.
- */
 export async function sendInquiryEmail(data: InquiryEmailData): Promise<boolean> {
     const sent = await sendViaResend({
         type: "inquiry",
+        propertyId: data.propertyId,
         toName: data.agentName,
         toEmail: data.agentEmail,
         senderName: data.senderName,
@@ -245,8 +215,18 @@ export async function sendInquiryEmail(data: InquiryEmailData): Promise<boolean>
     });
 
     if (sent) return true;
-
     return sendInquiryViaEmailJS(data);
+}
+
+export async function sendContactEmail(data: ContactEmailData): Promise<boolean> {
+    return sendViaResend({
+        type: "contact",
+        senderName: data.senderName,
+        senderEmail: data.senderEmail,
+        senderPhone: data.senderPhone,
+        subject: data.subject,
+        message: data.message,
+    });
 }
 
 export { isEmailConfigured, isInquiryEmailConfigured };

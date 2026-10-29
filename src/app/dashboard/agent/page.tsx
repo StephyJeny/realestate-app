@@ -13,6 +13,9 @@ import {
     updateUserProfile,
     replyToInquiry,
     updateInquiryStatus,
+    updateInquiryStage,
+    respondToOffer,
+    OfferDetails,
     FirestoreProperty,
     Notification,
     Inquiry,
@@ -21,6 +24,11 @@ import {
     Review,
 } from "@/lib/firestore";
 import { uploadPropertyImages } from "@/lib/storage";
+import LOIModal from "@/components/property/LOIModal";
+import DealRoomModal from "@/components/property/DealRoomModal";
+import PaymentModal from "@/components/payment/PaymentModal";
+import LeadKanbanBoard, { PipelineStage } from "@/components/agent/LeadKanbanBoard";
+import { LOIData } from "@/lib/loiGenerator";
 import toast from "react-hot-toast";
 import styles from "../dashboard.module.css";
 import AgentGate from "@/components/agent/AgentGate";
@@ -56,6 +64,20 @@ export default function AgentDashboard() {
     // Reply to inquiry state
     const [replyingInquiry, setReplyingInquiry] = useState<Inquiry | null>(null);
     const [replyText, setReplyText] = useState("");
+    const [inquiryViewMode, setInquiryViewMode] = useState<"kanban" | "table">("kanban");
+
+    // Offer negotiation and LOI states
+    const [viewingLOI, setViewingLOI] = useState<LOIData | null>(null);
+    const [dealRoomInquiry, setDealRoomInquiry] = useState<Inquiry | null>(null);
+    const [counteringOffer, setCounteringOffer] = useState<Inquiry | null>(null);
+    const [counterPriceInput, setCounterPriceInput] = useState<number>(0);
+    const [counterTermsInput, setCounterTermsInput] = useState<string>("");
+    const [isCounterSubmitting, setIsCounterSubmitting] = useState(false);
+
+    // Listing promotion state
+    const [promoteProperty, setPromoteProperty] = useState<FirestoreProperty | null>(null);
+    const [selectedPromoTier, setSelectedPromoTier] = useState<"featured_7" | "featured_14" | "featured_30">("featured_7");
+    const [showPromoCheckout, setShowPromoCheckout] = useState(false);
 
     const [newProperty, setNewProperty] = useState({
         title: "", description: "", type: "apartment" as FirestoreProperty["type"],
@@ -301,6 +323,136 @@ export default function AgentDashboard() {
 
 
 
+    const handleAcceptOffer = async (inquiry: Inquiry) => {
+        if (!inquiry.id || !user || !userProfile) return;
+        if (!confirm(`Accept offer of KES ${inquiry.offerDetails?.offeredPrice?.toLocaleString()} for "${inquiry.propertyTitle}"? This will place the property under offer.`)) return;
+
+        try {
+            toast.loading("Accepting offer & updating listing...", { id: "offer-action" });
+            await respondToOffer({
+                inquiryId: inquiry.id,
+                action: "accept",
+                actorId: user.uid,
+                actorName: userProfile.displayName || "Listing Agent",
+                note: "Offer accepted by Vendor/Agent. Proceeding to legal Agreement for Sale.",
+            });
+            toast.success("Offer accepted! Property marked Under Offer 🎉", { id: "offer-action" });
+            loadData();
+        } catch (err) {
+            console.error("Failed to accept offer:", err);
+            toast.error("Failed to accept offer", { id: "offer-action" });
+        }
+    };
+
+    const handleStageChange = async (inquiryId: string, newStage: PipelineStage) => {
+        // Optimistic update
+        setInquiries((prev) =>
+            prev.map((inq) => (inq.id === inquiryId ? { ...inq, stage: newStage, status: newStage } : inq))
+        );
+        try {
+            await updateInquiryStage(inquiryId, newStage);
+            const stageLabel =
+                newStage === "new" ? "New Lead" :
+                newStage === "contacted" ? "Contacted" :
+                newStage === "viewing_scheduled" ? "Viewing Scheduled" :
+                newStage === "offer_made" ? "Offer Made" : "Closed / Won";
+            toast.success(`Lead moved to "${stageLabel}" ✨`);
+        } catch (err) {
+            console.error("Failed to update lead stage:", err);
+            toast.error("Failed to update lead stage");
+            loadData();
+        }
+    };
+
+    const handleRejectOffer = async (inquiry: Inquiry) => {
+        if (!inquiry.id || !user || !userProfile) return;
+        const reason = prompt("Reason for declining offer (optional):", "Price consideration does not meet Vendor requirements.");
+        if (reason === null) return;
+
+        try {
+            toast.loading("Declining offer...", { id: "offer-action" });
+            await respondToOffer({
+                inquiryId: inquiry.id,
+                action: "reject",
+                actorId: user.uid,
+                actorName: userProfile.displayName || "Listing Agent",
+                note: reason || "Offer declined.",
+            });
+            toast.success("Offer declined", { id: "offer-action" });
+            loadData();
+        } catch (err) {
+            console.error("Failed to decline offer:", err);
+            toast.error("Failed to decline offer", { id: "offer-action" });
+        }
+    };
+
+    const handleOpenCounterModal = (inquiry: Inquiry) => {
+        setCounteringOffer(inquiry);
+        setCounterPriceInput(inquiry.offerDetails?.offeredPrice ? Math.round(inquiry.offerDetails.offeredPrice * 1.05) : 0);
+        setCounterTermsInput("Vendor requests revised price and earnest deposit within 7 days.");
+    };
+
+    const handleSubmitCounterOffer = async () => {
+        if (!counteringOffer?.id || !user || !userProfile || !counterPriceInput) return;
+        setIsCounterSubmitting(true);
+        try {
+            await respondToOffer({
+                inquiryId: counteringOffer.id,
+                action: "counter",
+                actorId: user.uid,
+                actorName: userProfile.displayName || "Listing Agent",
+                counterPrice: counterPriceInput,
+                counterTerms: counterTermsInput.trim(),
+                note: `Counter-offer: KES ${counterPriceInput.toLocaleString()}. Terms: ${counterTermsInput.trim()}`,
+            });
+            toast.success(`Counter-offer of KES ${counterPriceInput.toLocaleString()} sent! ⚖️`);
+            setCounteringOffer(null);
+            loadData();
+        } catch (err) {
+            console.error("Failed to send counter offer:", err);
+            toast.error("Failed to submit counter offer");
+        } finally {
+            setIsCounterSubmitting(false);
+        }
+    };
+
+    const handleViewOfferLOI = (inquiry: Inquiry) => {
+        const details = inquiry.offerDetails;
+        if (!details) {
+            toast.error("Offer details not available");
+            return;
+        }
+
+        const loi: LOIData = {
+            loiNumber: details.loiNumber || `EV-LOI-${new Date().getFullYear()}-0000`,
+            date: inquiry.createdAt ? new Date((inquiry.createdAt as any).seconds * 1000).toLocaleDateString() : new Date().toLocaleDateString(),
+            propertyTitle: inquiry.propertyTitle,
+            lrNumber: `LR No. 209/${Math.floor(10000 + Math.random() * 89000)}`,
+            city: "Nairobi",
+            neighborhood: "Kenya",
+            buyerName: inquiry.senderName,
+            buyerEmail: inquiry.senderEmail,
+            buyerPhone: inquiry.senderPhone,
+            agentName: userProfile?.displayName || "Listing Agent",
+            agentEmail: user?.email || "",
+            agentPhone: userProfile?.phone || "",
+            offeredPrice: details.offeredPrice,
+            askingPrice: details.askingPrice || details.offeredPrice,
+            currency: "KES",
+            downPaymentPercent: details.downPaymentPercent || 10,
+            downPaymentAmount: details.downPaymentAmount || Math.round(details.offeredPrice * 0.1),
+            financingType: details.financingType || "cash",
+            moveInDate: details.moveInDate || "To be agreed",
+            validityDays: 14,
+            contingencies: details.contingencies || [],
+            specialConditions: details.specialConditions,
+            status: details.offerStatus || "pending",
+            counterPrice: details.counterPrice,
+            counterTerms: details.counterTerms,
+        };
+        setViewingLOI(loi);
+    };
+
     const handleSaveProfile = async () => {
         if (!user) return;
         setIsSubmitting(true);
@@ -383,9 +535,19 @@ export default function AgentDashboard() {
                             </button>
                             <button className={`${styles.sidebarLink} ${activeTab === "inquiries" ? styles.sidebarLinkActive : ""}`}
                                 onClick={() => { setActiveTab("inquiries"); setSidebarOpen(false); }}>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                                Inquiries
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" /><rect x="14" y="3" width="7" height="5" /><rect x="14" y="12" width="7" height="9" /><rect x="3" y="16" width="7" height="5" /></svg>
+                                Leads & CRM
                                 {inquiries.length > 0 && <span className={styles.sidebarBadge}>{inquiries.length}</span>}
+                            </button>
+                            <button className={`${styles.sidebarLink} ${activeTab === "offers" ? styles.sidebarLinkActive : ""}`}
+                                onClick={() => { setActiveTab("offers"); setSidebarOpen(false); }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+                                Offers & LOI
+                                {inquiries.filter(i => i.type === "offer" && (!i.offerDetails?.offerStatus || i.offerDetails.offerStatus === "pending")).length > 0 && (
+                                    <span className={styles.sidebarBadge} style={{ background: "var(--gold-500)", color: "#000" }}>
+                                        {inquiries.filter(i => i.type === "offer" && (!i.offerDetails?.offerStatus || i.offerDetails.offerStatus === "pending")).length}
+                                    </span>
+                                )}
                             </button>
                             <button className={`${styles.sidebarLink} ${activeTab === "notifications" ? styles.sidebarLinkActive : ""}`}
                                 onClick={() => { setActiveTab("notifications"); setSidebarOpen(false); }}>
@@ -594,6 +756,21 @@ export default function AgentDashboard() {
                                                         )}
                                                     </div>
                                                     <div className={styles.propertyCardActions}>
+                                                        <button
+                                                            onClick={() => {
+                                                                setPromoteProperty(prop);
+                                                                setShowPromoCheckout(false);
+                                                            }}
+                                                            style={{
+                                                                background: prop.isFeatured ? "rgba(245, 158, 11, 0.12)" : "rgba(16, 185, 129, 0.12)",
+                                                                color: prop.isFeatured ? "#d97706" : "#059669",
+                                                                border: prop.isFeatured ? "1px solid rgba(245, 158, 11, 0.25)" : "1px solid rgba(16, 185, 129, 0.25)",
+                                                                fontWeight: 600,
+                                                            }}
+                                                            title="Boost listing with M-Pesa"
+                                                        >
+                                                            {prop.isFeatured ? "⭐ Promoted" : "🚀 Promote"}
+                                                        </button>
                                                         <button onClick={() => openEditModal(prop)}>
                                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                                             Edit
@@ -627,67 +804,354 @@ export default function AgentDashboard() {
 
                     {activeTab === "inquiries" && (
                         <div className={styles.contentCard}>
-                            <div className={styles.contentCardHeader}>
-                                <h3 className={styles.contentCardTitle}>Inquiries Received</h3>
+                            <div className={styles.contentCardHeader} style={{ flexWrap: "wrap", gap: "1rem", alignItems: "center" }}>
+                                <div>
+                                    <h3 className={styles.contentCardTitle}>Leads & CRM Pipeline</h3>
+                                    <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                        Drag & drop leads across stages: New Lead ➔ Contacted ➔ Viewing Scheduled ➔ Offer Made ➔ Closed
+                                    </p>
+                                </div>
+                                <div style={{ display: "flex", background: "var(--bg-tertiary, #f1f5f9)", borderRadius: "8px", padding: "3px", gap: "2px" }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setInquiryViewMode("kanban")}
+                                        style={{
+                                            padding: "0.35rem 0.75rem",
+                                            borderRadius: "6px",
+                                            fontSize: "0.8rem",
+                                            fontWeight: 600,
+                                            border: "none",
+                                            background: inquiryViewMode === "kanban" ? "#fff" : "transparent",
+                                            color: inquiryViewMode === "kanban" ? "var(--text-primary)" : "var(--text-secondary)",
+                                            boxShadow: inquiryViewMode === "kanban" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "0.35rem",
+                                        }}
+                                    >
+                                        <span>📊</span> Kanban Board
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setInquiryViewMode("table")}
+                                        style={{
+                                            padding: "0.35rem 0.75rem",
+                                            borderRadius: "6px",
+                                            fontSize: "0.8rem",
+                                            fontWeight: 600,
+                                            border: "none",
+                                            background: inquiryViewMode === "table" ? "#fff" : "transparent",
+                                            color: inquiryViewMode === "table" ? "var(--text-primary)" : "var(--text-secondary)",
+                                            boxShadow: inquiryViewMode === "table" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "0.35rem",
+                                        }}
+                                    >
+                                        <span>📋</span> Table View
+                                    </button>
+                                </div>
                             </div>
-                            {inquiries.length > 0 ? (
-                                <table className={styles.table}>
-                                    <thead>
-                                        <tr>
-                                            <th>From</th>
-                                            <th>Property</th>
-                                            <th>Type</th>
-                                            <th>Message</th>
-                                            <th>Status</th>
-                                            <th>Date</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {inquiries.map((inq) => (
-                                            <tr key={inq.id as string}>
-                                                <td>
-                                                    <div className={styles.tableUserCell}>
-                                                        <div className={styles.tableAvatar}>
-                                                            {inq.senderName?.charAt(0) || "U"}
-                                                        </div>
-                                                        <div className={styles.tableUserInfo}>
-                                                            <span className={styles.tableUserName}>{inq.senderName || "User"}</span>
-                                                            <span className={styles.tableUserEmail}>{inq.senderEmail || ""}</span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>{inq.propertyTitle || "Property"}</td>
-                                                <td><span className={`${styles.statusBadge} ${styles.statusActive}`}>{inq.type || "inquiry"}</span></td>
-                                                <td style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                                    {inq.message || ""}
-                                                </td>
-                                                <td>
-                                                    <span className={`${styles.statusBadge} ${inq.status === "replied" ? styles.statusApproved : inq.status === "closed" ? styles.statusPending : styles.statusActive}`}>
-                                                        {inq.status === "replied" ? "✅ Replied" : inq.status === "closed" ? "⬜ Closed" : "🆕 New"}
-                                                    </span>
-                                                </td>
-                                                <td>{inq.createdAt ? new Date(inq.createdAt.seconds * 1000).toLocaleDateString() : "N/A"}</td>
-                                                <td>
-                                                    <div style={{ display: "flex", gap: "0.35rem" }}>
-                                                        {inq.status !== "replied" && (
-                                                            <button onClick={() => { setReplyingInquiry(inq); setReplyText(""); }} style={{ fontSize: "0.72rem", padding: "0.25rem 0.5rem", borderRadius: "4px", background: "var(--navy-800)", color: "#fff", border: "none", cursor: "pointer" }}>Reply</button>
-                                                        )}
-                                                        {inq.status !== "closed" && (
-                                                            <button onClick={() => updateInquiryStatus(inq.id!, "closed").then(() => { toast.success("Inquiry closed"); loadData(); })} style={{ fontSize: "0.72rem", padding: "0.25rem 0.5rem", borderRadius: "4px", background: "rgba(107,114,128,0.1)", color: "var(--gray-600)", border: "1px solid var(--gray-200)", cursor: "pointer" }}>Close</button>
-                                                        )}
-                                                    </div>
-                                                </td>
+
+                            {inquiryViewMode === "kanban" ? (
+                                <LeadKanbanBoard
+                                    inquiries={inquiries}
+                                    onStageChange={handleStageChange}
+                                    onReplyClick={(inq) => { setReplyingInquiry(inq); setReplyText(""); }}
+                                    onViewOfferClick={handleViewOfferLOI}
+                                    onOpenDealRoomClick={(inq) => setDealRoomInquiry(inq)}
+                                />
+                            ) : inquiries.length > 0 ? (
+                                <div style={{ overflowX: "auto" }}>
+                                    <table className={styles.table}>
+                                        <thead>
+                                            <tr>
+                                                <th>From</th>
+                                                <th>Property</th>
+                                                <th>Type</th>
+                                                <th>Message</th>
+                                                <th>Pipeline Stage</th>
+                                                <th>Date</th>
+                                                <th>Actions</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {inquiries.map((inq) => (
+                                                <tr key={inq.id as string}>
+                                                    <td>
+                                                        <div className={styles.tableUserCell}>
+                                                            <div className={styles.tableAvatar}>
+                                                                {inq.senderName?.charAt(0) || "U"}
+                                                            </div>
+                                                            <div className={styles.tableUserInfo}>
+                                                                <span className={styles.tableUserName}>{inq.senderName || "User"}</span>
+                                                                <span className={styles.tableUserEmail}>{inq.senderEmail || ""}</span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td>{inq.propertyTitle || "Property"}</td>
+                                                    <td><span className={`${styles.statusBadge} ${styles.statusActive}`}>{inq.type || "inquiry"}</span></td>
+                                                    <td style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                        {inq.message || ""}
+                                                    </td>
+                                                    <td>
+                                                        <select
+                                                            value={inq.stage || (inq.status === "closed" ? "closed" : inq.status === "replied" ? "contacted" : inq.type === "offer" ? "offer_made" : inq.type === "viewing" ? "viewing_scheduled" : "new")}
+                                                            onChange={(e) => handleStageChange(inq.id!, e.target.value as any)}
+                                                            style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem", borderRadius: "4px", border: "1px solid var(--border-color)", background: "var(--bg-surface)" }}
+                                                        >
+                                                            <option value="new">🆕 New Lead</option>
+                                                            <option value="contacted">📞 Contacted</option>
+                                                            <option value="viewing_scheduled">📅 Viewing Scheduled</option>
+                                                            <option value="offer_made">💼 Offer Made</option>
+                                                            <option value="closed">🎉 Closed / Won</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>{inq.createdAt ? new Date(inq.createdAt.seconds * 1000).toLocaleDateString() : "N/A"}</td>
+                                                    <td>
+                                                        <div style={{ display: "flex", gap: "0.35rem" }}>
+                                                            {inq.status !== "replied" && (
+                                                                <button onClick={() => { setReplyingInquiry(inq); setReplyText(""); }} style={{ fontSize: "0.72rem", padding: "0.25rem 0.5rem", borderRadius: "4px", background: "var(--navy-800)", color: "#fff", border: "none", cursor: "pointer" }}>Reply</button>
+                                                            )}
+                                                            {inq.status !== "closed" && (
+                                                                <button onClick={() => updateInquiryStatus(inq.id!, "closed").then(() => { toast.success("Inquiry closed"); loadData(); })} style={{ fontSize: "0.72rem", padding: "0.25rem 0.5rem", borderRadius: "4px", background: "rgba(107,114,128,0.1)", color: "var(--gray-600)", border: "1px solid var(--gray-200)", cursor: "pointer" }}>Close</button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             ) : (
                                 <div className={styles.emptyState}>
                                     <div className={styles.emptyIcon}>💬</div>
                                     <h3 className={styles.emptyTitle}>No Inquiries Yet</h3>
                                     <p className={styles.emptyText}>
                                         Once buyers start reaching out about your properties, their inquiries will appear here.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === "offers" && (
+                        <div className={styles.contentCard}>
+                            <div className={styles.contentCardHeader}>
+                                <div>
+                                    <h3 className={styles.contentCardTitle}>Incoming Purchase Offers & LOIs</h3>
+                                    <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                        Review formal Kenyan conveyancing Letters of Intent (LOI), counter-offer pricing, and accept terms.
+                                    </p>
+                                </div>
+                            </div>
+                            {inquiries.filter((inq) => inq.type === "offer" || !!inq.offerDetails).length > 0 ? (
+                                <div style={{ overflowX: "auto" }}>
+                                    <table className={styles.table}>
+                                        <thead>
+                                            <tr>
+                                                <th>Buyer</th>
+                                                <th>Property</th>
+                                                <th>Offered Amount</th>
+                                                <th>Financing / Deposit</th>
+                                                <th>Move-In / Completion</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {inquiries
+                                                .filter((inq) => inq.type === "offer" || !!inq.offerDetails)
+                                                .map((inq) => {
+                                                    const details = inq.offerDetails;
+                                                    const status = details?.offerStatus || "pending";
+                                                    return (
+                                                        <tr key={inq.id as string}>
+                                                            <td>
+                                                                <div className={styles.tableUserCell}>
+                                                                    <div className={styles.tableAvatar} style={{ background: "rgba(217, 119, 6, 0.15)", color: "#d97706" }}>
+                                                                        {inq.senderName?.charAt(0) || "B"}
+                                                                    </div>
+                                                                    <div className={styles.tableUserInfo}>
+                                                                        <span className={styles.tableUserName}>{inq.senderName || "Buyer"}</span>
+                                                                        <span className={styles.tableUserEmail}>{inq.senderEmail}</span>
+                                                                        {inq.senderPhone && (
+                                                                            <span style={{ fontSize: "0.72rem", color: "var(--text-tertiary)" }}>📞 {inq.senderPhone}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <strong style={{ fontSize: "0.85rem", color: "var(--text-primary)" }}>{inq.propertyTitle}</strong>
+                                                                {details?.loiNumber && (
+                                                                    <div style={{ fontSize: "0.7rem", fontFamily: "monospace", color: "var(--text-tertiary)" }}>
+                                                                        {details.loiNumber}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            <td>
+                                                                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--text-primary)" }}>
+                                                                    KES {(details?.offeredPrice || 0).toLocaleString()}
+                                                                </div>
+                                                                {details?.askingPrice && details.askingPrice > 0 && (
+                                                                    <span style={{ fontSize: "0.72rem", color: "var(--text-tertiary)" }}>
+                                                                        Asking: KES {details.askingPrice.toLocaleString()}
+                                                                    </span>
+                                                                )}
+                                                                {details?.counterPrice && status === "countered" && (
+                                                                    <div style={{ fontSize: "0.72rem", color: "#d97706", fontWeight: 600, marginTop: "2px" }}>
+                                                                        ⚖️ Counter: KES {details.counterPrice.toLocaleString()}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            <td>
+                                                                <span style={{
+                                                                    fontSize: "0.72rem",
+                                                                    padding: "0.2rem 0.5rem",
+                                                                    borderRadius: "4px",
+                                                                    background: details?.financingType === "cash" ? "rgba(16,185,129,0.12)" : "rgba(59,130,246,0.12)",
+                                                                    color: details?.financingType === "cash" ? "#059669" : "#2563eb",
+                                                                    fontWeight: 600,
+                                                                    textTransform: "capitalize",
+                                                                    display: "inline-block",
+                                                                    marginBottom: "3px"
+                                                                }}>
+                                                                    {details?.financingType || "Cash"}
+                                                                </span>
+                                                                <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                                                                    Deposit: {details?.downPaymentPercent || 10}% (KES {(details?.downPaymentAmount || 0).toLocaleString()})
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>
+                                                                    {details?.moveInDate || "30-60 days conveyancing"}
+                                                                </span>
+                                                                {details?.contingencies && details.contingencies.length > 0 && (
+                                                                    <div style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                                                                        {details.contingencies.length} contingencies
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            <td>
+                                                                <span className={`${styles.statusBadge} ${
+                                                                    status === "accepted" ? styles.statusApproved :
+                                                                    status === "countered" ? styles.statusPending :
+                                                                    status === "rejected" ? styles.statusRejected :
+                                                                    styles.statusActive
+                                                                }`}>
+                                                                    {status === "accepted" ? "✅ Accepted" :
+                                                                     status === "countered" ? "⚖️ Countered" :
+                                                                     status === "rejected" ? "❌ Declined" : "⏳ Pending"}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", minWidth: "170px" }}>
+                                                                    <button
+                                                                        onClick={() => handleViewOfferLOI(inq)}
+                                                                        style={{
+                                                                            fontSize: "0.72rem",
+                                                                            padding: "0.3rem 0.55rem",
+                                                                            borderRadius: "6px",
+                                                                            background: "rgba(59, 130, 246, 0.1)",
+                                                                            color: "#2563eb",
+                                                                            border: "1px solid rgba(59, 130, 246, 0.25)",
+                                                                            cursor: "pointer",
+                                                                            fontWeight: 600
+                                                                        }}
+                                                                        title="View formal Letter of Intent document"
+                                                                    >
+                                                                        📜 View LOI
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setDealRoomInquiry(inq)}
+                                                                        style={{
+                                                                            fontSize: "0.72rem",
+                                                                            padding: "0.3rem 0.55rem",
+                                                                            borderRadius: "6px",
+                                                                            background: "rgba(212, 160, 23, 0.16)",
+                                                                            color: "var(--gold-600, #b8860b)",
+                                                                            border: "1px solid rgba(212, 160, 23, 0.4)",
+                                                                            cursor: "pointer",
+                                                                            fontWeight: 700
+                                                                        }}
+                                                                        title="Open Conveyancing Deal Room"
+                                                                    >
+                                                                        🏛️ Deal Room
+                                                                    </button>
+                                                                    {status === "pending" && (
+                                                                        <>
+                                                                            <button
+                                                                                onClick={() => handleAcceptOffer(inq)}
+                                                                                style={{
+                                                                                    fontSize: "0.72rem",
+                                                                                    padding: "0.3rem 0.55rem",
+                                                                                    borderRadius: "6px",
+                                                                                    background: "rgba(16, 185, 129, 0.15)",
+                                                                                    color: "#059669",
+                                                                                    border: "1px solid rgba(16, 185, 129, 0.3)",
+                                                                                    cursor: "pointer",
+                                                                                    fontWeight: 600
+                                                                                }}
+                                                                            >
+                                                                                ✅ Accept
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handleOpenCounterModal(inq)}
+                                                                                style={{
+                                                                                    fontSize: "0.72rem",
+                                                                                    padding: "0.3rem 0.55rem",
+                                                                                    borderRadius: "6px",
+                                                                                    background: "rgba(245, 158, 11, 0.15)",
+                                                                                    color: "#d97706",
+                                                                                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                                                                                    cursor: "pointer",
+                                                                                    fontWeight: 600
+                                                                                }}
+                                                                            >
+                                                                                ⚖️ Counter
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handleRejectOffer(inq)}
+                                                                                style={{
+                                                                                    fontSize: "0.72rem",
+                                                                                    padding: "0.3rem 0.55rem",
+                                                                                    borderRadius: "6px",
+                                                                                    background: "rgba(239, 68, 68, 0.1)",
+                                                                                    color: "#dc2626",
+                                                                                    border: "1px solid rgba(239, 68, 68, 0.2)",
+                                                                                    cursor: "pointer"
+                                                                                }}
+                                                                            >
+                                                                                Decline
+                                                                            </button>
+                                                                        </>
+                                                                    )}
+                                                                    {status === "countered" && (
+                                                                        <span style={{ fontSize: "0.72rem", color: "var(--text-tertiary)", alignSelf: "center" }}>
+                                                                            Awaiting buyer
+                                                                        </span>
+                                                                    )}
+                                                                    {status === "accepted" && (
+                                                                        <span style={{ fontSize: "0.72rem", color: "#059669", fontWeight: 600, alignSelf: "center" }}>
+                                                                            Under Contract 🎉
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className={styles.emptyState}>
+                                    <div className={styles.emptyIcon}>💼</div>
+                                    <h3 className={styles.emptyTitle}>No Purchase Offers Yet</h3>
+                                    <p className={styles.emptyText}>
+                                        When buyers submit formal conveyancing offers and LOIs on your active listings, they will appear here for you to accept, counter-offer, or generate contracts.
                                     </p>
                                 </div>
                             )}
@@ -1362,6 +1826,220 @@ export default function AgentDashboard() {
                         </div>
                     </div>
                 )}
+
+                {/* Promotion Selector Modal */}
+                {promoteProperty && !showPromoCheckout && (
+                    <div className={styles.modalOverlay} onClick={() => setPromoteProperty(null)}>
+                        <div className={styles.modal} style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+                            <div className={styles.modalHeader}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                    <span style={{ fontSize: "1.3rem" }}>🚀</span>
+                                    <div>
+                                        <h3 className={styles.modalTitle}>Boost & Promote Listing</h3>
+                                        <div style={{ fontSize: "0.76rem", color: "var(--text-tertiary)" }}>
+                                            Instant M-Pesa STK Push • Guaranteed Top Placement
+                                        </div>
+                                    </div>
+                                </div>
+                                <button className={styles.modalClose} onClick={() => setPromoteProperty(null)}>✕</button>
+                            </div>
+                            <div className={styles.modalBody}>
+                                <div style={{ background: "var(--bg-tertiary)", padding: "0.9rem", borderRadius: "var(--radius-md)", marginBottom: "1.25rem" }}>
+                                    <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                                        {promoteProperty.title}
+                                    </div>
+                                    <div style={{ fontSize: "0.78rem", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                                        KES {promoteProperty.price?.toLocaleString()} • {promoteProperty.city}
+                                    </div>
+                                </div>
+
+                                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.5rem" }}>
+                                    <label
+                                        onClick={() => setSelectedPromoTier("featured_7")}
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            padding: "1rem",
+                                            borderRadius: "var(--radius-md)",
+                                            border: selectedPromoTier === "featured_7" ? "2px solid #00a859" : "1px solid var(--border-color)",
+                                            background: selectedPromoTier === "featured_7" ? "rgba(0,168,89,0.06)" : "var(--bg-secondary)",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        <div>
+                                            <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--text-primary)" }}>
+                                                🌟 7 Days Featured Boost
+                                            </div>
+                                            <div style={{ fontSize: "0.76rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                                Highlighted gold badge + priority search ranking
+                                            </div>
+                                        </div>
+                                        <div style={{ fontWeight: 800, fontSize: "1rem", color: "#00a859" }}>
+                                            KES 2,500
+                                        </div>
+                                    </label>
+
+                                    <label
+                                        onClick={() => setSelectedPromoTier("featured_14")}
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            padding: "1rem",
+                                            borderRadius: "var(--radius-md)",
+                                            border: selectedPromoTier === "featured_14" ? "2px solid #00a859" : "1px solid var(--border-color)",
+                                            background: selectedPromoTier === "featured_14" ? "rgba(0,168,89,0.06)" : "var(--bg-secondary)",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        <div>
+                                            <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--text-primary)" }}>
+                                                🔥 14 Days Super Boost (Popular)
+                                            </div>
+                                            <div style={{ fontSize: "0.76rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                                Homepage carousel feature + 2.5x inquiry boost
+                                            </div>
+                                        </div>
+                                        <div style={{ fontWeight: 800, fontSize: "1rem", color: "#00a859" }}>
+                                            KES 4,500
+                                        </div>
+                                    </label>
+
+                                    <label
+                                        onClick={() => setSelectedPromoTier("featured_30")}
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            padding: "1rem",
+                                            borderRadius: "var(--radius-md)",
+                                            border: selectedPromoTier === "featured_30" ? "2px solid #00a859" : "1px solid var(--border-color)",
+                                            background: selectedPromoTier === "featured_30" ? "rgba(0,168,89,0.06)" : "var(--bg-secondary)",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        <div>
+                                            <div style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--text-primary)" }}>
+                                                👑 30 Days Maximum Dominance
+                                            </div>
+                                            <div style={{ fontSize: "0.76rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                                Full month top-tier placement across all searches
+                                            </div>
+                                        </div>
+                                        <div style={{ fontWeight: 800, fontSize: "1rem", color: "#00a859" }}>
+                                            KES 8,000
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div className={styles.formActions}>
+                                    <button type="button" className={styles.formBtnSecondary} onClick={() => setPromoteProperty(null)}>
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={styles.formBtnPrimary}
+                                        style={{ background: "#00a859", border: "none" }}
+                                        onClick={() => setShowPromoCheckout(true)}
+                                    >
+                                        📱 Pay with M-Pesa STK Push
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Promo Payment Modal */}
+                {promoteProperty && showPromoCheckout && (
+                    <PaymentModal
+                        isOpen={showPromoCheckout}
+                        onClose={() => {
+                            setShowPromoCheckout(false);
+                            setPromoteProperty(null);
+                        }}
+                        purpose="listing_promotion"
+                        amount={selectedPromoTier === "featured_7" ? 2500 : selectedPromoTier === "featured_14" ? 4500 : 8000}
+                        currency="KES"
+                        propertyId={promoteProperty.id}
+                        propertyTitle={promoteProperty.title}
+                        promotionTier={selectedPromoTier}
+                        onSuccess={() => {
+                            toast.success("Listing successfully promoted! 🚀");
+                            setShowPromoCheckout(false);
+                            setPromoteProperty(null);
+                            loadData();
+                        }}
+                    />
+                )}
+
+                {/* Counter Offer Modal */}
+                {counteringOffer && (
+                    <div className={styles.modalOverlay} onClick={() => setCounteringOffer(null)}>
+                        <div className={styles.modal} style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+                            <div className={styles.modalHeader}>
+                                <h3 className={styles.modalTitle}>⚖️ Counter-Offer Proposal</h3>
+                                <button className={styles.modalClose} onClick={() => setCounteringOffer(null)}>✕</button>
+                            </div>
+                            <div className={styles.modalBody}>
+                                <div style={{ background: "var(--bg-tertiary)", padding: "0.9rem", borderRadius: "var(--radius-md)", marginBottom: "1rem" }}>
+                                    <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", marginBottom: "0.25rem" }}>
+                                        Property: <strong>{counteringOffer.propertyTitle}</strong>
+                                    </p>
+                                    <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", marginBottom: "0.25rem" }}>
+                                        Buyer&apos;s Offer: <strong>KES {(counteringOffer.offerDetails?.offeredPrice || 0).toLocaleString()}</strong>
+                                    </p>
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Your Counter Price (KES)</label>
+                                    <input
+                                        type="number"
+                                        className={styles.formInput}
+                                        value={counterPriceInput || ""}
+                                        onChange={(e) => setCounterPriceInput(Number(e.target.value))}
+                                        placeholder="e.g. 15000000"
+                                        step={50000}
+                                    />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label className={styles.formLabel}>Counter Terms / Conditions</label>
+                                    <textarea
+                                        className={`${styles.formInput} ${styles.formTextarea}`}
+                                        value={counterTermsInput}
+                                        onChange={(e) => setCounterTermsInput(e.target.value)}
+                                        placeholder="Specify vendor conditions, earnest deposit timeline, completion period..."
+                                        rows={3}
+                                    />
+                                </div>
+                                <div className={styles.formActions}>
+                                    <button type="button" className={styles.formBtnSecondary} onClick={() => setCounteringOffer(null)}>
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={styles.formBtnPrimary}
+                                        onClick={handleSubmitCounterOffer}
+                                        disabled={isCounterSubmitting || !counterPriceInput}
+                                    >
+                                        {isCounterSubmitting ? "Submitting..." : "Send Official Counter-Offer"}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Official LOI Modal */}
+                {viewingLOI && (
+                    <LOIModal loiData={viewingLOI} onClose={() => setViewingLOI(null)} />
+                )}
+
+                {/* Post-Offer Conveyancing Deal Room */}
+                <DealRoomModal
+                    inquiry={dealRoomInquiry}
+                    onClose={() => setDealRoomInquiry(null)}
+                />
 
                 <button className={styles.sidebarToggle} onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Toggle sidebar">
                     {sidebarOpen ? (

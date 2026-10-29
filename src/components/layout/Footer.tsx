@@ -64,10 +64,12 @@ export default function Footer() {
                         <ul>
                             <li><Link href="/properties?type=sale">Buy Property</Link></li>
                             <li><Link href="/properties?type=rent">Rent Property</Link></li>
+                            <li><Link href="/projects">Off-Plan Developments</Link></li>
                             <li><Link href="/properties">All Listings</Link></li>
                             <li><Link href="/agents">Our Agents</Link></li>
                             <li><Link href="/about">About Us</Link></li>
                             <li><Link href="/mortgage-calculator">Mortgage Calculator</Link></li>
+                            <li><Link href="/estimate">EstateEstimate™ Valuation</Link></li>
                             <li><Link href="/neighborhoods">Neighborhoods</Link></li>
                             <li><Link href="/blog">Blog & Insights</Link></li>
                             <li><Link href="/contact">Contact Us</Link></li>

@@ -1341,6 +1341,46 @@
     border-color: var(--gold-500, #d4a017);
 }
 
+.actionTourBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.42rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid rgba(15, 23, 42, 0.25);
+    background: var(--navy-800, #0f1629);
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.actionTourBtn:hover {
+    background: #1e293b;
+    transform: translateY(-1px);
+}
+
+.actionCollectionBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.42rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: var(--text-primary, #0f172a);
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.actionCollectionBtn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+
 /* ========================================
    PRINT BROCHURE SPECIFICS (Screen Hidden)
    ======================================== */

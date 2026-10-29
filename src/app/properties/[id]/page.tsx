@@ -5,24 +5,43 @@ import OptimizedImage from "@/components/ui/OptimizedImage";
 import Link from "next/link";
 import { sampleProperties, formatPriceFull, formatPrice } from "@/lib/data";
 import { getNeighborhoodByName } from "@/lib/neighborhoods";
-import { sendInquiry, getPropertyById, FirestoreProperty, submitReview, getReviewsByAgent, Review, markReviewHelpful } from "@/lib/firestore";
+import { sendInquiry, getPropertyById, FirestoreProperty, submitReview, getReviewsByAgent, Review, markReviewHelpful, Inquiry } from "@/lib/firestore";
 import { addToRecentlyViewed } from "@/lib/recentlyViewed";
 import { sendInquiryEmail } from "@/lib/email";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import PropertyCard from "@/components/property/PropertyCard";
-import PropertyMap from "@/components/property/PropertyMap";
 import { getRecentlyViewed, RecentlyViewedItem } from "@/lib/recentlyViewed";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { getOrCreateConversation } from "@/lib/chat";
 import MobileContactBar from "@/components/property/MobileContactBar";
 import LegalDueDiligence from "@/components/property/LegalDueDiligence";
-import FloorPlanViewer from "@/components/property/FloorPlanViewer";
-import CommuteRadar from "@/components/property/CommuteRadar";
-import InvestmentCalculator from "@/components/property/InvestmentCalculator";
 import EstateEstimateWidget from "@/components/property/EstateEstimateWidget";
+import TitleVerificationBadge from "@/components/property/TitleVerificationBadge";
+import FloatingWhatsAppChat from "@/components/property/FloatingWhatsAppChat";
+import { LOIData } from "@/lib/loiGenerator";
 import styles from "./page.module.css";
+
+// Heavy, below-the-fold widgets and modals are code-split into their own bundles.
+// Canvas / Leaflet based widgets need `window`, so they skip server rendering.
+const sectionFallback = () => (
+    <div style={{ minHeight: "220px", borderRadius: "var(--radius-lg)", background: "var(--bg-tertiary)" }} />
+);
+const PropertyMap = dynamic(() => import("@/components/property/PropertyMap"), { ssr: false, loading: sectionFallback });
+const PanoramaViewer = dynamic(() => import("@/components/property/PanoramaViewer"), { ssr: false, loading: sectionFallback });
+const FloorPlanViewer = dynamic(() => import("@/components/property/FloorPlanViewer"), { loading: sectionFallback });
+const CommuteRadar = dynamic(() => import("@/components/property/CommuteRadar"), { loading: sectionFallback });
+const InvestmentCalculator = dynamic(() => import("@/components/property/InvestmentCalculator"), { loading: sectionFallback });
+const DiasporaConcierge = dynamic(() => import("@/components/property/DiasporaConcierge"), { loading: sectionFallback });
+const MakeAnOfferModal = dynamic(() => import("@/components/property/MakeAnOfferModal"));
+const LOIModal = dynamic(() => import("@/components/property/LOIModal"));
+const DealRoomModal = dynamic(() => import("@/components/property/DealRoomModal"));
+const PaymentModal = dynamic(() => import("@/components/payment/PaymentModal"));
+const LuxuryBrochureModal = dynamic(() => import("@/components/property/LuxuryBrochureModal"));
+const ViewingSchedulerModal = dynamic(() => import("@/components/property/ViewingSchedulerModal"));
+const AddToCollectionModal = dynamic(() => import("@/components/collections/AddToCollectionModal"));
 
 interface Props {
     params: Promise<{ id: string }>;
@@ -37,6 +56,7 @@ export default function PropertyDetailPage({ params }: Props) {
     // Try sample data first, then Firestore
     const sampleProp = sampleProperties.find((p) => p.id === id);
     const [firestoreProp, setFirestoreProp] = useState<FirestoreProperty | null>(null);
+    const [loadingProp, setLoadingProp] = useState(!sampleProp);
     const [activeImage, setActiveImage] = useState(0);
     const [showInquiry, setShowInquiry] = useState(false);
     const [isSending, setIsSending] = useState(false);
@@ -45,6 +65,18 @@ export default function PropertyDetailPage({ params }: Props) {
     const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>([]);
     const [preferredDate, setPreferredDate] = useState("");
     const [preferredTime, setPreferredTime] = useState("10:00");
+    const [showOfferModal, setShowOfferModal] = useState(false);
+    const [activeLOIData, setActiveLOIData] = useState<LOIData | null>(null);
+    const [dealRoomInquiry, setDealRoomInquiry] = useState<Inquiry | null>(null);
+    const [showBrochureModal, setShowBrochureModal] = useState(false);
+    const [showSchedulerModal, setShowSchedulerModal] = useState(false);
+    const [schedulerDefaultMode, setSchedulerDefaultMode] = useState<"in_person" | "virtual" | undefined>(undefined);
+    const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
+    const [paymentModalConfig, setPaymentModalConfig] = useState<{
+        isOpen: boolean;
+        purpose: "reservation" | "viewing_fee" | "listing_promotion";
+        amount: number;
+    } | null>(null);
 
     // Mortgage calculator state
     const [mortgagePrice, setMortgagePrice] = useState(0);
@@ -75,7 +107,17 @@ export default function PropertyDetailPage({ params }: Props) {
     // Load Firestore property if not found in samples
     useEffect(() => {
         if (!sampleProp) {
-            getPropertyById(id).then(setFirestoreProp).catch(console.error);
+            setLoadingProp(true);
+            getPropertyById(id)
+                .then((data) => {
+                    setFirestoreProp(data);
+                })
+                .catch(console.error)
+                .finally(() => {
+                    setLoadingProp(false);
+                });
+        } else {
+            setLoadingProp(false);
         }
     }, [id, sampleProp]);
 
@@ -116,8 +158,10 @@ export default function PropertyDetailPage({ params }: Props) {
 
     // Load recently viewed (excluding current)
     useEffect(() => {
-        const items = getRecentlyViewed().filter((item) => item.id !== id);
-        setRecentlyViewed(items);
+        const timer = setTimeout(() => {
+            setRecentlyViewed(getRecentlyViewed().filter((item) => item.id !== id));
+        }, 0);
+        return () => clearTimeout(timer);
     }, [id]);
 
     // Determine which property data to use
@@ -202,6 +246,15 @@ export default function PropertyDetailPage({ params }: Props) {
             setReviewSubmitting(false);
         }
     };
+
+    if (loadingProp) {
+        return (
+            <div style={{ minHeight: "80vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: "var(--navbar-height, 80px)" }}>
+                <div style={{ width: 44, height: 44, border: "3px solid var(--border-color, #e2e8f0)", borderTopColor: "var(--gold-500, #d4a017)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                <p style={{ marginTop: "1rem", color: "var(--text-secondary, #64748b)", fontSize: "0.95rem", fontWeight: 600 }}>Loading luxury property details...</p>
+            </div>
+        );
+    }
 
     if (!property) {
         return (
@@ -307,6 +360,7 @@ export default function PropertyDetailPage({ params }: Props) {
             });
 
             await sendInquiryEmail({
+                propertyId: property.id,
                 agentName: property.agentName,
                 agentEmail: property.agentEmail,
                 senderName: inquiryForm.name,
@@ -421,12 +475,28 @@ export default function PropertyDetailPage({ params }: Props) {
                         <div className={styles.mediaActions}>
                             <button
                                 type="button"
+                                className={styles.actionTourBtn}
+                                onClick={() => setShowSchedulerModal(true)}
+                                title="Schedule an In-Person Site Visit or Live Virtual Tour"
+                            >
+                                <span>📅 Schedule Tour</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.actionCollectionBtn}
+                                onClick={() => setShowAddToCollectionModal(true)}
+                                title="Save to collaborative co-buying wishlist"
+                            >
+                                <span>👥 Save to Board</span>
+                            </button>
+                            <button
+                                type="button"
                                 className={styles.actionBrochureBtn}
-                                onClick={() => window.print()}
-                                title="Download or Print Property PDF Brochure"
+                                onClick={() => setShowBrochureModal(true)}
+                                title="Export Luxury Branded PDF Brochure with QR Code"
                             >
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></svg>
-                                <span>📄 PDF Brochure</span>
+                                <span>📄 PDF Flyer</span>
                             </button>
                         </div>
                     </div>
@@ -437,7 +507,10 @@ export default function PropertyDetailPage({ params }: Props) {
             <section className={styles.gallery}>
                 <div className="container">
                     <div className={styles.galleryGrid}>
-                        <div className={styles.mainImage}>
+                        <div 
+                            className={styles.mainImage}
+                            style={{ viewTransitionName: `prop-img-${property.id}` } as React.CSSProperties}
+                        >
                             <OptimizedImage
                                 src={property.images[activeImage]}
                                 alt={property.title}
@@ -514,11 +587,26 @@ export default function PropertyDetailPage({ params }: Props) {
                             {/* Header */}
                             <div className={styles.propHeader}>
                                 <div>
-                                    <h1 className={styles.propTitle}>{property.title}</h1>
+                                    <h1 
+                                        className={styles.propTitle}
+                                        style={{ viewTransitionName: `prop-title-${property.id}` } as React.CSSProperties}
+                                    >
+                                        {property.title}
+                                    </h1>
                                     <p className={styles.propLocation}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                                         {property.address}, {property.location.neighborhood}, {property.location.city}
                                     </p>
+                                    <div style={{ marginTop: "0.65rem", display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                                        <TitleVerificationBadge
+                                            propertyTitle={property.title}
+                                            city={typeof property.location === "object" ? property.location.city : (property as any).city}
+                                            neighborhood={typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood}
+                                            onViewDossier={() => {
+                                                document.getElementById("legal-diligence-section")?.scrollIntoView({ behavior: "smooth" });
+                                            }}
+                                        />
+                                    </div>
                                     {/* Property Status Badge */}
                                     {property.status && property.status !== "active" && property.status !== "pending" && (
                                         <div style={{ marginTop: "0.75rem" }}>
@@ -619,12 +707,32 @@ export default function PropertyDetailPage({ params }: Props) {
                                     city={typeof property.location === "object" ? property.location.city : (property as any).city || "Nairobi"}
                                     neighborhood={typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood || ""}
                                     listingType={property.listingType}
+                                    propertyPrice={property.price}
                                     onOpenInquiry={() => {
                                         setShowInquiry(true);
                                         document.querySelector(`.${styles.agentCard}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
                                     }}
                                 />
                             </div>
+
+                            {property.listingType === "sale" && (
+                                <div className={styles.section} id="diaspora-concierge-section">
+                                    <DiasporaConcierge
+                                        propertyTitle={property.title}
+                                        city={typeof property.location === "object" ? property.location.city : (property as any).city || "Nairobi"}
+                                        neighborhood={typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood || ""}
+                                        priceKES={property.price}
+                                        onBookLiveWalkthrough={() => {
+                                            setSchedulerDefaultMode("virtual");
+                                            setShowSchedulerModal(true);
+                                        }}
+                                        onOpenInquiry={() => {
+                                            setShowInquiry(true);
+                                            document.querySelector(`.${styles.agentCard}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                        }}
+                                    />
+                                </div>
+                            )}
 
                             {/* Description */}
                             <div className={styles.section}>
@@ -655,56 +763,30 @@ export default function PropertyDetailPage({ params }: Props) {
                                 />
                             </div>
 
-                            {/* Virtual Tour */}
-                            {virtualTourUrl && (
-                                <div className={styles.section} id="virtual-tour-section">
-                                    <h2 className={styles.sectionTitle}>🎬 Virtual Tour</h2>
-                                    <div className={styles.virtualTourWrap}>
-                                        <div className={styles.virtualTourHeader}>
-                                            <div className={styles.virtualTourBadge}>
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" /></svg>
-                                                <span>360° Immersive Tour</span>
-                                            </div>
-                                            <a
-                                                href={virtualTourUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className={styles.virtualTourExternal}
-                                            >
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-                                                Open Full Screen
-                                            </a>
-                                        </div>
-                                        {embedUrl ? (
-                                            <div className={styles.virtualTourEmbed}>
-                                                <iframe
-                                                    src={embedUrl}
-                                                    title="Virtual Tour"
-                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; xr-spatial-tracking"
-                                                    allowFullScreen
-                                                    className={styles.virtualTourIframe}
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className={styles.virtualTourFallback}>
-                                                <div className={styles.virtualTourFallbackIcon}>🎬</div>
-                                                <p>This property has a virtual tour available.</p>
-                                                <a
-                                                    href={virtualTourUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="btn btn-primary"
-                                                >
-                                                    Open Virtual Tour →
-                                                </a>
-                                            </div>
-                                        )}
-                                        <p className={styles.virtualTourNote}>
-                                            💡 Use your mouse or touch to look around. Click the fullscreen button for the best experience.
-                                        </p>
+                            {/* 360° Interactive Virtual Tour (In-Browser WebGL) */}
+                            <div className={styles.section} id="virtual-tour-section">
+                                <h2 className={styles.sectionTitle}>🎬 Interactive 360° Virtual Tour</h2>
+                                <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginBottom: "1.25rem" }}>
+                                    Experience the property in full 360° panoramic view. Click & drag or swipe to look around rooms, zoom with your mouse wheel, or switch between spaces below.
+                                </p>
+                                <PanoramaViewer propertyTitle={property.title} />
+
+                                {virtualTourUrl && (
+                                    <div style={{ marginTop: "1rem", display: "flex", justifyContent: "flex-end" }}>
+                                        <a
+                                            href={virtualTourUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="btn btn-outline btn-sm"
+                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", fontSize: "0.82rem" }}
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                                            <span>Watch Video Tour (External)</span>
+                                            <span>↗</span>
+                                        </a>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
 
                             {/* Mortgage Calculator */}
                             {property.listingType === "sale" && (
@@ -771,9 +853,18 @@ export default function PropertyDetailPage({ params }: Props) {
                                                     <span>Estimated Monthly Payment</span>
                                                     <strong>KES {Math.round(monthlyPayment).toLocaleString()}/mo</strong>
                                                 </div>
-                                                <p className={styles.mortgageDisclaimer}>
-                                                    * This is an estimate. Actual payment may vary based on lender terms, insurance, and taxes.
-                                                </p>
+                                                <div style={{ marginTop: "0.85rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
+                                                    <p className={styles.mortgageDisclaimer} style={{ margin: 0 }}>
+                                                        * Indicative estimate based on Kenyan bank rates.
+                                                    </p>
+                                                    <Link
+                                                        href={`/mortgage-calculator?price=${mortgagePrice}&propertyId=${encodeURIComponent(property.id)}&propertyTitle=${encodeURIComponent(property.title)}`}
+                                                        className="btn btn-gold btn-sm"
+                                                        style={{ fontSize: "0.82rem", fontWeight: 700, textDecoration: "none" }}
+                                                    >
+                                                        🏦 Compare Banks & Apply for Pre-Approval →
+                                                    </Link>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -1175,14 +1266,180 @@ export default function PropertyDetailPage({ params }: Props) {
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
                                         {property.agentEmail}
                                     </a>
-                                    <a href={`https://wa.me/${property.agentPhone?.replace(/\D/g, "")}?text=${encodeURIComponent(`Hi, I'm interested in: ${property.title}`)}`} target="_blank" rel="noreferrer" className={styles.agentContactItem} style={{ background: "rgba(37,211,102,0.08)", color: "#25D366" }}>
+                                    <a
+                                        href={`https://wa.me/${property.agentPhone ? property.agentPhone.replace(/\D/g, "") : "254700000000"}?text=${encodeURIComponent(`Hi ${property.agentName ? property.agentName.trim().split(" ")[0] : "Sarah"}, I'm interested in viewing '${property.title}' (Ref: #${property.id}). Is it available this Saturday?`)}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className={styles.agentContactItem}
+                                        style={{ background: "rgba(37,211,102,0.08)", color: "#25D366" }}
+                                    >
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
                                         WhatsApp
                                     </a>
                                 </div>
 
+                                {/* Digital Make an Offer primary CTA */}
+                                {property.listingType === "sale" && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-lg"
+                                        style={{
+                                            width: "100%",
+                                            background: "linear-gradient(135deg, var(--gold-500, #d4a017), #e8b930)",
+                                            color: "#0a0e1a",
+                                            border: "none",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.5rem",
+                                            fontWeight: 800,
+                                            fontSize: "0.95rem",
+                                            boxShadow: "0 4px 15px rgba(212, 160, 23, 0.35)",
+                                            cursor: "pointer",
+                                            borderRadius: "var(--radius-md)",
+                                            padding: "0.75rem 1rem",
+                                            transition: "all 0.2s ease",
+                                        }}
+                                        onClick={() => setShowOfferModal(true)}
+                                    >
+                                        <span>💼</span> Make a Formal Offer (LOI)
+                                    </button>
+                                )}
+
+                                {/* Reserve & Viewing FinTech M-Pesa Buttons */}
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                                    <button
+                                        type="button"
+                                        style={{
+                                            padding: "0.6rem 0.6rem",
+                                            borderRadius: "var(--radius-md)",
+                                            background: "rgba(0, 168, 89, 0.08)",
+                                            border: "1px solid rgba(0, 168, 89, 0.35)",
+                                            color: "#00a859",
+                                            fontWeight: 700,
+                                            fontSize: "0.76rem",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.35rem",
+                                            transition: "all 0.15s ease",
+                                        }}
+                                        onClick={() => {
+                                            setPaymentModalConfig({
+                                                isOpen: true,
+                                                purpose: "reservation",
+                                                amount: 50000,
+                                            });
+                                        }}
+                                        title="Lock this property for 48 hours via M-Pesa earnest deposit"
+                                    >
+                                        <span>🔐</span> Reserve (M-Pesa)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        style={{
+                                            padding: "0.6rem 0.6rem",
+                                            borderRadius: "var(--radius-md)",
+                                            background: "rgba(59, 130, 246, 0.08)",
+                                            border: "1px solid rgba(59, 130, 246, 0.35)",
+                                            color: "#2563eb",
+                                            fontWeight: 700,
+                                            fontSize: "0.76rem",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.35rem",
+                                            transition: "all 0.15s ease",
+                                        }}
+                                        onClick={() => {
+                                            setPaymentModalConfig({
+                                                isOpen: true,
+                                                purpose: "viewing_fee",
+                                                amount: 1000,
+                                            });
+                                        }}
+                                        title="Book VIP viewing with keys & escort for KES 1,000"
+                                    >
+                                        <span>🎟️</span> Viewing (1K)
+                                    </button>
+                                </div>
+
+                                {/* Viewing Scheduler & Collaborative Board Buttons */}
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                                    <button
+                                        type="button"
+                                        style={{
+                                            padding: "0.65rem 0.6rem",
+                                            borderRadius: "var(--radius-md)",
+                                            background: "var(--navy-800, #0f1629)",
+                                            border: "none",
+                                            color: "#ffffff",
+                                            fontWeight: 700,
+                                            fontSize: "0.76rem",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.35rem",
+                                            transition: "all 0.15s ease",
+                                        }}
+                                        onClick={() => setShowSchedulerModal(true)}
+                                        title="Book In-Person Site Visit or Virtual Tour with Calendar Sync"
+                                    >
+                                        <span>📅</span> Schedule Tour
+                                    </button>
+                                    <button
+                                        type="button"
+                                        style={{
+                                            padding: "0.65rem 0.6rem",
+                                            borderRadius: "var(--radius-md)",
+                                            background: "#ffffff",
+                                            border: "1px solid var(--border-color, #cbd5e1)",
+                                            color: "var(--text-primary, #0f172a)",
+                                            fontWeight: 700,
+                                            fontSize: "0.76rem",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.35rem",
+                                            transition: "all 0.15s ease",
+                                        }}
+                                        onClick={() => setShowAddToCollectionModal(true)}
+                                        title="Add to shared co-buying or family wishlist"
+                                    >
+                                        <span>👥</span> Shared Board
+                                    </button>
+                                </div>
+
                                 <button className="btn btn-primary btn-lg" style={{ width: "100%" }} onClick={() => setShowInquiry(!showInquiry)}>
                                     {showInquiry ? "Close Inquiry Form" : "Send Inquiry"}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="btn btn-lg"
+                                    style={{
+                                        width: "100%",
+                                        background: "var(--bg-tertiary, #f8f9fa)",
+                                        color: "var(--text-primary)",
+                                        border: "1px solid var(--border-color, #e2e8f0)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "0.5rem",
+                                        fontWeight: 700,
+                                        fontSize: "0.85rem",
+                                        cursor: "pointer",
+                                        borderRadius: "var(--radius-md)",
+                                        padding: "0.65rem 1rem",
+                                        transition: "all 0.2s ease",
+                                    }}
+                                    onClick={() => setShowBrochureModal(true)}
+                                >
+                                    <span>🏰</span> 1-Click Luxury PDF Flyer
                                 </button>
 
                                 <button
@@ -1288,8 +1545,23 @@ export default function PropertyDetailPage({ params }: Props) {
                                         >
                                             <option value="inquiry">General Inquiry</option>
                                             <option value="viewing">Request a Viewing</option>
-                                            <option value="offer">Make an Offer</option>
+                                            <option value="offer">Make a Formal Offer (LOI)</option>
                                         </select>
+                                        {inquiryForm.type === "offer" && (
+                                            <div style={{ background: "rgba(212, 160, 23, 0.08)", border: "1px solid var(--gold-500)", borderRadius: "var(--radius-md)", padding: "0.85rem", textAlign: "center" }}>
+                                                <p style={{ fontSize: "0.82rem", color: "var(--text-heading)", fontWeight: 600, margin: "0 0 0.5rem" }}>
+                                                    Want to structure price, financing, and contingencies?
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-primary"
+                                                    style={{ fontSize: "0.82rem", padding: "0.45rem 1rem", width: "100%", background: "linear-gradient(135deg, var(--gold-500), #e8b930)", color: "#0a0e1a", fontWeight: 700 }}
+                                                    onClick={() => setShowOfferModal(true)}
+                                                >
+                                                    Open Guided Offer Submission Tool →
+                                                </button>
+                                            </div>
+                                        )}
                                         {inquiryForm.type === "viewing" && (
                                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
                                                 <div>
@@ -1451,6 +1723,160 @@ export default function PropertyDetailPage({ params }: Props) {
                     // Scroll to the inquiry form
                     document.querySelector(`.${styles.agentCard}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
                 }}
+            />
+
+            {/* Make an Offer Modal */}
+            {showOfferModal && property && (
+                <MakeAnOfferModal
+                    property={{
+                        id: property.id,
+                        title: property.title,
+                        price: property.price,
+                        currency: property.currency || "KES",
+                        city: typeof property.location === "object" ? property.location.city : (property as any).city,
+                        neighborhood: typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood,
+                        agentId: firestoreProp?.agentId || (property as any).agentId || "agent",
+                        agentName: property.agentName,
+                        agentEmail: property.agentEmail,
+                        agentPhone: property.agentPhone,
+                    }}
+                    onClose={() => setShowOfferModal(false)}
+                    onOfferCreated={(loi) => {
+                        setActiveLOIData(loi);
+                    }}
+                />
+            )}
+
+            {/* View LOI Document Modal */}
+            {activeLOIData && (
+                <LOIModal
+                    loiData={activeLOIData}
+                    onClose={() => setActiveLOIData(null)}
+                    onOpenDealRoom={() => {
+                        const syntheticInquiry: Inquiry = {
+                            id: activeLOIData.loiNumber,
+                            propertyId: property.id,
+                            propertyTitle: property.title,
+                            senderId: user?.uid || "buyer",
+                            senderName: activeLOIData.buyerName,
+                            senderEmail: activeLOIData.buyerEmail,
+                            senderPhone: activeLOIData.buyerPhone,
+                            agentId: firestoreProp?.agentId || (property as any).agentId || "agent",
+                            message: `LOI ${activeLOIData.loiNumber}`,
+                            type: "offer",
+                            status: activeLOIData.status,
+                            offerDetails: {
+                                offeredPrice: activeLOIData.offeredPrice,
+                                askingPrice: activeLOIData.askingPrice,
+                                downPaymentPercent: activeLOIData.downPaymentPercent,
+                                downPaymentAmount: activeLOIData.downPaymentAmount,
+                                financingType: activeLOIData.financingType as "cash" | "mortgage" | "installments",
+                                moveInDate: activeLOIData.moveInDate,
+                                contingencies: activeLOIData.contingencies,
+                                specialConditions: activeLOIData.specialConditions,
+                                loiNumber: activeLOIData.loiNumber,
+                                offerStatus: activeLOIData.status,
+                            },
+                        };
+                        setActiveLOIData(null);
+                        setDealRoomInquiry(syntheticInquiry);
+                    }}
+                />
+            )}
+
+            {/* Post-Offer Conveyancing Deal Room */}
+            <DealRoomModal
+                inquiry={dealRoomInquiry}
+                onClose={() => setDealRoomInquiry(null)}
+            />
+
+            {/* M-Pesa & Card Payment Modal */}
+            {paymentModalConfig && paymentModalConfig.isOpen && (
+                <PaymentModal
+                    isOpen={paymentModalConfig.isOpen}
+                    onClose={() => setPaymentModalConfig(null)}
+                    purpose={paymentModalConfig.purpose}
+                    amount={paymentModalConfig.amount}
+                    currency={property.currency || "KES"}
+                    propertyId={property.id}
+                    propertyTitle={property.title}
+                />
+            )}
+
+            {/* 1-Click Luxury PDF Brochure Modal */}
+            {showBrochureModal && (
+                <LuxuryBrochureModal
+                    property={{
+                        id: property.id,
+                        title: property.title,
+                        description: property.description,
+                        price: property.price,
+                        currency: property.currency || "KES",
+                        bedrooms: property.bedrooms,
+                        bathrooms: property.bathrooms,
+                        area: property.area,
+                        yearBuilt: property.yearBuilt,
+                        city: typeof property.location === "object" ? property.location.city : (property as any).city,
+                        neighborhood: typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood,
+                        type: property.type,
+                        listingType: property.listingType,
+                        amenities: property.amenities,
+                        images: property.images,
+                        agentName: property.agentName,
+                        agentEmail: property.agentEmail,
+                        agentPhone: property.agentPhone,
+                    }}
+                    onClose={() => setShowBrochureModal(false)}
+                />
+            )}
+
+            {/* Viewing & Open House Scheduler Modal */}
+            {showSchedulerModal && (
+                <ViewingSchedulerModal
+                    property={{
+                        id: property.id,
+                        title: property.title,
+                        price: property.price,
+                        currency: property.currency || "KES",
+                        city: typeof property.location === "object" ? property.location.city : (property as any).city,
+                        neighborhood: typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood,
+                        images: property.images,
+                        agentId: firestoreProp?.agentId || (property as any).agentId || "agent",
+                        agentName: property.agentName,
+                        agentPhone: property.agentPhone,
+                    }}
+                    isOpen={showSchedulerModal}
+                    defaultMode={schedulerDefaultMode}
+                    onClose={() => {
+                        setShowSchedulerModal(false);
+                        setSchedulerDefaultMode(undefined);
+                    }}
+                />
+            )}
+
+            {/* Save to Collaborative Shared Collection Modal */}
+            {showAddToCollectionModal && (
+                <AddToCollectionModal
+                    property={{
+                        id: property.id,
+                        title: property.title,
+                        price: property.price,
+                        currency: property.currency || "KES",
+                        images: property.images,
+                        city: typeof property.location === "object" ? property.location.city : (property as any).city,
+                        neighborhood: typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood,
+                    }}
+                    isOpen={showAddToCollectionModal}
+                    onClose={() => setShowAddToCollectionModal(false)}
+                />
+            )}
+
+            {/* Instant Floating WhatsApp Agent Click-to-Chat */}
+            <FloatingWhatsAppChat
+                agentName={property.agentName}
+                agentPhone={property.agentPhone}
+                propertyTitle={property.title}
+                propertyId={property.id}
             />
         </div>
     );
