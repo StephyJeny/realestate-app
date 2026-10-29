@@ -285,7 +285,7 @@ async function searchProperties(query: string): Promise<PropertyResult[]> {
     try {
         const { items: firestoreData } = await getPropertiesPage(100);
         const firestoreResults = firestoreData
-            .filter(p => p.status === "active")
+            .filter(p => p.status === "active" || p.status === "price_reduced" || p.status === "under_offer")
             .map((p: FirestoreProperty) => ({
                 id: p.id || "",
                 title: p.title,
@@ -628,10 +628,14 @@ export default function ChatBot() {
         setIsTyping(true);
 
         try {
+            const historyPayload = messages.slice(-8).map((m) => ({
+                role: m.sender === "user" ? "user" : "assistant",
+                content: m.text,
+            }));
             const res = await fetch("/api/ai/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: currentInput }),
+                body: JSON.stringify({ message: currentInput, history: historyPayload }),
             });
 
             if (res.ok) {
@@ -667,6 +671,10 @@ export default function ChatBot() {
         // Handle navigation and action options
         if (option.value === "go_valuation") {
             window.location.href = "/estimate";
+            return;
+        }
+        if (option.value === "go_projects") {
+            window.location.href = "/projects";
             return;
         }
         if (option.value === "go_quiz") {

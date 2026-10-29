@@ -3,9 +3,11 @@ import { useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { subscribeNewsletter } from "@/lib/firestore";
+import { useLanguage } from "@/context/LanguageContext";
 import styles from "./Footer.module.css";
 
 export default function Footer() {
+    const { t } = useLanguage();
     const [email, setEmail] = useState("");
     const [subscribed, setSubscribed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -48,7 +50,7 @@ export default function Footer() {
                             <span>Estate<span className={styles.logoAccent}>Vue</span></span>
                         </Link>
                         <p className={styles.brandDesc}>
-                            Your premier destination for finding luxury properties and dream homes. We connect buyers with the best real estate opportunities.
+                            {t("footer.brandDesc")}
                         </p>
                         <div className={styles.social}>
                             <a href="#" aria-label="Facebook"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg></a>
@@ -60,14 +62,14 @@ export default function Footer() {
 
                     {/* Quick Links */}
                     <div className={styles.column}>
-                        <h4>Quick Links</h4>
+                        <h4>{t("footer.quickLinks")}</h4>
                         <ul>
-                            <li><Link href="/properties?type=sale">Buy Property</Link></li>
-                            <li><Link href="/properties?type=rent">Rent Property</Link></li>
-                            <li><Link href="/projects">Off-Plan Developments</Link></li>
-                            <li><Link href="/properties">All Listings</Link></li>
-                            <li><Link href="/agents">Our Agents</Link></li>
-                            <li><Link href="/about">About Us</Link></li>
+                            <li><Link href="/properties?type=sale">{t("footer.buyProperty")}</Link></li>
+                            <li><Link href="/properties?type=rent">{t("footer.rentProperty")}</Link></li>
+                            <li><Link href="/projects">{t("footer.offPlanDevs")}</Link></li>
+                            <li><Link href="/properties">{t("footer.allListings")}</Link></li>
+                            <li><Link href="/agents">{t("footer.ourAgents")}</Link></li>
+                            <li><Link href="/about">{t("footer.aboutUs")}</Link></li>
                             <li><Link href="/mortgage-calculator">Mortgage Calculator</Link></li>
                             <li><Link href="/estimate">EstateEstimate™ Valuation</Link></li>
                             <li><Link href="/neighborhoods">Neighborhoods</Link></li>
@@ -79,7 +81,7 @@ export default function Footer() {
 
                     {/* Property Types */}
                     <div className={styles.column}>
-                        <h4>Property Types</h4>
+                        <h4>{t("footer.propertyTypes")}</h4>
                         <ul>
                             <li><Link href="/properties?propertyType=apartment">Apartments</Link></li>
                             <li><Link href="/properties?propertyType=house">Houses</Link></li>
@@ -91,7 +93,7 @@ export default function Footer() {
 
                     {/* Contact */}
                     <div className={styles.column}>
-                        <h4>Contact Us</h4>
+                        <h4>{t("footer.contactUs")}</h4>
                         <ul className={styles.contactList}>
                             <li>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>

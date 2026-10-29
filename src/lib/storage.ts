@@ -253,3 +253,40 @@ export async function uploadDealRoomDocument(
         );
     });
 }
+
+/**
+ * Upload a tenant KYC / income verification document (National ID, Passport, Payslip, or Bank Statement)
+ * for a Digital Lease Application.
+ * Path: lease_applications/{propertyId}/{applicantId}/{timestamp}_{safeName}
+ */
+export async function uploadLeaseDocument(
+    file: File,
+    propertyId: string,
+    applicantId: string,
+    onProgress?: (percent: number) => void
+): Promise<string> {
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `lease_applications/${propertyId}/${applicantId}/${timestamp}_${safeName}`;
+    const storageRef = ref(storage, path);
+
+    return new Promise((resolve, reject) => {
+        const uploadTask = uploadBytesResumable(storageRef, file);
+        uploadTask.on(
+            "state_changed",
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                onProgress?.(Math.round(progress));
+            },
+            (error) => reject(error),
+            async () => {
+                try {
+                    const url = await getDownloadURL(uploadTask.snapshot.ref);
+                    resolve(url);
+                } catch (err) {
+                    reject(err);
+                }
+            }
+        );
+    });
+}

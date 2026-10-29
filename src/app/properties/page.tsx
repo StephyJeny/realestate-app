@@ -57,6 +57,7 @@ function firestoreToProperty(fp: FirestoreProperty): Property {
         agentEmail: fp.agentEmail || "",
         status: fp.status,
         isFeatured: fp.isFeatured,
+        priceHistory: fp.priceHistory,
         views: fp.views || 0,
         favorites: fp.favorites || 0,
         createdAt: fp.createdAt

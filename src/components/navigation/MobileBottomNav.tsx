@@ -20,12 +20,15 @@ import {
 import styles from "./MobileBottomNav.module.css";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { SUPPORTED_LOCALES } from "@/lib/i18n";
 
 function MobileBottomNavInner() {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const { user, userProfile, getDashboardPath } = useAuth();
     const { currency, setCurrency } = useCurrency();
+    const { locale, setLocale, t } = useLanguage();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
 
     // On property detail page, hide bottom dock so MobileContactBar has full visibility
@@ -54,7 +57,7 @@ function MobileBottomNavInner() {
                     <div className={styles.iconWrap}>
                         <Compass size={22} />
                     </div>
-                    <span className={styles.dockLabel}>Explore</span>
+                    <span className={styles.dockLabel}>{t("nav.explore")}</span>
                     {isExploreActive && <div className={styles.activeIndicator} />}
                 </Link>
 
@@ -66,7 +69,7 @@ function MobileBottomNavInner() {
                     <div className={styles.iconWrap}>
                         <MapIcon size={22} />
                     </div>
-                    <span className={styles.dockLabel}>Map</span>
+                    <span className={styles.dockLabel}>{t("nav.map")}</span>
                     {isMapActive && <div className={styles.activeIndicator} />}
                 </Link>
 
@@ -80,7 +83,7 @@ function MobileBottomNavInner() {
                     <div className={styles.toolsPill}>
                         <SlidersHorizontal size={17} />
                     </div>
-                    <span className={styles.dockLabel} style={{ marginTop: 2 }}>Tools</span>
+                    <span className={styles.dockLabel} style={{ marginTop: 2 }}>{t("nav.tools")}</span>
                 </button>
 
                 {/* 3. Saved */}
@@ -92,7 +95,7 @@ function MobileBottomNavInner() {
                         <Heart size={22} />
                         {savedCount > 0 && <span className={styles.badge}>{savedCount}</span>}
                     </div>
-                    <span className={styles.dockLabel}>Saved</span>
+                    <span className={styles.dockLabel}>{t("nav.saved")}</span>
                     {isSavedActive && <div className={styles.activeIndicator} />}
                 </Link>
 
@@ -104,7 +107,7 @@ function MobileBottomNavInner() {
                     <div className={styles.iconWrap}>
                         <MessageSquare size={22} />
                     </div>
-                    <span className={styles.dockLabel}>Inbox</span>
+                    <span className={styles.dockLabel}>{t("nav.inbox")}</span>
                     {isMessagesActive && <div className={styles.activeIndicator} />}
                 </Link>
 
@@ -116,7 +119,7 @@ function MobileBottomNavInner() {
                     <div className={styles.iconWrap}>
                         <User size={22} />
                     </div>
-                    <span className={styles.dockLabel}>{user ? "Profile" : "Sign In"}</span>
+                    <span className={styles.dockLabel}>{user ? t("nav.profile") : t("nav.signIn")}</span>
                     {isProfileActive && <div className={styles.activeIndicator} />}
                 </Link>
             </nav>
@@ -220,7 +223,7 @@ function MobileBottomNavInner() {
 
                             {/* Currency Preference Pill Bar */}
                             <div className={styles.currencyBar}>
-                                <span className={styles.currencyLabel}>Currency Display</span>
+                                <span className={styles.currencyLabel}>{t("nav.currencyDisplay")}</span>
                                 <div className={styles.currencyPills}>
                                     {(["KES", "USD", "EUR", "GBP"] as const).map((code) => (
                                         <button
@@ -230,6 +233,23 @@ function MobileBottomNavInner() {
                                             onClick={() => setCurrency(code)}
                                         >
                                             {code}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Language Preference Pill Bar (English / Kiswahili) */}
+                            <div className={styles.currencyBar} style={{ marginTop: "0.5rem" }}>
+                                <span className={styles.currencyLabel}>{t("nav.languageDisplay")}</span>
+                                <div className={styles.currencyPills}>
+                                    {SUPPORTED_LOCALES.map((opt) => (
+                                        <button
+                                            key={opt.code}
+                                            type="button"
+                                            className={`${styles.currencyPill} ${locale === opt.code ? styles.currencyPillActive : ""}`}
+                                            onClick={() => setLocale(opt.code)}
+                                        >
+                                            {opt.flag} {opt.label}
                                         </button>
                                     ))}
                                 </div>

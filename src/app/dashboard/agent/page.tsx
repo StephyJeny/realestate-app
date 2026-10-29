@@ -28,7 +28,13 @@ import LOIModal from "@/components/property/LOIModal";
 import DealRoomModal from "@/components/property/DealRoomModal";
 import PaymentModal from "@/components/payment/PaymentModal";
 import LeadKanbanBoard, { PipelineStage } from "@/components/agent/LeadKanbanBoard";
+import ListingCopilotPanel from "@/components/agent/ListingCopilotPanel";
 import { LOIData } from "@/lib/loiGenerator";
+import {
+    createInitialPriceHistory,
+    recordPriceChange,
+    triggerAutomatedListingAlerts,
+} from "@/lib/priceAlerts";
 import toast from "react-hot-toast";
 import styles from "../dashboard.module.css";
 import AgentGate from "@/components/agent/AgentGate";
@@ -187,10 +193,12 @@ export default function AgentDashboard() {
         setIsSubmitting(true);
         try {
             // First create property to get ID
+            const parsedAmenities = newProperty.amenities.split(",").map((a) => a.trim()).filter(Boolean);
             const propData: Record<string, unknown> = {
                 ...newProperty,
-                amenities: newProperty.amenities.split(",").map((a) => a.trim()).filter(Boolean),
+                amenities: parsedAmenities,
                 images: [],
+                priceHistory: createInitialPriceHistory(newProperty.price),
                 agentId: user.uid,
                 agentName: userProfile.displayName,
                 agentEmail: userProfile.email,
@@ -211,6 +219,33 @@ export default function AgentDashboard() {
             });
             // Update property with image URLs
             await updateProperty(propId, { images: urls });
+
+            // Trigger automated saved-search alerts (non-blocking)
+            triggerAutomatedListingAlerts({
+                eventType: "new_listing",
+                property: {
+                    id: propId,
+                    title: newProperty.title,
+                    description: newProperty.description,
+                    type: newProperty.type,
+                    listingType: newProperty.listingType,
+                    bedrooms: newProperty.bedrooms,
+                    bathrooms: newProperty.bathrooms,
+                    city: newProperty.city,
+                    neighborhood: newProperty.neighborhood,
+                    status: "active",
+                    price: newProperty.price,
+                    currency: newProperty.currency || "KES",
+                    area: newProperty.area,
+                    agentId: user.uid,
+                    agentName: userProfile.displayName,
+                },
+            }).then(({ notifiedCount }) => {
+                if (notifiedCount > 0) {
+                    toast.success(`🔔 Notified ${notifiedCount} matching buyer alert${notifiedCount === 1 ? "" : "s"}!`);
+                }
+            });
+
             toast.success("Property listed successfully! 🏠");
             setShowAddModal(false);
             setNewProperty({
@@ -263,12 +298,34 @@ export default function AgentDashboard() {
                 });
                 updatedImages = [...updatedImages, ...newUrls];
             }
+            const originalProp = properties.find((p) => p.id === editingProperty.id);
+            const oldPrice = originalProp?.price ?? editingProperty.price;
+            const isPriceDrop = editingProperty.price > 0 && editingProperty.price < oldPrice;
+            const nextPriceHistory =
+                editingProperty.price !== oldPrice
+                    ? recordPriceChange(
+                          originalProp?.priceHistory,
+                          oldPrice,
+                          editingProperty.price,
+                          originalProp?.createdAt?.seconds
+                              ? new Date(originalProp.createdAt.seconds * 1000).toISOString()
+                              : undefined
+                      )
+                    : originalProp?.priceHistory;
+
+            const nextStatus =
+                isPriceDrop && editingProperty.status === "active"
+                    ? "price_reduced"
+                    : editingProperty.status;
+
             await updateProperty(editingProperty.id, {
                 title: editingProperty.title,
                 description: editingProperty.description,
                 type: editingProperty.type,
                 listingType: editingProperty.listingType,
                 price: editingProperty.price,
+                status: nextStatus,
+                ...(nextPriceHistory ? { priceHistory: nextPriceHistory } : {}),
                 bedrooms: editingProperty.bedrooms,
                 bathrooms: editingProperty.bathrooms,
                 area: editingProperty.area,
@@ -279,7 +336,36 @@ export default function AgentDashboard() {
                 images: updatedImages,
                 virtualTourUrl: editingProperty.virtualTourUrl || "",
             });
-            toast.success("Property updated! ✨");
+
+            if (isPriceDrop && editingProperty.id) {
+                triggerAutomatedListingAlerts({
+                    eventType: "price_drop",
+                    oldPrice,
+                    property: {
+                        id: editingProperty.id,
+                        title: editingProperty.title,
+                        description: editingProperty.description,
+                        type: editingProperty.type,
+                        listingType: editingProperty.listingType,
+                        bedrooms: editingProperty.bedrooms,
+                        bathrooms: editingProperty.bathrooms,
+                        city: editingProperty.city,
+                        neighborhood: editingProperty.neighborhood,
+                        status: nextStatus,
+                        price: editingProperty.price,
+                        currency: editingProperty.currency || "KES",
+                        area: editingProperty.area,
+                        agentId: user.uid,
+                        agentName: userProfile?.displayName || editingProperty.agentName,
+                    },
+                }).then(({ notifiedCount }) => {
+                    if (notifiedCount > 0) {
+                        toast.success(`📉 Price-drop alert sent to ${notifiedCount} watcher${notifiedCount === 1 ? "" : "s"}!`);
+                    }
+                });
+            }
+
+            toast.success(isPriceDrop ? "Price reduced & watchers alerted! 📉" : "Property updated! ✨");
             setEditingProperty(null);
             setEditImageFiles([]);
             setEditImagePreviews([]);
@@ -1543,6 +1629,28 @@ export default function AgentDashboard() {
                                         <input className={styles.formInput} value={newProperty.neighborhood}
                                             onChange={(e) => setNewProperty({ ...newProperty, neighborhood: e.target.value })} placeholder="Westlands" />
                                     </div>
+                                    <ListingCopilotPanel
+                                        propertyType={newProperty.type}
+                                        listingType={newProperty.listingType}
+                                        city={newProperty.city}
+                                        neighborhood={newProperty.neighborhood}
+                                        bedrooms={newProperty.bedrooms}
+                                        bathrooms={newProperty.bathrooms}
+                                        areaSqFt={newProperty.area}
+                                        yearBuilt={newProperty.yearBuilt}
+                                        currentTitle={newProperty.title}
+                                        currentDescription={newProperty.description}
+                                        currentAmenities={newProperty.amenities.split(",").map((a) => a.trim()).filter(Boolean)}
+                                        onApplyFields={(updates) => {
+                                            setNewProperty((prev) => ({
+                                                ...prev,
+                                                ...(updates.title !== undefined ? { title: updates.title } : {}),
+                                                ...(updates.description !== undefined ? { description: updates.description } : {}),
+                                                ...(updates.price !== undefined ? { price: updates.price } : {}),
+                                                ...(updates.amenities !== undefined ? { amenities: updates.amenities.join(", ") } : {}),
+                                            }));
+                                        }}
+                                    />
                                     <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                         <label className={styles.formLabel}>Address</label>
                                         <input className={styles.formInput} value={newProperty.address}
@@ -1718,6 +1826,32 @@ export default function AgentDashboard() {
                                         <input className={styles.formInput} value={editingProperty.neighborhood}
                                             onChange={(e) => setEditingProperty({ ...editingProperty, neighborhood: e.target.value })} />
                                     </div>
+                                    <ListingCopilotPanel
+                                        propertyType={editingProperty.type}
+                                        listingType={editingProperty.listingType}
+                                        city={editingProperty.city}
+                                        neighborhood={editingProperty.neighborhood}
+                                        bedrooms={editingProperty.bedrooms}
+                                        bathrooms={editingProperty.bathrooms}
+                                        areaSqFt={editingProperty.area}
+                                        yearBuilt={editingProperty.yearBuilt}
+                                        currentTitle={editingProperty.title}
+                                        currentDescription={editingProperty.description}
+                                        currentAmenities={editingProperty.amenities || []}
+                                        onApplyFields={(updates) => {
+                                            setEditingProperty((prev) =>
+                                                prev
+                                                    ? {
+                                                          ...prev,
+                                                          ...(updates.title !== undefined ? { title: updates.title } : {}),
+                                                          ...(updates.description !== undefined ? { description: updates.description } : {}),
+                                                          ...(updates.price !== undefined ? { price: updates.price } : {}),
+                                                          ...(updates.amenities !== undefined ? { amenities: updates.amenities } : {}),
+                                                      }
+                                                    : null
+                                            );
+                                        }}
+                                    />
                                     <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
                                         <label className={styles.formLabel}>
                                             📍 GPS Coordinates <span style={{ fontSize: "0.72rem", fontWeight: 400, color: "var(--text-tertiary)" }}>(for accurate map pin)</span>

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrency, CurrencyCode } from "@/context/CurrencyContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { Locale } from "@/lib/i18n";
 import { subscribeToConversations, Conversation } from "@/lib/chat";
 import { usePWA } from "@/components/pwa/PWAInstall";
 import styles from "./Navbar.module.css";
@@ -13,6 +15,7 @@ export default function Navbar() {
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const { theme, toggleTheme } = useTheme();
     const { currency, setCurrency } = useCurrency();
+    const { locale, setLocale, t } = useLanguage();
     const { user, userProfile, logout, loading, getDashboardPath } = useAuth();
     const [unreadMessages, setUnreadMessages] = useState(0);
     const { canInstall, isInstalled, triggerInstall } = usePWA();
@@ -62,15 +65,15 @@ export default function Navbar() {
                 </Link>
 
                 <nav className={`${styles.nav} ${isMobileOpen ? styles.navOpen : ""}`}>
-                    <Link href="/properties?type=sale" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Buy</Link>
-                    <Link href="/properties?type=rent" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Rent</Link>
-                    <Link href="/projects" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>🏗️ Off-Plan</Link>
-                    <Link href="/properties" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Properties</Link>
-                    <Link href="/estimate" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>🤖 AI Valuer</Link>
-                    <Link href="/quiz" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>✨ Matchmaker</Link>
-                    <Link href="/agents" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Agents</Link>
-                    <Link href="/neighborhoods" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>Neighborhoods</Link>
-                    <Link href="/about" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>About</Link>
+                    <Link href="/properties?type=sale" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>{t("nav.buy")}</Link>
+                    <Link href="/properties?type=rent" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>{t("nav.rent")}</Link>
+                    <Link href="/projects" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>{t("nav.offPlan")}</Link>
+                    <Link href="/properties" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>{t("nav.properties")}</Link>
+                    <Link href="/estimate" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>{t("nav.aiValuer")}</Link>
+                    <Link href="/quiz" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>{t("nav.matchmaker")}</Link>
+                    <Link href="/agents" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>{t("nav.agents")}</Link>
+                    <Link href="/neighborhoods" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>{t("nav.neighborhoods")}</Link>
+                    <Link href="/about" className={styles.navLink} onClick={() => setIsMobileOpen(false)}>{t("nav.about")}</Link>
                 </nav>
 
                 <div className={styles.actions}>
@@ -87,9 +90,23 @@ export default function Navbar() {
                                 <polyline points="7 10 12 15 17 10" />
                                 <line x1="12" y1="15" x2="12" y2="3" />
                             </svg>
-                            <span className={styles.installBtnText}>Install</span>
+                            <span className={styles.installBtnText}>{t("nav.install")}</span>
                         </button>
                     )}
+
+                    {/* Language Switcher (English / Kiswahili) */}
+                    <div className={styles.currencyWrap}>
+                        <select
+                            value={locale}
+                            onChange={(e) => setLocale(e.target.value as Locale)}
+                            className={styles.currencySelect}
+                            aria-label="Select display language"
+                            title="Switch Language (English / Kiswahili)"
+                        >
+                            <option value="en">🇬🇧 EN</option>
+                            <option value="sw">🇰🇪 SW</option>
+                        </select>
+                    </div>
 
                     {/* Currency Selector */}
                     <div className={styles.currencyWrap}>
@@ -168,21 +185,21 @@ export default function Navbar() {
                                     <div className={styles.dropdownDivider} />
                                     <Link href={getDashboardPath()} className={styles.dropdownItem}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
-                                        Dashboard
+                                        {t("nav.dashboard")}
                                     </Link>
                                     <Link href="/profile" className={styles.dropdownItem}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-                                        Profile
+                                        {t("nav.profile")}
                                     </Link>
                                     <button onClick={handleLogout} className={styles.dropdownItem}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
-                                        Sign Out
+                                        {t("nav.signOut")}
                                     </button>
                                 </div>
                             </div>
                         ) : (
                             <Link href="/auth/signin" className="btn btn-primary btn-sm">
-                                Sign In
+                                {t("nav.signIn")}
                             </Link>
                         )
                     )}

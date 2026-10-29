@@ -6,6 +6,8 @@ import {
 } from "@/lib/apiSecurity";
 import {
     PROMOTION_TIER_PRICES,
+    VALID_CHECKOUT_PURPOSES,
+    CheckoutPurpose,
     saveCheckoutSession,
     getDarajaBaseUrl,
     hasDarajaCredentials,
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        if (!["reservation", "viewing_fee", "listing_promotion"].includes(purpose)) {
+        if (!VALID_CHECKOUT_PURPOSES.includes(purpose as CheckoutPurpose)) {
             return NextResponse.json(
                 { error: "Invalid payment purpose" },
                 { status: 400 }
