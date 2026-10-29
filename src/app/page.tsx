@@ -8,6 +8,7 @@ import { getFeaturedProperties, FirestoreProperty } from "@/lib/firestore";
 import PropertyCard from "@/components/property/PropertyCard";
 import ScrollReveal from "@/components/ui/ScrollReveal";
 import SmartSearchBar from "@/components/property/SmartSearchBar";
+import { useLanguage } from "@/context/LanguageContext";
 import styles from "./page.module.css";
 
 function mapFirestoreToProperty(fp: FirestoreProperty): Property {
@@ -47,6 +48,7 @@ function mapFirestoreToProperty(fp: FirestoreProperty): Property {
 
 export default function Home() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [heroListingType, setHeroListingType] = useState<"" | "sale" | "rent">("");
   const [heroLocation, setHeroLocation] = useState("");
   const [heroType, setHeroType] = useState("");
@@ -110,14 +112,13 @@ export default function Home() {
         </div>
 
         <div className={styles.heroContent}>
-          <span className={styles.heroLabel}>Welcome to EstateVue</span>
+          <span className={styles.heroLabel}>{t("home.welcomeBadge")}</span>
           <h1 className={styles.heroTitle}>
-            Find Your Dream<br />
-            <span className={styles.heroAccent}>Luxury Home</span>
+            {t("home.heroTitleTop")}<br />
+            <span className={styles.heroAccent}>{t("home.heroTitleAccent")}</span>
           </h1>
           <p className={styles.heroSubtitle}>
-            Discover exclusive properties in prime locations across Kenya.
-            Your perfect home awaits.
+            {t("home.heroSubtitle")}
           </p>
 
           {/* Search Mode Switcher Tabs */}
@@ -141,7 +142,7 @@ export default function Home() {
                 backdropFilter: "blur(8px)",
               }}
             >
-              <span>✨ AI Smart Search</span>
+              <span>{t("home.smartSearchTab")}</span>
             </button>
             <button
               type="button"
@@ -162,7 +163,7 @@ export default function Home() {
                 backdropFilter: "blur(8px)",
               }}
             >
-              <span>⚙️ Classic Filters</span>
+              <span>{t("home.classicFiltersTab")}</span>
             </button>
           </div>
 
@@ -171,25 +172,25 @@ export default function Home() {
             <div style={{ maxWidth: "800px", margin: "0 auto 2rem", width: "100%" }}>
               <SmartSearchBar
                 autoNavigateOnSubmit={true}
-                placeholder="Ask in plain English: '3BR villa in Karen with pool under 50M'..."
+                placeholder={t("home.smartPlaceholder")}
                 showSuggestions={true}
               />
             </div>
           ) : (
             <form onSubmit={handleHeroSearch} className={styles.searchBar}>
               <div className={styles.searchField}>
-                <label>Purpose</label>
+                <label>{t("home.purposeLabel")}</label>
                 <select value={heroListingType} onChange={(e) => setHeroListingType(e.target.value as "" | "sale" | "rent")}>
-                  <option value="">Buy or Rent</option>
-                  <option value="sale">For Sale</option>
-                  <option value="rent">For Rent</option>
+                  <option value="">{t("home.buyOrRent")}</option>
+                  <option value="sale">{t("home.forSale")}</option>
+                  <option value="rent">{t("home.forRent")}</option>
                 </select>
               </div>
               <div className={styles.searchDivider} />
               <div className={styles.searchField}>
-                <label>Location</label>
+                <label>{t("home.locationLabel")}</label>
                 <select value={heroLocation} onChange={(e) => setHeroLocation(e.target.value)}>
-                  <option value="">All Locations</option>
+                  <option value="">{t("home.allLocations")}</option>
                   <option value="Nairobi">Nairobi</option>
                   <option value="Mombasa">Mombasa</option>
                   <option value="Kisumu">Kisumu</option>
@@ -198,9 +199,9 @@ export default function Home() {
               </div>
               <div className={styles.searchDivider} />
               <div className={styles.searchField}>
-                <label>Property Type</label>
+                <label>{t("home.propertyTypeLabel")}</label>
                 <select value={heroType} onChange={(e) => setHeroType(e.target.value)}>
-                  <option value="">All Types</option>
+                  <option value="">{t("home.allTypes")}</option>
                   <option value="Apartment">Apartment</option>
                   <option value="House">House</option>
                   <option value="Villa">Villa</option>
@@ -211,9 +212,9 @@ export default function Home() {
               </div>
               <div className={styles.searchDivider} />
               <div className={styles.searchField}>
-                <label>Price Range</label>
+                <label>{t("home.priceRangeLabel")}</label>
                 <select value={heroPriceRange} onChange={(e) => setHeroPriceRange(e.target.value)}>
-                  <option value="">Any price</option>
+                  <option value="">{t("home.anyPrice")}</option>
                   <option value="under-10m">Under KES 10M</option>
                   <option value="10m-30m">KES 10M - 30M</option>
                   <option value="30m-60m">KES 30M - 60M</option>
@@ -296,17 +297,17 @@ export default function Home() {
           <div className={styles.heroStats}>
             <div className={styles.heroStat}>
               <span className={styles.heroStatNumber}>2,500+</span>
-              <span className={styles.heroStatLabel}>Properties</span>
+              <span className={styles.heroStatLabel}>{t("home.statProperties")}</span>
             </div>
             <div className={styles.heroStatDivider} />
             <div className={styles.heroStat}>
               <span className={styles.heroStatNumber}>1,200+</span>
-              <span className={styles.heroStatLabel}>Happy Clients</span>
+              <span className={styles.heroStatLabel}>{t("home.statClients")}</span>
             </div>
             <div className={styles.heroStatDivider} />
             <div className={styles.heroStat}>
               <span className={styles.heroStatNumber}>85+</span>
-              <span className={styles.heroStatLabel}>Expert Agents</span>
+              <span className={styles.heroStatLabel}>{t("home.statAgents")}</span>
             </div>
           </div>
         </div>

@@ -5,11 +5,12 @@ import OptimizedImage from "@/components/ui/OptimizedImage";
 import Link from "next/link";
 import { sampleProperties, formatPriceFull, formatPrice } from "@/lib/data";
 import { getNeighborhoodByName } from "@/lib/neighborhoods";
-import { sendInquiry, getPropertyById, FirestoreProperty, submitReview, getReviewsByAgent, Review, markReviewHelpful, Inquiry } from "@/lib/firestore";
+import { sendInquiry, getPropertyById, FirestoreProperty, submitReview, getReviewsByAgent, Review, markReviewHelpful, Inquiry, PaymentPurpose } from "@/lib/firestore";
 import { addToRecentlyViewed } from "@/lib/recentlyViewed";
 import { sendInquiryEmail } from "@/lib/email";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useLanguage } from "@/context/LanguageContext";
 import PropertyCard from "@/components/property/PropertyCard";
 import { getRecentlyViewed, RecentlyViewedItem } from "@/lib/recentlyViewed";
 import toast from "react-hot-toast";
@@ -35,6 +36,10 @@ const FloorPlanViewer = dynamic(() => import("@/components/property/FloorPlanVie
 const CommuteRadar = dynamic(() => import("@/components/property/CommuteRadar"), { loading: sectionFallback });
 const InvestmentCalculator = dynamic(() => import("@/components/property/InvestmentCalculator"), { loading: sectionFallback });
 const DiasporaConcierge = dynamic(() => import("@/components/property/DiasporaConcierge"), { loading: sectionFallback });
+const VirtualStagingStudio = dynamic(() => import("@/components/property/VirtualStagingStudio"), { loading: sectionFallback });
+const PriceHistoryChart = dynamic(() => import("@/components/property/PriceHistoryChart"), { loading: sectionFallback });
+const RentalExperiencePanel = dynamic(() => import("@/components/property/RentalExperiencePanel"), { loading: sectionFallback });
+const LeaseApplicationModal = dynamic(() => import("@/components/property/LeaseApplicationModal"));
 const MakeAnOfferModal = dynamic(() => import("@/components/property/MakeAnOfferModal"));
 const LOIModal = dynamic(() => import("@/components/property/LOIModal"));
 const DealRoomModal = dynamic(() => import("@/components/property/DealRoomModal"));
@@ -51,6 +56,7 @@ export default function PropertyDetailPage({ params }: Props) {
     const { id } = use(params);
     const { user, userProfile } = useAuth();
     const { formatCurrency, formatCurrencyFull, currency } = useCurrency();
+    const { t } = useLanguage();
     const router = useRouter();
 
     // Try sample data first, then Firestore
@@ -72,9 +78,10 @@ export default function PropertyDetailPage({ params }: Props) {
     const [showSchedulerModal, setShowSchedulerModal] = useState(false);
     const [schedulerDefaultMode, setSchedulerDefaultMode] = useState<"in_person" | "virtual" | undefined>(undefined);
     const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
+    const [showLeaseModal, setShowLeaseModal] = useState(false);
     const [paymentModalConfig, setPaymentModalConfig] = useState<{
         isOpen: boolean;
-        purpose: "reservation" | "viewing_fee" | "listing_promotion";
+        purpose: PaymentPurpose;
         amount: number;
     } | null>(null);
 
@@ -489,6 +496,18 @@ export default function PropertyDetailPage({ params }: Props) {
                             >
                                 <span>👥 Save to Board</span>
                             </button>
+                            {property.type !== "land" && (
+                                <button
+                                    type="button"
+                                    className={styles.actionBrochureBtn}
+                                    onClick={() => {
+                                        document.getElementById("virtual-staging-section")?.scrollIntoView({ behavior: "smooth" });
+                                    }}
+                                    title="AI Virtual Staging — Restyle rooms & estimate furnishing costs"
+                                >
+                                    <span>✨ Reimagine Room</span>
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 className={styles.actionBrochureBtn}
@@ -521,7 +540,7 @@ export default function PropertyDetailPage({ params }: Props) {
                             />
                             <div className={styles.imageBadges}>
                                 <span className={`badge ${property.listingType === "sale" ? "badge-sale" : "badge-rent"}`}>
-                                    For {property.listingType === "sale" ? "Sale" : "Rent"}
+                                    {property.listingType === "sale" ? t("detail.forSaleBadge") : t("detail.forRentBadge")}
                                 </span>
                                 {property.isFeatured && <span className="badge badge-featured">Featured</span>}
                                 {property.status === "sold" && <span className="badge badge-sold">🔴 Sold</span>}
@@ -637,10 +656,10 @@ export default function PropertyDetailPage({ params }: Props) {
                             {/* Quick Info */}
                             <div className={styles.quickInfo}>
                                 {[
-                                    { label: "Bedrooms", value: property.bedrooms, icon: "🛏️" },
-                                    { label: "Bathrooms", value: property.bathrooms, icon: "🚿" },
-                                    { label: "Area", value: `${property.area.toLocaleString()} sqft`, icon: "📐" },
-                                    { label: "Year Built", value: property.yearBuilt, icon: "📅" },
+                                    { label: t("detail.bedrooms"), value: property.bedrooms, icon: "🛏️" },
+                                    { label: t("detail.bathrooms"), value: property.bathrooms, icon: "🚿" },
+                                    { label: t("detail.area"), value: `${property.area.toLocaleString()} sqft`, icon: "📐" },
+                                    { label: t("detail.yearBuilt"), value: property.yearBuilt, icon: "📅" },
                                     { label: "Type", value: property.type.charAt(0).toUpperCase() + property.type.slice(1), icon: "🏠" },
                                 ].map((item) => (
                                     <div key={item.label} className={styles.quickInfoItem}>
@@ -700,6 +719,42 @@ export default function PropertyDetailPage({ params }: Props) {
                                 listingType={property.listingType}
                             />
 
+                            {/* Listing Price History Chart & Automated Price-Drop Alert Watch */}
+                            <PriceHistoryChart
+                                propertyId={property.id}
+                                propertyTitle={property.title}
+                                price={property.price}
+                                area={property.area}
+                                listingType={property.listingType}
+                                status={property.status}
+                                createdAt={property.createdAt}
+                                priceHistory={(property as any).priceHistory}
+                            />
+
+                            {/* Rental Move-In Breakdown & Short-Stay Calendar Booking */}
+                            {property.listingType === "rent" && (
+                                <RentalExperiencePanel
+                                    propertyTitle={property.title}
+                                    propertyType={property.type || "apartment"}
+                                    monthlyRentKES={property.price}
+                                    onOpenLeaseModal={() => setShowLeaseModal(true)}
+                                    onPayMoveInDeposit={(depositKES) =>
+                                        setPaymentModalConfig({
+                                            isOpen: true,
+                                            purpose: "rent_deposit",
+                                            amount: depositKES,
+                                        })
+                                    }
+                                    onBookShortStay={({ totalKES }) =>
+                                        setPaymentModalConfig({
+                                            isOpen: true,
+                                            purpose: "short_stay_booking",
+                                            amount: totalKES,
+                                        })
+                                    }
+                                />
+                            )}
+
                             {/* Ardhisasa Legal Due Diligence Verification */}
                             <div className={styles.section} id="legal-diligence-section">
                                 <LegalDueDiligence
@@ -736,13 +791,13 @@ export default function PropertyDetailPage({ params }: Props) {
 
                             {/* Description */}
                             <div className={styles.section}>
-                                <h2 className={styles.sectionTitle}>Description</h2>
+                                <h2 className={styles.sectionTitle}>{t("detail.description")}</h2>
                                 <p className={styles.description}>{property.description}</p>
                             </div>
 
                             {/* Amenities */}
                             <div className={styles.section}>
-                                <h2 className={styles.sectionTitle}>Amenities & Features</h2>
+                                <h2 className={styles.sectionTitle}>{t("detail.amenities")}</h2>
                                 <div className={styles.amenitiesGrid}>
                                     {property.amenities.map((amenity) => (
                                         <div key={amenity} className={styles.amenityItem}>
@@ -752,6 +807,32 @@ export default function PropertyDetailPage({ params }: Props) {
                                     ))}
                                 </div>
                             </div>
+
+                            {/* AI Virtual Staging ("Reimagine This Room") & Fit-Out Estimator */}
+                            {property.type !== "land" && (
+                                <div className={styles.section} id="virtual-staging-section">
+                                    <VirtualStagingStudio
+                                        propertyTitle={property.title}
+                                        propertyType={property.type || "apartment"}
+                                        neighborhood={typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood || "Westlands"}
+                                        city={typeof property.location === "object" ? property.location.city : (property as any).city || "Nairobi"}
+                                        bedrooms={property.bedrooms || 3}
+                                        areaSqFt={property.area || 1800}
+                                        propertyPriceKES={property.price}
+                                        images={property.images}
+                                        selectedGalleryIndex={activeImage}
+                                        onRequestQuote={(summaryMessage) => {
+                                            setInquiryForm((prev) => ({
+                                                ...prev,
+                                                message: summaryMessage,
+                                                type: "inquiry",
+                                            }));
+                                            setShowInquiry(true);
+                                            document.querySelector(`.${styles.agentCard}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                        }}
+                                    />
+                                </div>
+                            )}
 
                             {/* Architectural Floor Plans */}
                             <div className={styles.section} id="floor-plans-section">
@@ -1302,11 +1383,38 @@ export default function PropertyDetailPage({ params }: Props) {
                                         }}
                                         onClick={() => setShowOfferModal(true)}
                                     >
-                                        <span>💼</span> Make a Formal Offer (LOI)
+                                        <span>💼</span> {t("detail.makeFormalOffer")}
                                     </button>
                                 )}
 
-                                {/* Reserve & Viewing FinTech M-Pesa Buttons */}
+                                {property.listingType === "rent" && property.status !== "rented" && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-lg"
+                                        style={{
+                                            width: "100%",
+                                            background: "linear-gradient(135deg, #eab308, #ca8a04)",
+                                            color: "#0a0e1a",
+                                            border: "none",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.5rem",
+                                            fontWeight: 800,
+                                            fontSize: "0.95rem",
+                                            boxShadow: "0 4px 15px rgba(212, 160, 23, 0.35)",
+                                            cursor: "pointer",
+                                            borderRadius: "var(--radius-md)",
+                                            padding: "0.75rem 1rem",
+                                            transition: "all 0.2s ease",
+                                        }}
+                                        onClick={() => setShowLeaseModal(true)}
+                                    >
+                                        {t("detail.applyDigitalLease")}
+                                    </button>
+                                )}
+
+                                {/* Reserve & Viewing FinTech M-Pesa / Card Buttons */}
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
                                     <button
                                         type="button"
@@ -1328,13 +1436,17 @@ export default function PropertyDetailPage({ params }: Props) {
                                         onClick={() => {
                                             setPaymentModalConfig({
                                                 isOpen: true,
-                                                purpose: "reservation",
-                                                amount: 50000,
+                                                purpose: property.listingType === "rent" ? "rent_deposit" : "reservation",
+                                                amount: property.listingType === "rent" ? property.price : 50000,
                                             });
                                         }}
-                                        title="Lock this property for 48 hours via M-Pesa earnest deposit"
+                                        title={
+                                            property.listingType === "rent"
+                                                ? "Pay 1-month refundable holding deposit via M-Pesa or Card"
+                                                : "Lock this property for 48 hours via M-Pesa or Card earnest deposit"
+                                        }
                                     >
-                                        <span>🔐</span> Reserve (M-Pesa)
+                                        <span>🔐</span> {property.listingType === "rent" ? "Hold Lease" : "Reserve (M-Pesa/Card)"}
                                     </button>
                                     <button
                                         type="button"
@@ -1868,6 +1980,28 @@ export default function PropertyDetailPage({ params }: Props) {
                     }}
                     isOpen={showAddToCollectionModal}
                     onClose={() => setShowAddToCollectionModal(false)}
+                />
+            )}
+
+            {/* Digital Lease Application Modal (for Rental Listings) */}
+            {showLeaseModal && (
+                <LeaseApplicationModal
+                    isOpen={showLeaseModal}
+                    onClose={() => setShowLeaseModal(false)}
+                    propertyId={property.id}
+                    propertyTitle={property.title}
+                    propertyType={property.type}
+                    monthlyRentKES={property.price}
+                    agentId={firestoreProp?.agentId || (property as any).agentId || "sample-agent"}
+                    agentName={property.agentName}
+                    agentEmail={property.agentEmail}
+                    onOpenHoldingDeposit={(depositAmountKES) =>
+                        setPaymentModalConfig({
+                            isOpen: true,
+                            purpose: "rent_deposit",
+                            amount: depositAmountKES,
+                        })
+                    }
                 />
             )}
 

@@ -6,12 +6,13 @@ import {
     query,
     where,
     getDocs,
+    setDoc,
     serverTimestamp,
     Timestamp,
     updateDoc,
     orderBy,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 
 // ========================
 // SAVED SEARCH DATA MODEL
@@ -61,6 +62,28 @@ export async function createSavedSearch(
         lastChecked: serverTimestamp(),
         createdAt: serverTimestamp(),
     });
+
+    // Sync automated alert subscription when user has an authenticated email
+    if (auth?.currentUser?.uid === userId && auth.currentUser.email) {
+        try {
+            await setDoc(doc(db, "alert_subscriptions", `ss_${ref.id}`), {
+                id: `ss_${ref.id}`,
+                userId,
+                userEmail: auth.currentUser.email.toLowerCase(),
+                userName: auth.currentUser.displayName || "Buyer",
+                type: "saved_search",
+                savedSearchId: ref.id,
+                searchName: name,
+                filters,
+                active: true,
+                createdAtISO: new Date().toISOString(),
+                updatedAt: serverTimestamp(),
+            });
+        } catch (err) {
+            console.warn("Alert subscription sync skipped:", err);
+        }
+    }
+
     return ref.id;
 }
 
@@ -79,6 +102,11 @@ export async function getSavedSearches(userId: string): Promise<SavedSearch[]> {
 
 export async function deleteSavedSearch(searchId: string): Promise<void> {
     await deleteDoc(doc(db, "savedSearches", searchId));
+    try {
+        await deleteDoc(doc(db, "alert_subscriptions", `ss_${searchId}`));
+    } catch {
+        // Ignore if subscription did not exist
+    }
 }
 
 export async function toggleSavedSearchActive(
@@ -86,6 +114,14 @@ export async function toggleSavedSearchActive(
     isActive: boolean
 ): Promise<void> {
     await updateDoc(doc(db, "savedSearches", searchId), { isActive });
+    try {
+        await updateDoc(doc(db, "alert_subscriptions", `ss_${searchId}`), {
+            active: isActive,
+            updatedAt: serverTimestamp(),
+        });
+    } catch {
+        // Ignore if subscription did not exist yet
+    }
 }
 
 export async function updateSavedSearchMatchCount(

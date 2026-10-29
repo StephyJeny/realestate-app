@@ -1,37 +1,55 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { sampleProperties, Property } from "@/lib/data";
+import { sampleProperties } from "@/lib/data";
+import { getPropertiesPage, FirestoreProperty } from "@/lib/firestore";
+import {
+    mergeLiveAndSampleProperties,
+    QuizAnswersInput,
+    QuizMatchResult,
+    rankPropertiesForQuiz,
+} from "@/lib/liveInventory";
 import { useCurrency } from "@/context/CurrencyContext";
 import styles from "./page.module.css";
-
-interface QuizAnswers {
-    goal: string;
-    vibe: string;
-    bedrooms: string;
-    budget: string;
-    amenities: string[];
-}
-
-interface MatchResult {
-    property: Property;
-    score: number;
-    matchReasons: string[];
-}
 
 export default function DreamHomeQuizPage() {
     const { formatCurrencyFull } = useCurrency();
     const [currentStep, setCurrentStep] = useState<number>(1);
     const [isCompleted, setIsCompleted] = useState<boolean>(false);
+    const [liveFirestoreItems, setLiveFirestoreItems] = useState<FirestoreProperty[]>([]);
+    const [loadingLive, setLoadingLive] = useState<boolean>(true);
 
-    const [answers, setAnswers] = useState<QuizAnswers>({
+    const [answers, setAnswers] = useState<QuizAnswersInput>({
         goal: "",
         vibe: "",
         bedrooms: "",
         budget: "",
         amenities: [],
     });
+
+    // Subscribe / fetch live agent-uploaded Firestore listings on mount
+    useEffect(() => {
+        let active = true;
+        getPropertiesPage(100)
+            .then(({ items }) => {
+                if (active) setLiveFirestoreItems(items);
+            })
+            .catch(() => {
+                // Gracefully retain sampleProperties fallback when offline or unconfigured
+            })
+            .finally(() => {
+                if (active) setLoadingLive(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    const { inventory, liveIds } = useMemo(
+        () => mergeLiveAndSampleProperties(liveFirestoreItems, sampleProperties),
+        [liveFirestoreItems]
+    );
 
     const totalSteps = 5;
 
@@ -68,42 +86,38 @@ export default function DreamHomeQuizPage() {
             title: "Leafy, Private & Expansive",
             desc: "Tree-lined avenues, large acreages (Karen, Runda, Muthaiga).",
             icon: "🌳",
-            neighborhoods: ["Karen", "Runda", "Muthaiga"],
         },
         {
             id: "cosmopolitan",
             title: "Vibrant & Cosmopolitan",
             desc: "Art galleries, fine dining, commercial hub (Westlands, Kilimani).",
             icon: "🍸",
-            neighborhoods: ["Westlands", "Kilimani", "Lavington"],
         },
         {
             id: "coastal",
             title: "Coastal Breeze & Oceanfront",
             desc: "Sandy beaches, tropical sunsets, ocean views (Nyali, Mombasa).",
             icon: "🌊",
-            neighborhoods: ["Nyali", "Diani", "Mombasa"],
         },
         {
             id: "hills",
             title: "Elevated Hillside & Nature",
             desc: "Quiet ridge panoramas, lush valley greenery (Kitisuru, Tigoni).",
             icon: "⛰️",
-            neighborhoods: ["Kitisuru", "Tigoni"],
         },
     ];
 
     const bedroomOptions = [
-        { id: "1-2", label: "1 - 2 Bedrooms", sub: "Compact, easy upkeep or luxury pied-à-terre", icon: "🔑", min: 1, max: 2 },
-        { id: "3-4", label: "3 - 4 Bedrooms", sub: "Ideal family balance with guest suite", icon: "🛏️", min: 3, max: 4 },
-        { id: "5+", label: "5+ Bedrooms / Estate", sub: "Palatial residence with staff quarters", icon: "👑", min: 5, max: 10 },
+        { id: "1-2", label: "1 - 2 Bedrooms", sub: "Compact, easy upkeep or luxury pied-à-terre", icon: "🔑" },
+        { id: "3-4", label: "3 - 4 Bedrooms", sub: "Ideal family balance with guest suite", icon: "🛏️" },
+        { id: "5+", label: "5+ Bedrooms / Estate", sub: "Palatial residence with staff quarters", icon: "👑" },
     ];
 
     const budgetRanges = [
-        { id: "under_35m", label: "Under KES 35M", sub: "Great starter or high-yield investment unit", maxPrice: 35000000 },
-        { id: "35m_80m", label: "KES 35M - 80M", sub: "Premium suburban villas and luxury penthouses", minPrice: 35000000, maxPrice: 80000000 },
-        { id: "80m_150m", label: "KES 80M - 150M", sub: "High-end ambassadorial homes and oceanfront villas", minPrice: 80000000, maxPrice: 150000000 },
-        { id: "above_150m", label: "KES 150M+ (Ultra Luxury)", sub: "Trophy estates with bespoke architecture", minPrice: 150000000 },
+        { id: "under_35m", label: "Under KES 35M", sub: "Great starter or high-yield investment unit" },
+        { id: "35m_80m", label: "KES 35M - 80M", sub: "Premium suburban villas and luxury penthouses" },
+        { id: "80m_150m", label: "KES 80M - 150M", sub: "High-end ambassadorial homes and oceanfront villas" },
+        { id: "above_150m", label: "KES 150M+ (Ultra Luxury)", sub: "Trophy estates with bespoke architecture" },
     ];
 
     const amenityOptions = [
@@ -163,75 +177,11 @@ export default function DreamHomeQuizPage() {
         setIsCompleted(false);
     };
 
-    // Algorithm to rank properties
-    const matches: MatchResult[] = useMemo(() => {
+    // Rank across unified live Firestore + featured sample inventory
+    const matches: QuizMatchResult[] = useMemo(() => {
         if (!isCompleted) return [];
-
-        const selectedVibeObj = vibes.find((v) => v.id === answers.vibe);
-        const selectedBedObj = bedroomOptions.find((b) => b.id === answers.bedrooms);
-        const selectedBudgetObj = budgetRanges.find((b) => b.id === answers.budget);
-
-        const scored = sampleProperties.map((p) => {
-            let score = 50; // base score
-            const matchReasons: string[] = [];
-
-            // 1. Neighborhood / Vibe match (+25)
-            if (
-                selectedVibeObj?.neighborhoods.some((n) =>
-                    p.location.neighborhood.toLowerCase().includes(n.toLowerCase())
-                )
-            ) {
-                score += 25;
-                matchReasons.push(`Matches your ${selectedVibeObj.title} vibe in ${p.location.neighborhood}`);
-            }
-
-            // 2. Bedroom match (+15)
-            if (
-                selectedBedObj &&
-                p.bedrooms >= selectedBedObj.min &&
-                p.bedrooms <= selectedBedObj.max
-            ) {
-                score += 15;
-                matchReasons.push(`Optimal ${p.bedrooms}-bedroom spatial layout`);
-            }
-
-            // 3. Budget match (+15)
-            if (selectedBudgetObj) {
-                const withinBudget =
-                    (!selectedBudgetObj.minPrice || p.price >= selectedBudgetObj.minPrice) &&
-                    (!selectedBudgetObj.maxPrice || p.price <= selectedBudgetObj.maxPrice);
-                if (withinBudget) {
-                    score += 15;
-                    matchReasons.push("Fits within your selected capital budget range");
-                }
-            }
-
-            // 4. Amenities match (+5 per match)
-            if (answers.amenities.length > 0) {
-                const matchedCount = p.amenities.filter((a) =>
-                    answers.amenities.some((chosen) =>
-                        a.toLowerCase().includes(chosen.toLowerCase())
-                    )
-                ).length;
-                if (matchedCount > 0) {
-                    score += Math.min(15, matchedCount * 5);
-                    matchReasons.push(`Includes ${matchedCount} of your preferred amenities`);
-                }
-            }
-
-            // Cap at 99%
-            score = Math.min(99, Math.max(68, score));
-
-            return {
-                property: p,
-                score,
-                matchReasons,
-            };
-        });
-
-        // Sort by score descending
-        return scored.sort((a, b) => b.score - a.score).slice(0, 3);
-    }, [isCompleted, answers]);
+        return rankPropertiesForQuiz(inventory, answers, liveIds, 3);
+    }, [isCompleted, inventory, answers, liveIds]);
 
     return (
         <div className={styles.page}>
@@ -241,8 +191,32 @@ export default function DreamHomeQuizPage() {
                     <span className={styles.heroBadge}>✨ 60-Second Property Matchmaker</span>
                     <h1 className={styles.heroTitle}>Find Your Ideal Kenyan Home</h1>
                     <p className={styles.heroSub}>
-                        Answer 5 quick lifestyle questions and our smart algorithm will curate the top 3 luxury listings that align with your vision.
+                        Answer 5 quick lifestyle questions and our AI matchmaker will curate the top 3 residences across our live agent inventory.
                     </p>
+                    <div
+                        style={{
+                            marginTop: "0.75rem",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.45rem",
+                            padding: "0.3rem 0.85rem",
+                            borderRadius: "999px",
+                            background: "rgba(16, 185, 129, 0.12)",
+                            border: "1px solid rgba(16, 185, 129, 0.35)",
+                            color: "#10b981",
+                            fontSize: "0.76rem",
+                            fontWeight: 700,
+                        }}
+                    >
+                        <span>🟢</span>
+                        <span>
+                            {loadingLive
+                                ? "Syncing live Firestore listings..."
+                                : `Matching across ${inventory.length} verified listings${
+                                      liveIds.size > 0 ? ` (${liveIds.size} live agent uploads)` : ""
+                                  }`}
+                        </span>
+                    </div>
                 </div>
 
                 {!isCompleted ? (
@@ -414,12 +388,12 @@ export default function DreamHomeQuizPage() {
                             <span className={styles.resultBadge}>🎉 Matchmaker Results Ready</span>
                             <h2 className={styles.resultTitle}>Your Top 3 Curated Properties</h2>
                             <p className={styles.resultSubtitle}>
-                                Based on your lifestyle preferences, here are the finest matching residences.
+                                Ranked across {inventory.length} verified & live agent-uploaded residences based on your lifestyle profile.
                             </p>
                         </div>
 
                         <div className={styles.matchesGrid}>
-                            {matches.map((m, idx) => (
+                            {matches.map((m) => (
                                 <div key={m.property.id} className={styles.matchCard}>
                                     <div className={styles.matchImageWrap}>
                                         <Image
@@ -432,11 +406,30 @@ export default function DreamHomeQuizPage() {
                                         <span className={styles.matchScoreBadge}>
                                             ⭐ {m.score}% Match
                                         </span>
+                                        {m.isLiveListing && (
+                                            <span
+                                                style={{
+                                                    position: "absolute",
+                                                    bottom: "10px",
+                                                    left: "10px",
+                                                    padding: "0.22rem 0.6rem",
+                                                    borderRadius: "999px",
+                                                    background: "rgba(15, 23, 42, 0.85)",
+                                                    color: "#34d399",
+                                                    fontSize: "0.7rem",
+                                                    fontWeight: 700,
+                                                    backdropFilter: "blur(6px)",
+                                                }}
+                                            >
+                                                🟢 Live Agent Listing
+                                            </span>
+                                        )}
                                     </div>
 
                                     <div className={styles.matchBody}>
                                         <div className={styles.matchPrice}>
                                             {formatCurrencyFull(m.property.price)}
+                                            {m.property.listingType === "rent" ? " /mo" : ""}
                                         </div>
                                         <h3 className={styles.matchTitle}>{m.property.title}</h3>
                                         <div className={styles.matchLocation}>

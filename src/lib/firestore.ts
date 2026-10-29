@@ -341,6 +341,12 @@ export interface FirestoreProperty {
     agentPhone: string;
     status: "active" | "pending" | "sold" | "rented" | "under_offer" | "price_reduced";
     isFeatured: boolean;
+    priceHistory?: {
+        date: string;
+        price: number;
+        event: "listed" | "price_drop" | "price_increase" | "relisted";
+        note?: string;
+    }[];
     views: number;
     favorites: number;
     createdAt?: Timestamp;
@@ -653,7 +659,14 @@ export async function respondToOffer(params: {
     return updatedOffer;
 }
 
-// Payment Recording (M-Pesa Daraja Server-Verified Checkout)
+// Payment Recording (M-Pesa Daraja & Hosted Card Server-Verified Checkout)
+export type PaymentPurpose =
+    | "reservation"
+    | "viewing_fee"
+    | "listing_promotion"
+    | "rent_deposit"
+    | "short_stay_booking";
+
 export interface PaymentRecord {
     id?: string;
     checkoutRequestId?: string;
@@ -663,11 +676,12 @@ export interface PaymentRecord {
     propertyTitle?: string;
     amount: number;
     currency: string;
-    purpose: "reservation" | "viewing_fee" | "listing_promotion";
+    purpose: PaymentPurpose;
     mpesaReceiptNumber: string;
     phoneNumber: string;
     status: "pending" | "completed" | "failed";
     paymentMethod: "mpesa" | "card";
+    cardProvider?: "paystack" | "stripe";
     promotionTier?: "featured_7" | "featured_14" | "featured_30";
     serverVerified?: boolean;
     mode?: "live" | "sandbox";

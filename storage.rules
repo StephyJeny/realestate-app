@@ -86,6 +86,26 @@ service firebase.storage {
     }
 
     // ========================
+    // DIGITAL LEASE APPLICATION DOCUMENTS (ID & Income Proof)
+    // Applicant uploads to their own subfolder; listing agent & admins can review
+    // Max 20MB per file, PDF or image
+    // ========================
+    match /lease_applications/{propertyId}/{applicantId}/{fileName} {
+      function isListingAgent() {
+        let prop = firestore.get(/databases/(default)/documents/properties/$(propertyId)).data;
+        return request.auth != null && request.auth.uid == prop.agentId;
+      }
+
+      allow read: if request.auth != null &&
+        (request.auth.uid == applicantId || isListingAgent() || isAdmin());
+      allow write: if request.auth != null && request.auth.uid == applicantId
+        && request.resource.size < 20 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType == 'application/pdf');
+      allow delete: if request.auth != null && (request.auth.uid == applicantId || isAdmin());
+    }
+
+    // ========================
     // CATCH-ALL: Deny everything else
     // ========================
     match /{allPaths=**} {

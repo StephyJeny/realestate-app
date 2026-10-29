@@ -439,5 +439,25 @@ service cloud.firestore {
         request.resource.data.inquiryId == resource.data.inquiryId;
       allow delete: if isAdmin();
     }
+
+    // ========================
+    // ALERT SUBSCRIPTIONS (Automated Price-Drop & Saved-Search Alerts)
+    // - Buyers opt in using their own uid & authenticated email
+    // - Approved agents and admins can read active subscriptions to dispatch alerts
+    // ========================
+    match /alert_subscriptions/{subId} {
+      allow read: if isRegisteredUser() &&
+        (resource.data.userId == request.auth.uid || isApprovedAgent() || isAdmin());
+      allow create: if isRegisteredUser() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.userEmail == authEmail() &&
+        request.resource.data.type in ['price_watch', 'saved_search'];
+      allow update: if isRegisteredUser() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.userEmail == authEmail();
+      allow delete: if isRegisteredUser() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+    }
   }
 }

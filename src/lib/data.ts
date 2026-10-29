@@ -1,3 +1,10 @@
+export interface PropertyPriceHistoryItem {
+    date: string;
+    price: number;
+    event: "listed" | "price_drop" | "price_increase" | "relisted";
+    note?: string;
+}
+
 export interface Property {
     id: string;
     title: string;
@@ -25,6 +32,7 @@ export interface Property {
     status: "active" | "pending" | "sold" | "rented" | "under_offer" | "price_reduced";
     isFeatured: boolean;
     virtualTourUrl?: string;
+    priceHistory?: PropertyPriceHistoryItem[];
     views: number;
     favorites: number;
     createdAt: string;

@@ -6,6 +6,21 @@ export const PROMOTION_TIER_PRICES: Record<"featured_7" | "featured_14" | "featu
     featured_30: 8000,
 };
 
+export type CheckoutPurpose =
+    | "reservation"
+    | "viewing_fee"
+    | "listing_promotion"
+    | "rent_deposit"
+    | "short_stay_booking";
+
+export const VALID_CHECKOUT_PURPOSES: CheckoutPurpose[] = [
+    "reservation",
+    "viewing_fee",
+    "listing_promotion",
+    "rent_deposit",
+    "short_stay_booking",
+];
+
 export interface PendingCheckoutSession {
     checkoutRequestId: string;
     merchantRequestId: string;
@@ -13,7 +28,7 @@ export interface PendingCheckoutSession {
     phone: string;
     amount: number;
     currency: string;
-    purpose: "reservation" | "viewing_fee" | "listing_promotion";
+    purpose: CheckoutPurpose;
     propertyId?: string;
     propertyTitle?: string;
     promotionTier?: "featured_7" | "featured_14" | "featured_30";
