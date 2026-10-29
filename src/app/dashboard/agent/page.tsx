@@ -25,6 +25,7 @@ import {
 } from "@/lib/firestore";
 import { uploadPropertyImages } from "@/lib/storage";
 import LOIModal from "@/components/property/LOIModal";
+import DealRoomModal from "@/components/property/DealRoomModal";
 import PaymentModal from "@/components/payment/PaymentModal";
 import LeadKanbanBoard, { PipelineStage } from "@/components/agent/LeadKanbanBoard";
 import { LOIData } from "@/lib/loiGenerator";
@@ -67,6 +68,7 @@ export default function AgentDashboard() {
 
     // Offer negotiation and LOI states
     const [viewingLOI, setViewingLOI] = useState<LOIData | null>(null);
+    const [dealRoomInquiry, setDealRoomInquiry] = useState<Inquiry | null>(null);
     const [counteringOffer, setCounteringOffer] = useState<Inquiry | null>(null);
     const [counterPriceInput, setCounterPriceInput] = useState<number>(0);
     const [counterTermsInput, setCounterTermsInput] = useState<string>("");
@@ -859,6 +861,7 @@ export default function AgentDashboard() {
                                     onStageChange={handleStageChange}
                                     onReplyClick={(inq) => { setReplyingInquiry(inq); setReplyText(""); }}
                                     onViewOfferClick={handleViewOfferLOI}
+                                    onOpenDealRoomClick={(inq) => setDealRoomInquiry(inq)}
                                 />
                             ) : inquiries.length > 0 ? (
                                 <div style={{ overflowX: "auto" }}>
@@ -1060,6 +1063,22 @@ export default function AgentDashboard() {
                                                                         title="View formal Letter of Intent document"
                                                                     >
                                                                         📜 View LOI
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setDealRoomInquiry(inq)}
+                                                                        style={{
+                                                                            fontSize: "0.72rem",
+                                                                            padding: "0.3rem 0.55rem",
+                                                                            borderRadius: "6px",
+                                                                            background: "rgba(212, 160, 23, 0.16)",
+                                                                            color: "var(--gold-600, #b8860b)",
+                                                                            border: "1px solid rgba(212, 160, 23, 0.4)",
+                                                                            cursor: "pointer",
+                                                                            fontWeight: 700
+                                                                        }}
+                                                                        title="Open Conveyancing Deal Room"
+                                                                    >
+                                                                        🏛️ Deal Room
                                                                     </button>
                                                                     {status === "pending" && (
                                                                         <>
@@ -2015,6 +2034,12 @@ export default function AgentDashboard() {
                 {viewingLOI && (
                     <LOIModal loiData={viewingLOI} onClose={() => setViewingLOI(null)} />
                 )}
+
+                {/* Post-Offer Conveyancing Deal Room */}
+                <DealRoomModal
+                    inquiry={dealRoomInquiry}
+                    onClose={() => setDealRoomInquiry(null)}
+                />
 
                 <button className={styles.sidebarToggle} onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Toggle sidebar">
                     {sidebarOpen ? (

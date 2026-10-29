@@ -7,6 +7,7 @@ import { getInquiriesByUser, Inquiry, getPropertyById, FirestoreProperty, remove
 import { sampleProperties, Property, formatPrice } from "@/lib/data";
 import { getSavedSearches, deleteSavedSearch, toggleSavedSearchActive, describeFilters, SavedSearch } from "@/lib/savedSearches";
 import LOIModal from "@/components/property/LOIModal";
+import DealRoomModal from "@/components/property/DealRoomModal";
 import CollaborativeBoard from "@/components/collections/CollaborativeBoard";
 import { LOIData } from "@/lib/loiGenerator";
 import toast from "react-hot-toast";
@@ -19,6 +20,7 @@ function BuyerDashboardContent() {
     const [activeTab, setActiveTab] = useState("overview");
     const [inquiries, setInquiries] = useState<Inquiry[]>([]);
     const [viewingLOI, setViewingLOI] = useState<LOIData | null>(null);
+    const [dealRoomInquiry, setDealRoomInquiry] = useState<Inquiry | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [savedPropertyDetails, setSavedPropertyDetails] = useState<(Property | FirestoreProperty)[]>([]);
     const [loadingSaved, setLoadingSaved] = useState(false);
@@ -662,24 +664,44 @@ function BuyerDashboardContent() {
                                                         )}
                                                     </td>
                                                     <td>
-                                                        <button
-                                                            onClick={() => handleViewOfferLOI(inq)}
-                                                            style={{
-                                                                fontSize: "0.74rem",
-                                                                padding: "0.3rem 0.6rem",
-                                                                borderRadius: "6px",
-                                                                background: "var(--navy-800)",
-                                                                color: "#fff",
-                                                                border: "none",
-                                                                cursor: "pointer",
-                                                                fontWeight: 600,
-                                                                display: "flex",
-                                                                alignItems: "center",
-                                                                gap: "0.25rem"
-                                                            }}
-                                                        >
-                                                            📜 View / Print LOI
-                                                        </button>
+                                                        <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                                                            <button
+                                                                onClick={() => handleViewOfferLOI(inq)}
+                                                                style={{
+                                                                    fontSize: "0.74rem",
+                                                                    padding: "0.3rem 0.6rem",
+                                                                    borderRadius: "6px",
+                                                                    background: "var(--navy-800)",
+                                                                    color: "#fff",
+                                                                    border: "none",
+                                                                    cursor: "pointer",
+                                                                    fontWeight: 600,
+                                                                    display: "flex",
+                                                                    alignItems: "center",
+                                                                    gap: "0.25rem"
+                                                                }}
+                                                            >
+                                                                📜 View / Print LOI
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setDealRoomInquiry(inq)}
+                                                                style={{
+                                                                    fontSize: "0.74rem",
+                                                                    padding: "0.3rem 0.65rem",
+                                                                    borderRadius: "6px",
+                                                                    background: "linear-gradient(135deg, var(--gold-500, #d4a017), var(--gold-600, #b8860b))",
+                                                                    color: "#fff",
+                                                                    border: "none",
+                                                                    cursor: "pointer",
+                                                                    fontWeight: 700,
+                                                                    display: "flex",
+                                                                    alignItems: "center",
+                                                                    gap: "0.25rem"
+                                                                }}
+                                                            >
+                                                                🏛️ Deal Room
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             );
@@ -1102,6 +1124,12 @@ function BuyerDashboardContent() {
                 {viewingLOI && (
                     <LOIModal loiData={viewingLOI} onClose={() => setViewingLOI(null)} />
                 )}
+
+                {/* Post-Offer Conveyancing Deal Room */}
+                <DealRoomModal
+                    inquiry={dealRoomInquiry}
+                    onClose={() => setDealRoomInquiry(null)}
+                />
             </main>
 
             {/* Mobile Toggle */}

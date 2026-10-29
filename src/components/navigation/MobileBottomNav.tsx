@@ -155,6 +155,21 @@ function MobileBottomNavInner() {
                             {/* Fast Action Tools Grid */}
                             <div className={styles.toolsGrid}>
                                 <Link
+                                    href="/projects"
+                                    className={styles.toolCard}
+                                    style={{ gridColumn: "1 / -1", flexDirection: "row", alignItems: "center", gap: "0.75rem" }}
+                                    onClick={() => setIsSheetOpen(false)}
+                                >
+                                    <div className={styles.toolCardIcon}>
+                                        <Building2 size={20} color="var(--gold-600, #b8860b)" />
+                                    </div>
+                                    <div>
+                                        <h4 className={styles.toolCardTitle}>🏗️ Off-Plan Developments</h4>
+                                        <p className={styles.toolCardSub}>Staged escrow payment plans & construction milestone tracker</p>
+                                    </div>
+                                </Link>
+
+                                <Link
                                     href="/estimate"
                                     className={styles.toolCard}
                                     onClick={() => setIsSheetOpen(false)}

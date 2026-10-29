@@ -8,9 +8,10 @@ import { useDialogA11y } from "@/hooks/useDialogA11y";
 interface LOIModalProps {
     loiData: LOIData;
     onClose: () => void;
+    onOpenDealRoom?: () => void;
 }
 
-export default function LOIModal({ loiData, onClose }: LOIModalProps) {
+export default function LOIModal({ loiData, onClose, onOpenDealRoom }: LOIModalProps) {
     const dialogRef = useDialogA11y(true, onClose);
     const documentText = getLOITextDocument(loiData);
 
@@ -60,6 +61,20 @@ export default function LOIModal({ loiData, onClose }: LOIModalProps) {
                         Status: <strong style={{ color: loiData.status === "accepted" ? "var(--success)" : loiData.status === "countered" ? "var(--gold-500)" : "var(--info)" }}>{loiData.status.toUpperCase()}</strong>
                     </div>
                     <div className={styles.actionBtns}>
+                        {onOpenDealRoom && (
+                            <button
+                                type="button"
+                                className={styles.btnSecondary}
+                                onClick={onOpenDealRoom}
+                                style={{
+                                    borderColor: "var(--gold-500, #d4a017)",
+                                    color: "var(--gold-600, #b8860b)",
+                                    fontWeight: 700,
+                                }}
+                            >
+                                <span>🏛️</span> Open Deal Room
+                            </button>
+                        )}
                         <button type="button" className={styles.btnSecondary} onClick={handleCopy}>
                             <span>📋</span> Copy Text
                         </button>

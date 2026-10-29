@@ -36,6 +36,7 @@ interface LeadKanbanBoardProps {
     onStageChange: (inquiryId: string, newStage: PipelineStage) => Promise<void>;
     onReplyClick: (inquiry: Inquiry) => void;
     onViewOfferClick?: (inquiry: Inquiry) => void;
+    onOpenDealRoomClick?: (inquiry: Inquiry) => void;
 }
 
 export default function LeadKanbanBoard({
@@ -43,6 +44,7 @@ export default function LeadKanbanBoard({
     onStageChange,
     onReplyClick,
     onViewOfferClick,
+    onOpenDealRoomClick,
 }: LeadKanbanBoardProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -309,6 +311,16 @@ export default function LeadKanbanBoard({
                                                                 title="View Letter of Intent"
                                                             >
                                                                 📜
+                                                            </button>
+                                                        )}
+                                                        {(inq.offerDetails || stage.id === "offer_made" || stage.id === "closed") && onOpenDealRoomClick && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => onOpenDealRoomClick(inq)}
+                                                                className={styles.actionIconBtn}
+                                                                title="Open Conveyancing Deal Room"
+                                                            >
+                                                                🏛️
                                                             </button>
                                                         )}
                                                     </div>

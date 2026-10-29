@@ -5,7 +5,7 @@ import OptimizedImage from "@/components/ui/OptimizedImage";
 import Link from "next/link";
 import { sampleProperties, formatPriceFull, formatPrice } from "@/lib/data";
 import { getNeighborhoodByName } from "@/lib/neighborhoods";
-import { sendInquiry, getPropertyById, FirestoreProperty, submitReview, getReviewsByAgent, Review, markReviewHelpful } from "@/lib/firestore";
+import { sendInquiry, getPropertyById, FirestoreProperty, submitReview, getReviewsByAgent, Review, markReviewHelpful, Inquiry } from "@/lib/firestore";
 import { addToRecentlyViewed } from "@/lib/recentlyViewed";
 import { sendInquiryEmail } from "@/lib/email";
 import { useAuth } from "@/context/AuthContext";
@@ -34,8 +34,10 @@ const PanoramaViewer = dynamic(() => import("@/components/property/PanoramaViewe
 const FloorPlanViewer = dynamic(() => import("@/components/property/FloorPlanViewer"), { loading: sectionFallback });
 const CommuteRadar = dynamic(() => import("@/components/property/CommuteRadar"), { loading: sectionFallback });
 const InvestmentCalculator = dynamic(() => import("@/components/property/InvestmentCalculator"), { loading: sectionFallback });
+const DiasporaConcierge = dynamic(() => import("@/components/property/DiasporaConcierge"), { loading: sectionFallback });
 const MakeAnOfferModal = dynamic(() => import("@/components/property/MakeAnOfferModal"));
 const LOIModal = dynamic(() => import("@/components/property/LOIModal"));
+const DealRoomModal = dynamic(() => import("@/components/property/DealRoomModal"));
 const PaymentModal = dynamic(() => import("@/components/payment/PaymentModal"));
 const LuxuryBrochureModal = dynamic(() => import("@/components/property/LuxuryBrochureModal"));
 const ViewingSchedulerModal = dynamic(() => import("@/components/property/ViewingSchedulerModal"));
@@ -65,8 +67,10 @@ export default function PropertyDetailPage({ params }: Props) {
     const [preferredTime, setPreferredTime] = useState("10:00");
     const [showOfferModal, setShowOfferModal] = useState(false);
     const [activeLOIData, setActiveLOIData] = useState<LOIData | null>(null);
+    const [dealRoomInquiry, setDealRoomInquiry] = useState<Inquiry | null>(null);
     const [showBrochureModal, setShowBrochureModal] = useState(false);
     const [showSchedulerModal, setShowSchedulerModal] = useState(false);
+    const [schedulerDefaultMode, setSchedulerDefaultMode] = useState<"in_person" | "virtual" | undefined>(undefined);
     const [showAddToCollectionModal, setShowAddToCollectionModal] = useState(false);
     const [paymentModalConfig, setPaymentModalConfig] = useState<{
         isOpen: boolean;
@@ -703,12 +707,32 @@ export default function PropertyDetailPage({ params }: Props) {
                                     city={typeof property.location === "object" ? property.location.city : (property as any).city || "Nairobi"}
                                     neighborhood={typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood || ""}
                                     listingType={property.listingType}
+                                    propertyPrice={property.price}
                                     onOpenInquiry={() => {
                                         setShowInquiry(true);
                                         document.querySelector(`.${styles.agentCard}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
                                     }}
                                 />
                             </div>
+
+                            {property.listingType === "sale" && (
+                                <div className={styles.section} id="diaspora-concierge-section">
+                                    <DiasporaConcierge
+                                        propertyTitle={property.title}
+                                        city={typeof property.location === "object" ? property.location.city : (property as any).city || "Nairobi"}
+                                        neighborhood={typeof property.location === "object" ? property.location.neighborhood : (property as any).neighborhood || ""}
+                                        priceKES={property.price}
+                                        onBookLiveWalkthrough={() => {
+                                            setSchedulerDefaultMode("virtual");
+                                            setShowSchedulerModal(true);
+                                        }}
+                                        onOpenInquiry={() => {
+                                            setShowInquiry(true);
+                                            document.querySelector(`.${styles.agentCard}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                        }}
+                                    />
+                                </div>
+                            )}
 
                             {/* Description */}
                             <div className={styles.section}>
@@ -1728,8 +1752,43 @@ export default function PropertyDetailPage({ params }: Props) {
                 <LOIModal
                     loiData={activeLOIData}
                     onClose={() => setActiveLOIData(null)}
+                    onOpenDealRoom={() => {
+                        const syntheticInquiry: Inquiry = {
+                            id: activeLOIData.loiNumber,
+                            propertyId: property.id,
+                            propertyTitle: property.title,
+                            senderId: user?.uid || "buyer",
+                            senderName: activeLOIData.buyerName,
+                            senderEmail: activeLOIData.buyerEmail,
+                            senderPhone: activeLOIData.buyerPhone,
+                            agentId: firestoreProp?.agentId || (property as any).agentId || "agent",
+                            message: `LOI ${activeLOIData.loiNumber}`,
+                            type: "offer",
+                            status: activeLOIData.status,
+                            offerDetails: {
+                                offeredPrice: activeLOIData.offeredPrice,
+                                askingPrice: activeLOIData.askingPrice,
+                                downPaymentPercent: activeLOIData.downPaymentPercent,
+                                downPaymentAmount: activeLOIData.downPaymentAmount,
+                                financingType: activeLOIData.financingType as "cash" | "mortgage" | "installments",
+                                moveInDate: activeLOIData.moveInDate,
+                                contingencies: activeLOIData.contingencies,
+                                specialConditions: activeLOIData.specialConditions,
+                                loiNumber: activeLOIData.loiNumber,
+                                offerStatus: activeLOIData.status,
+                            },
+                        };
+                        setActiveLOIData(null);
+                        setDealRoomInquiry(syntheticInquiry);
+                    }}
                 />
             )}
+
+            {/* Post-Offer Conveyancing Deal Room */}
+            <DealRoomModal
+                inquiry={dealRoomInquiry}
+                onClose={() => setDealRoomInquiry(null)}
+            />
 
             {/* M-Pesa & Card Payment Modal */}
             {paymentModalConfig && paymentModalConfig.isOpen && (
@@ -1787,7 +1846,11 @@ export default function PropertyDetailPage({ params }: Props) {
                         agentPhone: property.agentPhone,
                     }}
                     isOpen={showSchedulerModal}
-                    onClose={() => setShowSchedulerModal(false)}
+                    defaultMode={schedulerDefaultMode}
+                    onClose={() => {
+                        setShowSchedulerModal(false);
+                        setSchedulerDefaultMode(undefined);
+                    }}
                 />
             )}
 

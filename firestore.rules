@@ -416,5 +416,28 @@ service cloud.firestore {
       allow delete: if isAuthenticated() &&
         (resource.data.createdBy == request.auth.uid || isAdmin());
     }
+
+    // ========================
+    // DEAL ROOMS (Post-Offer Conveyancing Tracker)
+    // - Only the buyer, listing agent, and admins can read or update milestones/docs
+    // - Core party IDs (buyerId, agentId, inquiryId) are immutable after creation
+    // ========================
+    match /deal_rooms/{dealRoomId} {
+      function isDealParty(data) {
+        return isAuthenticated() &&
+          (request.auth.uid == data.buyerId ||
+           request.auth.uid == data.agentId ||
+           isAdmin());
+      }
+
+      allow read: if isDealParty(resource.data);
+      allow create: if isDealParty(request.resource.data) &&
+        request.resource.data.id == dealRoomId;
+      allow update: if isDealParty(resource.data) &&
+        request.resource.data.buyerId == resource.data.buyerId &&
+        request.resource.data.agentId == resource.data.agentId &&
+        request.resource.data.inquiryId == resource.data.inquiryId;
+      allow delete: if isAdmin();
+    }
   }
 }

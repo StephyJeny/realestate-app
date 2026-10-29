@@ -1,0 +1,299 @@
+.page {
+    min-height: 100vh;
+    background: var(--bg-primary);
+    padding-bottom: 5rem;
+}
+
+.hero {
+    padding: calc(var(--navbar-height) + 3.25rem) 1.5rem 3.25rem;
+    background: linear-gradient(135deg, var(--navy-950, #0a0e1a) 0%, var(--navy-800, #1a2340) 100%);
+    color: #ffffff;
+    border-bottom: 1px solid rgba(212, 160, 23, 0.25);
+}
+
+.heroInner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+}
+
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(212, 160, 23, 0.16);
+    border: 1px solid rgba(212, 160, 23, 0.38);
+    color: var(--gold-300, #f0cc5b);
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.heroTitle {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.18;
+    max-width: 780px;
+    margin-bottom: 0.85rem;
+}
+
+.heroSubtitle {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.8);
+    max-width: 700px;
+    line-height: 1.65;
+    margin-bottom: 1.75rem;
+}
+
+.trustStrip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 0.85rem;
+}
+
+.trustItem {
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.trustIcon {
+    font-size: 1.35rem;
+}
+
+.trustLabel {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.trustSub {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.68);
+}
+
+.container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 2rem 1.5rem 0;
+}
+
+.filterBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+}
+
+.pillGroup {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.pill {
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.pillActive {
+    background: var(--gold-500, #d4a017);
+    border-color: var(--gold-500, #d4a017);
+    color: #0a0e1a;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 1.75rem;
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.imageWrap {
+    position: relative;
+    height: 235px;
+    overflow: hidden;
+}
+
+.topBadges {
+    position: absolute;
+    top: 0.85rem;
+    left: 0.85rem;
+    right: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    z-index: 2;
+}
+
+.escrowBadge {
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(10, 14, 26, 0.82);
+    backdrop-filter: blur(6px);
+    color: #34d399;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border: 1px solid rgba(52, 211, 153, 0.4);
+}
+
+.handoverBadge {
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    background: var(--gold-500, #d4a017);
+    color: #0a0e1a;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.cardBody {
+    padding: 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    flex: 1;
+}
+
+.locationRow {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--gold-600, #b8860b);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.cardTitle {
+    font-size: 1.22rem;
+    font-weight: 800;
+    color: var(--text-heading);
+    margin: 0.15rem 0 0.25rem;
+}
+
+.cardTagline {
+    font-size: 0.84rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.progressBox {
+    padding: 0.8rem 0.95rem;
+    border-radius: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+}
+
+.progressHeader {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+}
+
+.progressTrack {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--gray-200);
+    overflow: hidden;
+}
+
+.progressFill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--gold-500), var(--success));
+}
+
+.metricsRow {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    padding-top: 0.4rem;
+}
+
+.metricCell {
+    padding: 0.55rem 0.65rem;
+    border-radius: 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+}
+
+.metricLabel {
+    font-size: 0.68rem;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.metricVal {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: var(--text-heading);
+    margin-top: 2px;
+}
+
+.cardFooter {
+    margin-top: auto;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.ctaBtn {
+    padding: 0.6rem 1.05rem;
+    border-radius: 10px;
+    background: var(--navy-800, #1a2340);
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.ctaBtn:hover {
+    background: var(--gold-500, #d4a017);
+    color: #0a0e1a;
+}
+
+@media (max-width: 640px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}

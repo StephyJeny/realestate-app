@@ -3,6 +3,7 @@ import { SITE_URL } from "@/lib/site";
 import { sampleProperties } from "@/lib/data";
 import { neighborhoods } from "@/lib/neighborhoods";
 import { blogPosts } from "@/lib/blog";
+import { offPlanProjects } from "@/lib/projects";
 import { getPropertiesPage, getApprovedAgents } from "@/lib/firestore";
 
 /** Rebuild the sitemap at most once an hour so new listings get picked up. */
@@ -14,6 +15,7 @@ const MAX_LIVE_LISTINGS = 2000;
 const STATIC_ROUTES: { path: string; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"]; priority: number }[] = [
     { path: "", changeFrequency: "daily", priority: 1 },
     { path: "/properties", changeFrequency: "hourly", priority: 0.9 },
+    { path: "/projects", changeFrequency: "weekly", priority: 0.85 },
     { path: "/neighborhoods", changeFrequency: "weekly", priority: 0.8 },
     { path: "/agents", changeFrequency: "daily", priority: 0.8 },
     { path: "/mortgage-calculator", changeFrequency: "monthly", priority: 0.7 },
@@ -106,12 +108,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
     }));
 
+    const projectEntries: MetadataRoute.Sitemap = offPlanProjects.map((project) => ({
+        url: `${SITE_URL}/projects/${project.slug}`,
+        lastModified: new Date(project.launchDate),
+        changeFrequency: "weekly",
+        priority: 0.8,
+    }));
+
     const [liveListingEntries, agentEntries] = await Promise.all([getLiveListingEntries(), getAgentEntries()]);
 
     // De-duplicate by URL (a live listing can share an id with sample data)
     const seen = new Set<string>();
     return [
         ...staticEntries,
+        ...projectEntries,
         ...liveListingEntries,
         ...sampleListingEntries,
         ...neighborhoodEntries,

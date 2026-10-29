@@ -3,12 +3,14 @@ import React, { useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import { submitContactMessage } from "@/lib/firestore";
+import CashToCloseCalculator from "./CashToCloseCalculator";
 
 interface LegalDueDiligenceProps {
     propertyTitle: string;
     city: string;
     neighborhood: string;
     listingType: string;
+    propertyPrice?: number;
     onOpenInquiry?: () => void;
 }
 
@@ -17,9 +19,11 @@ export default function LegalDueDiligence({
     city,
     neighborhood,
     listingType,
+    propertyPrice = 25_000_000,
     onOpenInquiry,
 }: LegalDueDiligenceProps) {
     const { user, userProfile } = useAuth();
+    const [activePanel, setActivePanel] = useState<"audit" | "closing_costs">("audit");
     const [downloading, setDownloading] = useState(false);
     const [requested, setRequested] = useState(false);
     const [showGuestForm, setShowGuestForm] = useState(false);
@@ -131,7 +135,7 @@ export default function LegalDueDiligence({
             boxShadow: "var(--shadow-sm)",
         }}>
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem", marginBottom: "1.25rem", paddingBottom: "1rem", borderBottom: "1px solid var(--border-light, #eef2fb)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem", marginBottom: "1rem", paddingBottom: "1rem", borderBottom: "1px solid var(--border-light, #eef2fb)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
                     <div style={{
                         width: "40px",
@@ -148,200 +152,271 @@ export default function LegalDueDiligence({
                     </div>
                     <div>
                         <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--text-heading, #0f1629)", margin: 0 }}>
-                            Legal Due Diligence & Title Verification
+                            Legal Due Diligence &amp; Conveyancing Costs
                         </h3>
                         <p style={{ fontSize: "0.78rem", color: "var(--text-tertiary, #64748b)", margin: "2px 0 0" }}>
-                            Verified under Kenya Ministry of Lands & Physical Planning standards
+                            Verified under Kenya Ministry of Lands (ArdhiSasa) &amp; LSK conveyancing standards
                         </p>
                     </div>
                 </div>
 
-                <div style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.35rem",
-                    background: "rgba(16, 185, 129, 0.1)",
-                    color: "var(--success, #10b981)",
-                    padding: "0.35rem 0.85rem",
-                    borderRadius: "var(--radius-full)",
-                    fontSize: "0.8rem",
-                    fontWeight: 700,
-                    border: "1px solid rgba(16, 185, 129, 0.25)",
-                }}>
-                    <span>✓</span> Verified EstateVue Listing
-                </div>
-            </div>
-
-            {/* Quick Summary Pill Row */}
-            <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                gap: "0.75rem",
-                marginBottom: "1.25rem",
-            }}>
-                <div style={{ background: "var(--bg-primary, #fff)", padding: "0.85rem", borderRadius: "var(--radius-md, 10px)", border: "1px solid var(--border-light, #eef2fb)" }}>
-                    <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Registered Parcel</span>
-                    <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-heading)", marginTop: "2px" }}>{lrNumber}</div>
-                </div>
-                <div style={{ background: "var(--bg-primary, #fff)", padding: "0.85rem", borderRadius: "var(--radius-md, 10px)", border: "1px solid var(--border-light, #eef2fb)" }}>
-                    <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Tenure Type</span>
-                    <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-heading)", marginTop: "2px" }}>
-                        {tenureType.startsWith("Freehold") ? "Freehold" : "99-Yr Lease"}
-                    </div>
-                </div>
-                <div style={{ background: "var(--bg-primary, #fff)", padding: "0.85rem", borderRadius: "var(--radius-md, 10px)", border: "1px solid var(--border-light, #eef2fb)" }}>
-                    <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Registry Registry</span>
-                    <div style={{ fontSize: "0.92rem", fontWeight: 700, color: "var(--text-heading)", marginTop: "2px" }}>{registryOffice}</div>
-                </div>
-            </div>
-
-            {/* Checklist Grid */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginBottom: "1.25rem" }}>
-                {verificationItems.map((item) => (
+                {listingType === "sale" ? (
                     <div
-                        key={item.title}
                         style={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: "0.75rem",
-                            padding: "0.75rem 1rem",
+                            display: "inline-flex",
                             background: "var(--bg-primary, #fff)",
-                            borderRadius: "var(--radius-md, 10px)",
-                            border: "1px solid var(--border-light, #eef2fb)",
+                            padding: "3px",
+                            borderRadius: "10px",
+                            border: "1px solid var(--border-color, #e2e6ee)",
                         }}
                     >
-                        <span style={{ fontSize: "1.1rem" }}>{item.icon}</span>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <strong style={{ fontSize: "0.88rem", color: "var(--text-heading)" }}>{item.title}</strong>
-                                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--success)" }}>{item.status}</span>
-                            </div>
-                            <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", margin: "3px 0 0" }}>
-                                {item.detail}
-                            </p>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setActivePanel("audit")}
+                            style={{
+                                padding: "0.4rem 0.8rem",
+                                borderRadius: "7px",
+                                border: "none",
+                                fontSize: "0.78rem",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                background: activePanel === "audit" ? "var(--navy-800, #1a2340)" : "transparent",
+                                color: activePanel === "audit" ? "#fff" : "var(--text-secondary)",
+                            }}
+                        >
+                            📜 Title Verification
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActivePanel("closing_costs")}
+                            style={{
+                                padding: "0.4rem 0.8rem",
+                                borderRadius: "7px",
+                                border: "none",
+                                fontSize: "0.78rem",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                background: activePanel === "closing_costs" ? "var(--gold-500, #d4a017)" : "transparent",
+                                color: activePanel === "closing_costs" ? "#fff" : "var(--text-secondary)",
+                            }}
+                        >
+                            🧾 Stamp Duty &amp; Cash-to-Close
+                        </button>
                     </div>
-                ))}
-            </div>
-
-            {/* Bottom Actions */}
-            <div style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: "0.75rem",
-                padding: "0.85rem 1rem",
-                background: "rgba(212, 160, 23, 0.07)",
-                border: "1px dashed var(--gold-400, #e8b930)",
-                borderRadius: "var(--radius-md, 10px)",
-            }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span>⚖️</span>
-                    <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>
-                        Full title copy, search extract, and deed plan available for qualified buyers.
-                    </span>
-                </div>
-                <button
-                    onClick={handleRequestPacket}
-                    disabled={downloading || requested}
-                    style={{
-                        padding: "0.5rem 1rem",
-                        borderRadius: "var(--radius-sm, 6px)",
-                        background: requested ? "var(--success, #10b981)" : "var(--navy-800, #0a0e1a)",
-                        color: "#fff",
-                        border: "none",
+                ) : (
+                    <div style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.35rem",
+                        background: "rgba(16, 185, 129, 0.1)",
+                        color: "var(--success, #10b981)",
+                        padding: "0.35rem 0.85rem",
+                        borderRadius: "var(--radius-full)",
                         fontSize: "0.8rem",
-                        fontWeight: 600,
-                        cursor: requested ? "default" : "pointer",
-                        transition: "opacity 0.2s",
-                    }}
-                >
-                    {downloading
-                        ? "Requesting..."
-                        : requested
-                            ? "✓ Legal Pack Requested"
-                            : showGuestForm
-                                ? "Close"
-                                : "Request Legal Pack →"}
-                </button>
+                        fontWeight: 700,
+                        border: "1px solid rgba(16, 185, 129, 0.25)",
+                    }}>
+                        <span>✓</span> Verified EstateVue Listing
+                    </div>
+                )}
             </div>
 
-            {showGuestForm && !requested && (
-                <form
-                    onSubmit={handleGuestSubmit}
-                    style={{
-                        marginTop: "0.75rem",
-                        padding: "1rem",
-                        background: "var(--bg-primary, #fff)",
-                        borderRadius: "var(--radius-md, 10px)",
-                        border: "1px solid var(--border-color, #e2e6ee)",
+            {activePanel === "closing_costs" && listingType === "sale" ? (
+                <CashToCloseCalculator propertyPrice={propertyPrice} compact />
+            ) : (
+                <>
+                    {/* Quick Summary Pill Row */}
+                    <div style={{
                         display: "grid",
                         gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                         gap: "0.75rem",
-                    }}
-                >
-                    <input
-                        type="text"
-                        placeholder="Your Full Name *"
-                        value={guestName}
-                        onChange={(e) => setGuestName(e.target.value)}
-                        required
-                        style={{
-                            padding: "0.55rem 0.75rem",
-                            fontSize: "0.84rem",
-                            borderRadius: "var(--radius-sm, 6px)",
-                            border: "1px solid var(--border-color, #cbd5e1)",
-                            background: "var(--bg-input, #fff)",
-                            color: "var(--text-primary)",
-                        }}
-                    />
-                    <input
-                        type="email"
-                        placeholder="Your Email Address *"
-                        value={guestEmail}
-                        onChange={(e) => setGuestEmail(e.target.value)}
-                        required
-                        style={{
-                            padding: "0.55rem 0.75rem",
-                            fontSize: "0.84rem",
-                            borderRadius: "var(--radius-sm, 6px)",
-                            border: "1px solid var(--border-color, #cbd5e1)",
-                            background: "var(--bg-input, #fff)",
-                            color: "var(--text-primary)",
-                        }}
-                    />
-                    <input
-                        type="tel"
-                        placeholder="Phone (+254...)"
-                        value={guestPhone}
-                        onChange={(e) => setGuestPhone(e.target.value)}
-                        style={{
-                            padding: "0.55rem 0.75rem",
-                            fontSize: "0.84rem",
-                            borderRadius: "var(--radius-sm, 6px)",
-                            border: "1px solid var(--border-color, #cbd5e1)",
-                            background: "var(--bg-input, #fff)",
-                            color: "var(--text-primary)",
-                        }}
-                    />
-                    <button
-                        type="submit"
-                        disabled={downloading}
-                        style={{
-                            padding: "0.55rem 1rem",
-                            borderRadius: "var(--radius-sm, 6px)",
-                            background: "linear-gradient(135deg, var(--gold-500, #d4a017), var(--gold-600, #b8860b))",
-                            color: "#fff",
-                            border: "none",
-                            fontSize: "0.82rem",
-                            fontWeight: 700,
-                            cursor: "pointer",
-                        }}
-                    >
-                        {downloading ? "Submitting..." : "Send Dossier to My Email"}
-                    </button>
-                </form>
+                        marginBottom: "1.25rem",
+                    }}>
+                        <div style={{ background: "var(--bg-primary, #fff)", padding: "0.85rem", borderRadius: "var(--radius-md, 10px)", border: "1px solid var(--border-light, #eef2fb)" }}>
+                            <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Registered Parcel</span>
+                            <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-heading)", marginTop: "2px" }}>{lrNumber}</div>
+                        </div>
+                        <div style={{ background: "var(--bg-primary, #fff)", padding: "0.85rem", borderRadius: "var(--radius-md, 10px)", border: "1px solid var(--border-light, #eef2fb)" }}>
+                            <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Tenure Type</span>
+                            <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-heading)", marginTop: "2px" }}>
+                                {tenureType.startsWith("Freehold") ? "Freehold" : "99-Yr Lease"}
+                            </div>
+                        </div>
+                        <div style={{ background: "var(--bg-primary, #fff)", padding: "0.85rem", borderRadius: "var(--radius-md, 10px)", border: "1px solid var(--border-light, #eef2fb)" }}>
+                            <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>Land Registry</span>
+                            <div style={{ fontSize: "0.92rem", fontWeight: 700, color: "var(--text-heading)", marginTop: "2px" }}>{registryOffice}</div>
+                        </div>
+                    </div>
+
+                    {/* Checklist Grid */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginBottom: "1.25rem" }}>
+                        {verificationItems.map((item) => (
+                            <div
+                                key={item.title}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    gap: "0.75rem",
+                                    padding: "0.75rem 1rem",
+                                    background: "var(--bg-primary, #fff)",
+                                    borderRadius: "var(--radius-md, 10px)",
+                                    border: "1px solid var(--border-light, #eef2fb)",
+                                }}
+                            >
+                                <span style={{ fontSize: "1.1rem" }}>{item.icon}</span>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <strong style={{ fontSize: "0.88rem", color: "var(--text-heading)" }}>{item.title}</strong>
+                                        <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--success)" }}>{item.status}</span>
+                                    </div>
+                                    <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", margin: "3px 0 0" }}>
+                                        {item.detail}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Bottom Actions */}
+                    <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        gap: "0.75rem",
+                        padding: "0.85rem 1rem",
+                        background: "rgba(212, 160, 23, 0.07)",
+                        border: "1px dashed var(--gold-400, #e8b930)",
+                        borderRadius: "var(--radius-md, 10px)",
+                    }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            <span>⚖️</span>
+                            <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>
+                                Full title copy, search extract, and deed plan available for qualified buyers.
+                            </span>
+                        </div>
+                        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                            {listingType === "sale" && (
+                                <button
+                                    type="button"
+                                    onClick={() => setActivePanel("closing_costs")}
+                                    style={{
+                                        padding: "0.5rem 0.9rem",
+                                        borderRadius: "var(--radius-sm, 6px)",
+                                        background: "var(--bg-primary, #fff)",
+                                        color: "var(--gold-600, #b8860b)",
+                                        border: "1px solid var(--gold-400, #e8b930)",
+                                        fontSize: "0.8rem",
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    🧾 Calculate Closing Costs
+                                </button>
+                            )}
+                            <button
+                                onClick={handleRequestPacket}
+                                disabled={downloading || requested}
+                                style={{
+                                    padding: "0.5rem 1rem",
+                                    borderRadius: "var(--radius-sm, 6px)",
+                                    background: requested ? "var(--success, #10b981)" : "var(--navy-800, #0a0e1a)",
+                                    color: "#fff",
+                                    border: "none",
+                                    fontSize: "0.8rem",
+                                    fontWeight: 600,
+                                    cursor: requested ? "default" : "pointer",
+                                    transition: "opacity 0.2s",
+                                }}
+                            >
+                                {downloading
+                                    ? "Requesting..."
+                                    : requested
+                                        ? "✓ Legal Pack Requested"
+                                        : showGuestForm
+                                            ? "Close"
+                                            : "Request Legal Pack →"}
+                            </button>
+                        </div>
+                    </div>
+
+                    {showGuestForm && !requested && (
+                        <form
+                            onSubmit={handleGuestSubmit}
+                            style={{
+                                marginTop: "0.75rem",
+                                padding: "1rem",
+                                background: "var(--bg-primary, #fff)",
+                                borderRadius: "var(--radius-md, 10px)",
+                                border: "1px solid var(--border-color, #e2e6ee)",
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                                gap: "0.75rem",
+                            }}
+                        >
+                            <input
+                                type="text"
+                                placeholder="Your Full Name *"
+                                value={guestName}
+                                onChange={(e) => setGuestName(e.target.value)}
+                                required
+                                style={{
+                                    padding: "0.55rem 0.75rem",
+                                    fontSize: "0.84rem",
+                                    borderRadius: "var(--radius-sm, 6px)",
+                                    border: "1px solid var(--border-color, #cbd5e1)",
+                                    background: "var(--bg-input, #fff)",
+                                    color: "var(--text-primary)",
+                                }}
+                            />
+                            <input
+                                type="email"
+                                placeholder="Your Email Address *"
+                                value={guestEmail}
+                                onChange={(e) => setGuestEmail(e.target.value)}
+                                required
+                                style={{
+                                    padding: "0.55rem 0.75rem",
+                                    fontSize: "0.84rem",
+                                    borderRadius: "var(--radius-sm, 6px)",
+                                    border: "1px solid var(--border-color, #cbd5e1)",
+                                    background: "var(--bg-input, #fff)",
+                                    color: "var(--text-primary)",
+                                }}
+                            />
+                            <input
+                                type="tel"
+                                placeholder="Phone (+254...)"
+                                value={guestPhone}
+                                onChange={(e) => setGuestPhone(e.target.value)}
+                                style={{
+                                    padding: "0.55rem 0.75rem",
+                                    fontSize: "0.84rem",
+                                    borderRadius: "var(--radius-sm, 6px)",
+                                    border: "1px solid var(--border-color, #cbd5e1)",
+                                    background: "var(--bg-input, #fff)",
+                                    color: "var(--text-primary)",
+                                }}
+                            />
+                            <button
+                                type="submit"
+                                disabled={downloading}
+                                style={{
+                                    padding: "0.55rem 1rem",
+                                    borderRadius: "var(--radius-sm, 6px)",
+                                    background: "linear-gradient(135deg, var(--gold-500, #d4a017), var(--gold-600, #b8860b))",
+                                    color: "#fff",
+                                    border: "none",
+                                    fontSize: "0.82rem",
+                                    fontWeight: 700,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                {downloading ? "Submitting..." : "Send Dossier to My Email"}
+                            </button>
+                        </form>
+                    )}
+                </>
             )}
         </div>
     );

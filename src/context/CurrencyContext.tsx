@@ -9,13 +9,14 @@ export interface CurrencyConfig {
     label: string;
     rateFromKES: number; // Multiply KES amount by this rate
     flag: string;
+    defaultTimezone: string;
 }
 
 export const CURRENCIES: Record<CurrencyCode, CurrencyConfig> = {
-    KES: { code: "KES", symbol: "KES ", label: "KES (Kenyan Shilling)", rateFromKES: 1, flag: "🇰🇪" },
-    USD: { code: "USD", symbol: "$", label: "USD (US Dollar)", rateFromKES: 0.00769, flag: "🇺🇸" },
-    EUR: { code: "EUR", symbol: "€", label: "EUR (Euro)", rateFromKES: 0.00704, flag: "🇪🇺" },
-    GBP: { code: "GBP", symbol: "£", label: "GBP (British Pound)", rateFromKES: 0.00595, flag: "🇬🇧" },
+    KES: { code: "KES", symbol: "KES ", label: "KES (Kenyan Shilling)", rateFromKES: 1, flag: "🇰🇪", defaultTimezone: "Africa/Nairobi" },
+    USD: { code: "USD", symbol: "$", label: "USD (US Dollar)", rateFromKES: 0.00769, flag: "🇺🇸", defaultTimezone: "America/New_York" },
+    EUR: { code: "EUR", symbol: "€", label: "EUR (Euro)", rateFromKES: 0.00704, flag: "🇪🇺", defaultTimezone: "Europe/Berlin" },
+    GBP: { code: "GBP", symbol: "£", label: "GBP (British Pound)", rateFromKES: 0.00595, flag: "🇬🇧", defaultTimezone: "Europe/London" },
 };
 
 interface CurrencyContextType {
@@ -25,21 +26,71 @@ interface CurrencyContextType {
     convertPrice: (amountInKES: number) => number;
     formatCurrency: (amountInKES: number, compact?: boolean) => string;
     formatCurrencyFull: (amountInKES: number) => string;
+    diasporaMode: boolean;
+    setDiasporaMode: (enabled: boolean) => void;
+    buyerTimezone: string;
+    setBuyerTimezone: (tz: string) => void;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | null>(null);
 
 const STORAGE_KEY = "estatevue_currency";
+const DIASPORA_MODE_KEY = "estatevue_diaspora_mode";
+const TIMEZONE_KEY = "estatevue_buyer_timezone";
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
     const [currency, setCurrencyState] = useState<CurrencyCode>("KES");
+    const [diasporaMode, setDiasporaModeState] = useState<boolean>(false);
+    const [buyerTimezone, setBuyerTimezoneState] = useState<string>("Africa/Nairobi");
 
     useEffect(() => {
-        const saved = localStorage.getItem(STORAGE_KEY) as CurrencyCode | null;
-        if (saved && CURRENCIES[saved]) {
-            setCurrencyState(saved);
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY) as CurrencyCode | null;
+            if (saved && CURRENCIES[saved]) {
+                setCurrencyState(saved);
+            }
+
+            const savedDiaspora = localStorage.getItem(DIASPORA_MODE_KEY);
+            if (savedDiaspora !== null) {
+                setDiasporaModeState(savedDiaspora === "true");
+            } else if (saved && saved !== "KES") {
+                setDiasporaModeState(true);
+            }
+
+            const savedTz = localStorage.getItem(TIMEZONE_KEY);
+            if (savedTz) {
+                setBuyerTimezoneState(savedTz);
+            } else {
+                const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                if (detected) {
+                    setBuyerTimezoneState(detected);
+                    if (detected !== "Africa/Nairobi" && savedDiaspora === null) {
+                        setDiasporaModeState(true);
+                    }
+                }
+            }
+        } catch {
+            // ignore storage/Intl errors in restricted environments
         }
     }, []);
+
+    const setDiasporaMode = (enabled: boolean) => {
+        setDiasporaModeState(enabled);
+        try {
+            localStorage.setItem(DIASPORA_MODE_KEY, String(enabled));
+        } catch {
+            // ignore localStorage write errors
+        }
+    };
+
+    const setBuyerTimezone = (tz: string) => {
+        setBuyerTimezoneState(tz);
+        try {
+            localStorage.setItem(TIMEZONE_KEY, tz);
+        } catch {
+            // ignore localStorage write errors
+        }
+    };
 
     const setCurrency = (c: CurrencyCode) => {
         setCurrencyState(c);
@@ -47,6 +98,13 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
             localStorage.setItem(STORAGE_KEY, c);
         } catch {
             // ignore localStorage write errors
+        }
+        // Automatically enable Diaspora Concierge convenience when switching to foreign currency
+        if (c !== "KES") {
+            setDiasporaMode(true);
+            if (buyerTimezone === "Africa/Nairobi") {
+                setBuyerTimezone(CURRENCIES[c].defaultTimezone);
+            }
         }
     };
 
@@ -99,6 +157,10 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
                 convertPrice,
                 formatCurrency,
                 formatCurrencyFull,
+                diasporaMode,
+                setDiasporaMode,
+                buyerTimezone,
+                setBuyerTimezone,
             }}
         >
             {children}
@@ -116,6 +178,10 @@ export function useCurrency() {
             convertPrice: (n: number) => n,
             formatCurrency: (n: number) => `KES ${n.toLocaleString()}`,
             formatCurrencyFull: (n: number) => `KES ${n.toLocaleString()}`,
+            diasporaMode: false,
+            setDiasporaMode: () => {},
+            buyerTimezone: "Africa/Nairobi",
+            setBuyerTimezone: () => {},
         };
     }
     return context;
